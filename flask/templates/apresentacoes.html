@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>APRESENTAÇÕES</title>
+    <style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+p.aprovado {
+  color: green;
+}
+
+p.indefinido {
+  color: orange;
+}
+
+p.reprovado {
+  color: red;
+}
+</style>
+  </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+    <center><p><b><h1>APRESENTAÇÕES</b></h1></p></center>
+    <h2>{{nome_edital}}</h2>
+    <h3>Data: {{data}}</h3>
+    <h3>Sala: {{sala}}</h3>
+    <h3>Link do google meet: <a href="{{link}}" target="_blank">{{link}}</a></h3>
+    <hr><br>
+
+    <table style="width:100%">
+      <caption><h2>Apresentações</h2></caption>
+      <tr>
+      <th>ID</th><th>UA</th><th>Nome</th><th>Titulo</th><!--<th>Autores</th>--><th>Data/Hora</th><th>Apresentação</th><th>Avaliação</th>
+      </tr>
+      {% for linha in linhas %}
+      <tr>
+        <td>{{ linha[0] }}</td>
+        <td>{{ linha[6] }}</td>
+        <td>{{ linha[1] }}</td>
+        <td>
+          {% if linha[5]!="0" %}
+          <a href="/cppgi/static/files/{{ linha[5] }}" target="_blank">{{ linha[2] }}</a>
+          {% else %}
+          {{linha[2]}}
+          {% endif %}
+        </td>
+        <td>{{ linha[3] }}</td>
+        <td>
+          {% if linha[7]!="0" %}
+            <a href='{{linha[7]}}' target="_blank">APRESENTAÇÃO</a>
+          {% else %}
+            LINK NÃO ENVIADO! <BR><BR>
+          {% endif %}
+        </td>
+        <td>
+          {% if 'avaliador' in roles %}
+              {% if linha[4]==0 %}
+                <a href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
+              {% else %}
+                APRESENTADO <BR><BR>
+                <a href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
+              {% endif %}
+          {% endif %}
+
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+
+  </body>
+</html>

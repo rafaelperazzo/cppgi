@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CERTIFICADOS</title>
+    <style>
+    div {
+      background-color: lightgrey;
+      width: 500px;
+      border: 5px solid black;
+      padding: 50px;
+      margin: 20px;
+    }
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+  </head>
+  <body>
+<h1>Certificados de Participação: Moderador(a), Avaliador(a), Monitor(a), Comissão Organizadora, Ouvinte.</h1>
+
+    <table>
+      <th>Nome</th><th>Tipo de Participação</th><th>Certificado</th>
+
+      {% for linha in linhas %}
+        <tr>
+            <td>{{linha[0]}} </td><td>{{linha[1]}}</td> <td><a href='/cppgi/baixarCertificadoIndividual?id={{linha[2]}}'>BAIXAR CERTIFICADO</a></td>
+        </tr>
+      {% endfor %}
+
+    </table>
+
+  </body>
+</html>

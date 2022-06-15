@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	  <style>
+    div {
+      background-color: lightgrey;
+      width: 500px;
+      border: 5px solid black;
+      padding: 50px;
+      margin: 20px;
+    }
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Meus Pareceres</title>
+  </head>
+  <body>
+    <h1><b>Meus Pareceres</b></h1>
+    <hr>
+    {% if total>0 %}
+    <H3>{{titulo}}</h3>
+    {% else %}
+    Acesso negado e/ou Não existem avaliações disponíveis.
+    {% endif %}
+    <hr>
+    {% for linha in linhas %}
+      <h3>Parecer: {{linha[0]}}</h3>
+      <table>
+        <th>Item de Avaliação</th><th>Nota</th>
+        <tr>
+          <td>(A)Qualidade da redação e organização do texto: ortografia, gramática, clareza, objetividade;<b>(Máximo 10 pontos)</b></td><td>{{linha[1]}}</td>
+        </tr>
+        <tr>
+          <td>(B)Atualidade, originalidade e relevância do tema para a área em questão <b>(Máximo 10 pontos)</b></td><td>{{linha[2]}}</td>
+        </tr>
+        <tr>
+          <td>(C)Objetivos são claros e bem definidos <b>(Máximo 10 pontos)</b></td><td>{{linha[3]}}</td>
+        </tr>
+        <tr>
+          <td>(D)Revisão de literatura reflete o estado da arte do conhecimento na área <b>(Máximo 10 pontos)</b></td><td>{{linha[4]}}</td>
+        </tr>
+        <tr>
+          <td>(E)Consistência conceitual ou teórica do trabalho é adequada e bem estruturada <b>(Máximo 10 pontos)</b></td><td>{{linha[5]}}</td>
+        </tr>
+        <tr>
+          <td>(F)Contribuição científica para o conhecimento atual na área temática é relevante <b>(Máximo 10 pontos)</b></td><td>{{linha[6]}}</td>
+        </tr>
+        <tr>
+          <td>(G)Método de pesquisa claramente definido e consistente com os objetivos do trabalho <b>(Máximo 10 pontos)</b></td><td>{{linha[7]}}</td>
+        </tr>
+        <tr>
+          <td>(H)Análise de dados e resultados com interpretação correta dos dados e articulada com a base teórica <b>(Máximo 20 pontos)</b></td><td>{{linha[8]}}</td>
+        </tr>
+        <tr>
+          <td>(I)Conclusões são fundamentadas nos dados da pesquisa, claras e objetivas <b>(Máximo 10 pontos)</b></td><td>{{linha[9]}}</td>
+        </tr>
+      </table>
+      <b>Total:</b> {{linha[10]}}<br>
+      <b>Comentários:</b> <br> <div>{{linha[11]}} </div><br>
+      <b>Recomendação:</b> {{linha[12]}}<br>
+
+      <b>Data da avaliação:</b> {{linha[13]}}<br>
+      <hr>
+    {% endfor %}
+
+  </body>
+</html>

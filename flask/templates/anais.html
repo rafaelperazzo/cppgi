@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Anais do Congresso</title>
+    <style>
+    div {
+      background-color: lightgrey;
+      width: 500px;
+      border: 5px solid black;
+      padding: 50px;
+      margin: 20px;
+    }
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: center;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+    text-align: center;
+}
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+ $("#myInput").on("keyup", function() {
+   var value = $(this).val().toLowerCase();
+   $("#myTable tr").filter(function() {
+     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+   });
+ });
+});
+</script>
+
+<script>
+$(document).ready(function(){
+ $("#txtNovos").on("keyup", function() {
+   var value = $(this).val().toLowerCase();
+   $("#tabelaNovos tr").filter(function() {
+     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+   });
+ });
+});
+</script>
+<script src="{{ url_for('static', filename='tablefilter/dist/tablefilter/tablefilter.js')}}"></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='tablefilter/dist/tablefilter/style/tablefilter.css')}}" />
+  </head>
+  <body>
+<center><img src="{{ url_for('static', filename=logo)}}" width="50%" alt=""></center>
+<center><img src="{{ url_for('static', filename=ficha)}}" width="50%" alt=""></center>
+<hr>
+<h3>ISBN: {{isbn}} </h3>
+<h3>Conferência: {{conferencia}}</h3>
+<h3>Total de trabalhos: {{total}} </h3>
+<hr>
+    <h2>Lista dos trabalhos publicados</h2>
+    
+    <table id="trabalhos">
+      
+        <th>Grande Área</th><th>Tipo de Trabalho</th><th>Autores</th><th>PDF</th>
+      
+      
+      {% for linha in linhas %}
+        <tr>
+            <td>{{linha[2]}}</td><td>{{linha[1]}}</td> <td>{{linha[3]}}</td><td><a href='/cppgi/static/files/{{linha[4]}}'><img src="{{ url_for('static', filename='pdf.png')}}" style="width:50%" alt="" align="center"></a></td>
+        </tr>
+      {% endfor %}
+      
+    </table>
+
+    <script>
+        var filtersConfig = {
+        // instruct TableFilter location to import ressources from
+        base_path: 'https://unpkg.com/tablefilter@latest/dist/tablefilter/',
+        col_0: 'select',
+        col_1: 'select',
+        alternate_rows: true,
+        rows_counter: true,
+        btn_reset: true,
+        loader: true,
+        responsive: true,
+        popup_filters: false,
+        mark_active_columns: true,
+        highlight_keywords: true,
+        no_results_message: true,
+        /*col_widths: [
+          '150px', '100px', '100px',
+          '70px'
+        ],*/
+        extensions: [{
+          name: 'sort'
+        }]
+      };
+
+      var tf = new TableFilter('trabalhos', filtersConfig);
+      tf.init();
+    </script>
+
+  </body>
+</html>

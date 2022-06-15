@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+  </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+    <center><p><b><h1>ORGANIZAÇÃO PARA AVALIADORES</b></h1></p></center>
+    <h2>{{nome_edital}}</h2>
+    <hr><br>
+
+    <table style="width:100%">
+      <caption><h2>SESSÕES ORAIS</h2></caption>
+      <tr>
+      <th>LISTA DE SESSÕES</th>
+      </tr>
+      {% for dia,sala in linhas %}
+          
+        <tr>
+          <td><a href="/cppgi/apresentacoes?edital={{edital}}&data={{dia}}&sala={{sala}}">{{dia}} - {{sala}}</a></td>
+        </tr>
+          
+      {% endfor %}
+    </table>
+    <hr>
+    <table style="width:100%">
+      <caption><h2>POSTERS</h2></caption>
+      <tr>
+      <th>LISTA</th><th>ÁREA</th>
+      </tr>
+      
+        <tr>
+          <td><a href="{{root}}apresentacoes?edital={{edital}}&data=2021-04-14&sala=P1&ua=1">14/04/2021 - POSTER</a></td>
+          <td>Ciências da Saúde</td>
+        </tr>
+        <tr>
+          <td><a href="{{root}}apresentacoes?edital={{edital}}&data=2021-04-14&sala=POSTER&ua=2">14/04/2021 - POSTER</a></td>
+          <td>Humanidades</td>
+        </tr>
+        <tr>
+          <td><a href="{{root}}apresentacoes?edital={{edital}}&data=2021-04-14&sala=P2&ua=3">14/04/2021 - POSTER</a></td>
+          <td>Ciências exatas e Engenharias</td>
+        </tr>
+      
+    </table>
+    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+
+  </body>
+</html>

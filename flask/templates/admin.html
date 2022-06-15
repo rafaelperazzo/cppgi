@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+  </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
+    <hr>
+    <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
+    <h2>{{nome_edital}}</h2>
+    <hr><br>
+    <table style="width:100%">
+      <caption><h2>DURANTE O PERÍODO DE AVALIAÇÃO</h2></caption>
+      <tr>
+      <th>Recurso</th><th>Descrição</th>
+      </tr>
+      <tr>
+        <td><a href="/cppgi/estatisticas?edital={{edital}}">Estatísticas das avaliações</a></td>
+        <td>Página de acompanhamento das avaliações dos trabalhos submetidos</td>
+      </tr>
+      <tr>
+        <td><a href="/cppgi/editalProjeto?edital={{edital}}">Lista de trabalhos submetidos</a></td>
+        <td>Página de acompanhamento dos trabalhos submetidos e inclusão de avaliadores.</td>
+      </tr>
+    </table>
+
+    <hr>
+
+    <table style="width:100%">
+      <caption><h2>APÓS O PERÍODO DE AVALIAÇÃO</h2></caption>
+      <tr>
+      <th>Recurso</th><th>Descrição</th>
+      </tr>
+        <tr>
+          <td><a href="/cppgi/resultados?edital={{edital}}">RESULTADO</a></td>
+          <td>Listagem geral dos trabalhos aprovados e não aprovados. (para gerar PDF de resultados)</td>
+        </tr>  
+        <tr>
+          <td><!--<a href="{{root}}premiacao?edital={{edital}}">Calcular médias</a>--></td>
+          <td>Calcula as médias e marca os candidatos a premiação.</td>
+        </tr>
+        <tr>
+          <td><!--<a href="{{root}}distribuirSalas?edital={{edital}}">Refazer distribuição de salas</a>--></td>
+          <td>Refazer distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
+        </tr>
+        <tr>
+          <td><a href="/cppgi/programacao?edital={{edital}}">Programação Geral</a></td>
+          <td>Programação após a distribuição automática</td>
+        </tr>
+        <tr>
+          <td><a href="/cppgi/organizacao?edital={{edital}}">LISTAGEM DE SESSÕES ORAIS E POSTERS</a></td>
+          <td>Links de todas as sessões que devem ser avaliadas.</td>
+        </tr>
+        <tr>
+          <td><a href="/cppgi/mapa?edital={{edital}}">MAPA GERAL DE APRESENTAÇÕES</a></td>
+          <td>Listagem geral de todas as apresentações, por sala e dia</td>
+        </tr>
+        <tr>
+          <td><a href="/cppgi/mapaavaliadores?edital={{edital}}">MAPA DE AVALIADORES</a></td>
+          <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
+        </tr>
+        
+        
+    </table>
+    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+
+  </body>
+</html>

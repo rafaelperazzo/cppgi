@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Avaliação de Projeto</title>
+
+<script>
+    function recomendacao() {
+       var c1 = parseInt(document.forms["frmAvaliacao"]["c1"].value);
+       var c2 = parseInt(document.forms["frmAvaliacao"]["c2"].value);
+       var c3 = parseInt(document.forms["frmAvaliacao"]["c3"].value);
+       var c4 = parseInt(document.forms["frmAvaliacao"]["c4"].value);
+
+       var total = c1+c2+c3+c4;
+       var totalStr = total.toString();
+       document.getElementById("total").innerHTML = "<h3>Pontuação total: " + totalStr + "</h3>";
+     }
+
+
+
+</script>
+  </head>
+  <style>
+table {
+font-family: arial, sans-serif;
+border-collapse: collapse;
+width: 100%;
+}
+
+td, th {
+border: 1px solid #dddddd;
+text-align: left;
+padding: 8px;
+}
+
+tr:nth-child(even) {
+background-color: #dddddd;
+}
+
+input[type=text], select {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+input[type=email], select {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+input[type=submit] {
+
+  background-color: #808080;
+  color: black;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+textarea {
+  width: 100%;
+  height: 150px;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  background-color: #f8f8f8;
+  resize: none;
+}
+
+</style>
+  <body>
+    <center><img src="{{ url_for('static', filename='brasao.jpg')}}" width="8%" alt="" align="center"></center>
+    <br><center>
+    Ministério da Educação<BR>
+    Universidade Federal do Cariri<BR>
+    Pró-reitoria de Pesquisa, Pós-graduação e Inovação<BR></center>
+    <center><h1>Avaliação de Apresentação de Trabalho Científico</h1><center>
+      <hr>
+      <h2>({{id}}) - {{titulo}}</h2>
+
+
+
+    <form name="frmAvaliacao" action="/cppgi/confirmar" method="POST">
+      <hr>
+      <h3>Arquivos do projeto</h3>
+      <a href="/cppgi/static/files/{{arquivo}}">TEXTO DO TRABALHO</a><br><br>
+
+      {% if final!="0" %}
+      <a href="/cppgi/static/files/{{final}}">TEXTO FINAL DO TRABALHO</a><br><br>
+      {% endif %}
+      <br>
+      <input type="hidden" id="idProjeto" name="idProjeto" value="{{id}}">
+
+      <hr>
+      <h2>FORMULÁRIO DE AVALIAÇÃO</h2>
+      <hr>
+      <!--<b>Nome completo do avaliador: </b> <input name="txtNome"
+        required="required" size="80" type="text"><br>-->
+      <br>
+      <table style="width:100%">
+
+        <tr>
+          <th>Item</th><th>Critério de análise e julgamento</th><th>Pontuação</th>
+        </tr>
+
+        <tr>
+          <td>A</td><td>Apresentação clara e organizada; (0 a 20)</b></td>
+          <td>
+          <select name="c1" required="required">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            {% for i in range(21) %}
+              <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+          </select>
+          </td>
+        </tr>
+
+        <tr>
+          <td>B</td><td>Domínio do conteúdo na apresentação; (0 a 40)</b></td>
+          <td>
+          <select name="c2" required="required">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            {% for i in range(41) %}
+              <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+          </select>
+          </td>
+        </tr>
+
+        <tr>
+          <td>C</td><td>Utilização adequada do tempo; (0 a 20)</b></td>
+          <td>
+          <select name="c3" required="required">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            {% for i in range(21) %}
+              <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+          </select>
+          </td>
+        </tr>
+
+        <tr>
+          <td>D</td><td>Qualidade da revisão de literatura. (0 a 20)</b></td>
+          <td>
+          <select name="c4" required="required">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            {% for i in range(21) %}
+              <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+          </select>
+          </td>
+        </tr>
+
+      </table>
+      <br>
+      <div align="right"
+      <p id="total"></p>
+      </div>
+      <BR>
+      <div align="right"
+      <p id="resultado"></p>
+    </div><br>
+
+      <b>Comentários:<br>
+        <textarea name="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
+
+              </b>
+      <div style="text-align: center;"><br>
+      </div>
+      <b><input name="btnEnviar" value="Submeter Avaliação" type="submit"><br>
+      </b> </form>
+    <p><br>
+    </p>
+    <p><br>
+    </p>
+    <p><br>
+    </p>
+  </body>
+</html>

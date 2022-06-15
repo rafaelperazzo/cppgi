@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+  </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+    <center><p><b><h1>MAPA DE AVALIADORES</b></h1></p></center>
+    <h2>{{nome_edital}}</h2>
+    <hr><br>
+
+    <table style="width:100%">
+      <caption><h2>AVALIADORES POR DIA E SALA</h2></caption>
+      <tr>
+      <th>AVALIADOR</th><th>DATA</th><th>SALA (google meet)</th><th>ÁREA</th>
+      </tr>
+      {% for linha in linhas %}
+          
+        <tr>
+          <td>{{linha[0]}}</td>
+          <td>{{linha[1]}}</td>
+          <td><a href="{{linha[4]|safe}}">{{linha[2]}}</a></td>
+          <td>{{linha[3]}}</td>
+        </tr>
+          
+      {% endfor %}
+    </table>
+    <hr>
+    
+    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+
+  </body>
+</html>

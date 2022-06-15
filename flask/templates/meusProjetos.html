@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	  <style>
+    p.aprovado {
+      color: green;
+    }
+
+    p.indefinido {
+      color: orange;
+    }
+
+    p.reprovado {
+      color: red;
+    }
+
+    a.fixed {
+
+    position: fixed;
+
+    right: 0;
+
+    top: 0;
+
+    width: 260px;
+
+    border: 0px solid black;
+
+    }
+
+    a.editalProjeto {
+
+    position: fixed;
+
+    right: 0;
+
+    top: 5;
+
+    width: 260px;
+
+    border: 0px solid black;
+
+    }
+
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: center;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Meus Projetos</title>
+  </head>
+  <body>
+    <h1><b>Minhas submissões</b></h1>
+    *Caso sua submissão não esteja listada abaixo, favor entrar em contato com a PRPI no e-mail atendimento.prpi@ufca.edu.br.
+    {% if total2019!=0 %}
+          <table>
+
+            <th>CERTIFICADO</th><th>Id</th><th>Edital</th><th>Situação do Edital</th><th>Autor(es)</th><th>Grande Área</th>
+            <th>Tipo de trabalho</th><th>Tipo de apresentação</th><th>Titulo</th>
+            <th>Situação da submissão</th><th>Avaliações</th>
+            <th>Enviar versão final*</th><th>Link da apresentação</th><th>Mensagens</th>
+            <p>{% for linha in projetos2019 %}</p>
+            <tr>
+              <td><a href='https://sci02-ter-jne.ufca.edu.br/cppgi/baixarCertificado?id={{linha[0]}}'>BAIXAR CERTIFICADO</a></td>
+              <td>{{linha[0]}}</td>
+              {% if permissao==1 %}
+                  <td>{{linha[1]}}</td>
+              {% else %}
+                  <td><a href="/cppgi/editalProjeto?edital={{linha[11]}}">{{linha[1]}}</a></td>
+              {% endif %}
+              <td>{{linha[10]}}</td> <!-- SITUAÇÃO DO EDITAL -->
+              <td>{{linha[2]}}</td> <!-- Autores -->
+              <td>{{linha[3]}}</td> <!-- GRANDE ÁREA -->
+
+              <td>
+                  {% if linha[5]==0 %}
+                    RESUMO SIMPLES
+                  {% endif %}
+                  {% if linha[5]==1 %}
+                    RESUMO EXPANDIDO
+                  {% endif %}
+                  {% if linha[5]==2 %}
+                    TRABALHO COMPLETO
+                  {% endif %}
+              </td>  <!-- TIPO DE TRABALHO -->
+
+              <td>
+                {% if linha[9]==0 %}
+                  APRESENTAÇÃO ORAL
+                {% endif %}
+                {% if linha[9]==1 %}
+                  APRESENTAÇÃO EM POSTER
+                {% endif %}
+
+              </td>  <!-- TIPO DE APRESENTAÇÃO -->
+              <td><a href="/cppgi/static/files/{{linha[6]}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
+              <!-- SITUAÇÃO DO PROJETO -->
+              <td>
+
+                          {% if linha[13]==1 %}
+                              <p class="aprovado">APROVADO</p>
+                          {% elif linha[13]==0 %}
+                              <p class="reprovado">NÃO APROVADO</p>
+                          {% else %}
+                              <p class="indefinido">EM AVALIAÇÃO</p>
+                          {% endif %}
+              </td>
+              <!-- PARECERES -->
+              <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='avaliacao.png')}}" style="width:50%" alt="" align="center"></a></td>
+              <td>
+                {% if linha[13]>0 %}
+                    {% if linha[12]=='0' %}
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ENVIAR VERSÃO FINAL</a><BR><BR>
+                    {% else %}
+                        <img src="{{ url_for('static', filename='ok.jpg')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <a href="/cppgi/static/files/{{linha[12]}}"><img src="{{ url_for('static', filename='pdf.png')}}" style="width:50%" alt="" align="center"></a><BR><BR>
+                        <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ATUALIZAR VERSÃO FINAL</a><BR><BR>
+                    {% endif %}
+
+                {% endif %}
+              </td>
+              <td>
+                {% if linha[13]>0 %}
+                    {% if linha[15]=='0' %}
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ENVIAR LINK DE APRESENTAÇÃO</a><BR><BR>
+                    {% else %}
+                        <img src="{{ url_for('static', filename='ok.jpg')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <a href="{{linha[15]|safe}}" target="_blank">APRESENTAÇÃO</a><BR><BR>
+                        <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><BR><BR>
+                    {% endif %}
+
+                {% endif %}
+              </td>
+              <td>{{linha[14]}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <i>* A versão final deve ser enviada com as seguintes alterações: a) Correções sugeridas pelos revisores; b) Identificação dos autores. </i>
+    {% else %}
+        <h3>Nenhuma submissão.</h3>
+    {% endif %}
+    <a class="fixed" href="/cppgi/logout">Sair</a>
+  </body>
+</html>

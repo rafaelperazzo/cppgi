@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+  </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+    <center><p><b><h1>MÓDULO AVALIADOR</b></h1></p></center>
+    <hr>
+    <center><p><b><h1>MINHAS SESSÕES</b></h1></p></center>
+    <h2>{{nome_edital}}</h2>
+    <hr>
+    <h2>AVALIADOR</h2>
+    <h3>{{usuario}}</h3>
+    <h3>{{nome_usuario}}</h3>
+    <h3><a href="{{root}}gerarCertificadoAvaliador">BAIXAR CERTIFICADO DE PARTICIPAÇÃO</a></h3>
+    <hr><br>
+
+    <table style="width:100%">
+      <caption><h2>SESSÕES ORAIS/POSTER</h2></caption>
+      <tr>
+      <th>LISTA DE SESSÕES</th>
+      </tr>
+      {% for linha in linhas %}
+          
+        <tr>
+          <td><a href="/cppgi/apresentacoes?edital={{edital}}&data={{linha[1]}}&sala={{linha[0]}}">{{linha[0]}} - {{linha[1]}}</a></td>
+        </tr>
+          
+      {% endfor %}
+    </table>
+    
+    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+
+  </body>
+</html>

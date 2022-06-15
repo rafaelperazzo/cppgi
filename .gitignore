@@ -1,0 +1,16 @@
+cron.avaliacao.sh
+*.log
+*.gz
+*.tar.gz
+*.zip
+*.pass
+*.sql
+*.yml
+*.sh
+*.pdf
+*.xml
+mysql/*
+#home/perazzo/teste.py
+*.bak
+*.pyc
+#home/perazzo/pesquisa/static/plots/*.png

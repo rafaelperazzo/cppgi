@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+	  <style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: center;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+table.novos {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 50%;
+}
+
+td.novos, th.novos {
+    border: 1px solid #dddddd;
+    text-align: center;
+    padding: 8px;
+}
+
+tr.novos:nth-child(even) {
+    background-color: #CCFFCC;
+}
+
+p.aprovado {
+  color: green;
+}
+
+p.indefinido {
+  color: orange;
+}
+
+p.reprovado {
+  color: red;
+}
+
+.column {
+  float: left;
+  width: 45%;
+  padding: 5px;
+}
+
+/* Clearfix (clear floats) */
+.row::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+ $("#myInput").on("keyup", function() {
+   var value = $(this).val().toLowerCase();
+   $("#myTable tr").filter(function() {
+     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+   });
+ });
+});
+</script>
+
+<script>
+$(document).ready(function(){
+ $("#txtNovos").on("keyup", function() {
+   var value = $(this).val().toLowerCase();
+   $("#tabelaNovos tr").filter(function() {
+     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+   });
+ });
+});
+</script>
+
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Propostas submetidas a edital</title>
+  </head>
+  <body>
+    <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
+    <center>
+    MINISTÉRIO DA EDUCAÇÃO<br>
+    UNIVERSIDADE FEDERAL DO CARIRI<br>
+    PRÓ-REITORIA DE PESQUISA, INOVAÇÃO E PÓS-GRADUAÇÃO<br>
+    COORDENADORIA DE PESQUISA <br>
+    </center>
+    <hr>
+    <h1><b>Propostas submetidas a Edital</b></h1>
+    <h3>{{ descricao }} </h3>
+    {% if resultado==1 %}
+        <center><h2>{{mensagem}}</h2></center>
+
+    {% endif %}
+
+    <hr>
+    {% if resultado==0 %}
+    <h1><b>Resumo da Demanda</b></h1>
+
+          <table>
+            <thead>
+                <th>Grande Área</th><th>Número de trabalhos submetidos</th>
+            </thead>
+            <tbody id="resumoDemanda">
+                  {% for linha in linhas_demanda %}
+                  <tr>
+                    <td align="center">{{linha[0]}}</td><td align="center">{{linha[1]}}</td>
+                  </tr>
+                  {% endfor %}
+             </tbody>
+          </table>
+          <b>Total: {{total}}</b>
+
+
+    <br>
+    <div class="row">
+      <div class="column">
+        <center><img src="{{ url_for('static', filename='/plots/grafico-demanda.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center"></center>
+        <center><figcaption>Gráfico 1: Percentual de propostas por unidade acadêmica.</figcaption></center>
+      </div>
+      <div class="column">
+        <center><img src="{{ url_for('static', filename='/plots/grafico-demanda-2.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center"></center>
+        <center><figcaption>Gráfico 2: Quantidade de propostas por unidade acadêmica.</figcaption></center>
+      </div>
+    </div>
+    <br>
+    <hr>
+    {% endif %}
+
+{% if todos!=0 %}
+
+    <h1>Submissões ordenadas por Grande Área</h1>
+    <input id="myInput" type="text" placeholder="Procurar.."><BR>
+    <table>
+      <thead>
+        <th>Id</th>
+        {% if resultado==0 %}<th>Código do Edital</th>{% endif %}
+        <th>Tipo de trabalho</th>
+        <th>Tipo de apresentação</th>
+        <th>Autor(es)</th>
+        {% if resultado==0 %} <th>E-mail</th>{% endif %}
+        <th>Grande Área</th>
+        <th>Título</th>
+        {% if resultado==0 %} <th>TRABALHO</th><th>SUPLEMENTAR 1</th><th>SUPLEMENTAR 2</th> {% endif %}
+        {% if resultado==0 %}<th>Data</th>{% endif %}
+
+      </thead>
+    <tbody id="myTable">
+    {% for linha in listaProjetos %}
+    <tr>
+    <td>{{ linha[0] }}</td>
+    <td>{{ linha[1] }}</td>
+    <td>
+      {% if linha[2]==1 %}
+      POSTER
+      {% endif %}
+      {% if linha[2]==0 %}
+      APRESENTAÇÃO ORAL
+      {% endif %}
+    </td>
+    <td>
+      {% if linha[3]==1 %}
+      RESUMO EXPANDIDO
+      {% endif %}
+      {% if linha[3]==0 %}
+      RESUMO SIMPLES
+      {% endif %}
+      {% if linha[3]==2 %}
+      TRABALHO COMPLETO
+      {% endif %}
+    </td>
+
+    <td>{{ linha[4] }}</td>
+
+    {% if resultado==0 %} <td>{{ linha[5] }}</td> <!-- E-MAIL --> {% endif %}
+
+    <td>{{ linha[6] }}</td>
+    <td>{{ linha[7] }}</td>
+
+    {% if resultado==0 %}
+          <td>
+            {% if linha[8]!="0" %}
+            <a href="/cppgi/static/files/{{ linha[8] }}">TRABALHO</a>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td>
+            {% if linha[9]!='' %}
+            <a href="/cppgi/static/files/{{ linha[9] }}">SUP 1</a>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td>
+            {% if linha[10]!='' %}
+            <a href="/cppgi/static/files/{{ linha[10] }}">SUP 2</a>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+    {% endif %}
+
+    <td>{{ linha[11] }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    Total: {{total}} propostas submetidas.
+
+<!---------------------------------------------------------------- -->
+{% endif %}
+
+    {% if resultado==0 %}
+
+              <hr>
+              <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
+              <input id="txtNovos" type="text" placeholder="Procurar.."><br>
+              <table>
+                <thead>
+                <th>Finalizadas as Avaliações ?</th><th>ID</th><th>Nome</th><th>UA</th><th>Título</th><th>Palavras-Chave</th><th>Qtde de avaliações finalizadas</th><th>Inserir Consultor<th>Consultores</th><th>Recomendações</th><th>Enviado?</th><th>Aceitou?</th><th>Finalizados</th>
+                <th>Aprovados</th><th>NÃO Aprovados</th><th>Indefinidos</th><th>Situação</th>
+              </thead>
+              <tbody id="tabelaNovos">
+                {% for linha in novos %}
+                <tr>
+                  <td>
+                    {% if (linha[9]==0) %}
+                      <img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                      SEM AVALIAÇÕES!
+                    {% endif %}
+                    {% if (linha[9]==1) %}
+                      <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                      APENAS 1 AVALIAÇÃO!
+                    {% endif %}
+                    {% if (linha[9]>1) %}
+                      {% if linha[12]-linha[11]==0 %}
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                        <br>EMPATADO
+                      {% else %}
+                        {% if linha[12]-linha[11]>0 %}
+                          <img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                          APROVADO
+                        {% else %}
+                          <img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                          REPROVADO
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                  <td><a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1">{{linha[0]}}</a></td><td>{{linha[1]}}</td><td>{{linha[2]}}</td>
+                  <td>
+                    <a href="/cppgi/static/files/{{ linha[4] }}">{{linha[3]}}</a></td>
+                  <td>{{linha[13]}}<td>{{linha[9]}}</td></td><td><a href="/cppgi/avaliacoesNegadas?edital={{codigoEdital}}&id={{linha[0]}}">Adicionar consultor</a></td><td>{{linha[5]|safe}}</td><td>{{linha[6]|safe}}</td>
+                  <td>{{linha[7]|safe}}</td>
+                  <td>{{linha[8]|safe}}</td>
+                  <td>{{linha[9]}}</td>
+                  <td>{{linha[12]}}</td>
+                  <td>{{linha[11]}}</td>
+                  <td>{{linha[10]}}</td>
+                  <td>
+                    {% if (linha[12]+linha[11])>=2 %}
+                      {% if linha[12]-linha[11]>0 %}
+                      <p class="aprovado">APROVADO</p>
+                      {% endif %}
+                      {% if linha[12]-linha[11]<0 %}
+                      <p class="reprovado">NÃO APROVADO</p>
+                      {% endif %}
+                      {% if linha[12]-linha[11]==0 %}
+                      <p class="indefinido">INDEFINIDO</p>
+                      {% endif %}
+                    {% else %}
+                      <p class="indefinido">INDEFINIDO</p>
+                    {% endif %}
+
+                  </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+              Total: {{total_novos}} submissões enviadas.
+      {% endif %}
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}SUBMISSÃO DE VERSÃO FINAL{% endblock %}
+
+  {% block content %}
+  <br>
+    <form name="frmCadastroVersaoFinal" action="/cppgi/uploadCR" onsubmit="return humano()" method="POST"
+      enctype="multipart/form-data">
+
+      <h1 style="text-align: center;"> ENVIO DA VERSÃO FINAL</h1><br>
+      <center><h2>Plataforma Yoko</h2></center>
+      <center><i><font size="2">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail atendimento.prpi@ufca.edu.br para correção(ões).</font></i></center><br>
+      <input type="hidden" id="idTrabalho" name="idTrabalho" value="{{idTrabalho}}">
+<hr>
+<h2>{{titulo}}</h2>
+<h2>Arquivo</h2><br>
+
+        <br>
+        <h3>A versão final deve conter os nomes dos autores além das correções sugeridas pelos revisores.</h3>
+        <br><b>VERSÃO FINAL DO TRABALHO</b> <b>(pdf)</b>: <input name="arquivo_trabalho" required="required" onchange="ValidateSingleInput(this);"
+        type="file"><br>
+      <br>
+
+      <!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
+      <center><h4>Clique em "Enviar" apenas uma vez e aguarde a conclusão do envio!</h4></center>
+      <div style="text-align: center;"><label><input name="btnEnviar" value="Enviar"
+formenctype="multipart/form-data" type="submit"></label><br>
+        <label></label></div>
+      <div style="text-align: right;"><label></label><br>
+      </div>
+      <br>
+      <hr>
+</form>
+{% endblock %}
