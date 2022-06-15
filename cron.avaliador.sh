@@ -1,0 +1,1 @@
+#/usr/bin/docker run --rm curlimages/curl:latest -u 00000000000:#@cpesq2021#@ https://sci02-ter-jne.ufca.edu.br/cppgi/emailInstrucoesAvaliador?edital=8
