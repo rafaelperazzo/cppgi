@@ -7,5 +7,7 @@ COPY requirements.txt ./
 RUN pip install setuptools_scm==5.0.2 --upgrade
 RUN pip install --upgrade pip==20.0.2
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install iniconfig==1.1.1
+RUN pip install configparser
 EXPOSE 80
 CMD python /home/perazzo/cppgi/pesquisa.py

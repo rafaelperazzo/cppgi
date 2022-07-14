@@ -12,3 +12,4 @@ mysql/*
 *.bak
 *.pyc
 mysql.sh
+*.ini

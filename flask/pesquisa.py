@@ -3,9 +3,7 @@ from flask import Flask
 from flask import render_template
 from flask import request,url_for,send_file,send_from_directory,redirect,flash,Markup,Response,session
 from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
-import sqlite3
 import MySQLdb
 from werkzeug.utils import secure_filename
 import os
@@ -21,34 +19,41 @@ from email.mime.text import MIMEText
 from email.header import Header
 import logging
 import sys
-import xml.etree.ElementTree as ET
-from modules import scoreLattes as SL
-import json
 import numpy as np
 import pdfkit
 from functools import wraps
 from flask_mail import Mail
 from flask_mail import Message
 from flask_uploads import *
-import subprocess
 import cv2 as cv
 from PIL import Image, ImageDraw, ImageFont
+import threading
+import iniconfig
+
+WORKING_DIR='/home/perazzo/cppgi/'
+config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
+SERVER_URL = config['DEFAULT']['server']
+PRODUCAO = 1
+try:
+    PRODUCAO = config['DEFAULT']['producao']
+    PRODUCAO = int(PRODUCAO)
+except:
+    PRODUCAO = 1
 
 from waitress import serve
-UPLOAD_FOLDER = '/home/perazzo/cppgi/static/files'
+UPLOAD_FOLDER = WORKING_DIR + 'static/files'
 ALLOWED_EXTENSIONS = set(['pdf','xml'])
-WORKING_DIR='/home/perazzo/cppgi/'
-PLOTS_DIR = '/home/perazzo/cppgi/static/plots/'
-CURRICULOS_DIR='/home/perazzo/cppgi/static/files/'
-SITE = "https://sci02-ter-jne.ufca.edu.br/cppgi/static/files/"
-IMAGENS_URL = "https://sci02-ter-jne.ufca.edu.br/cppgi/static/"
-DECLARACOES_DIR = '/home/perazzo/cppgi/pdfs/'
-ROOT_SITE = 'https://sci02-ter-jne.ufca.edu.br'
+PLOTS_DIR = WORKING_DIR + 'static/plots/'
+CURRICULOS_DIR=WORKING_DIR + 'static/files/'
+SITE = SERVER_URL + "/cppgi/static/files/"
+IMAGENS_URL = SERVER_URL + "/cppgi/static/"
+DECLARACOES_DIR = WORKING_DIR + 'cppgi/pdfs/'
+ROOT_SITE = SERVER_URL
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
-ATTACHMENTS_DIR = '/home/perazzo/cppgi/static/files/'
-CERTIFICADOS_TEMP_DIR = '/home/perazzo/cppgi/temp/'
-CERTIFICADOS_TEMPLATE_DIR = '/home/perazzo/cppgi/documentos/'
+ATTACHMENTS_DIR = WORKING_DIR + 'static/files/'
+CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'cppgi/temp/'
+CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 
 app = Flask(__name__)
@@ -65,8 +70,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['CURRICULOS_FOLDER'] = CURRICULOS_DIR
 app.config['DECLARACOES_FOLDER'] = DECLARACOES_DIR
 app.config['TEMP_FOLDER'] = DECLARACOES_DIR
-app.config['DOCUMENTS_FOLDER'] = '/home/perazzo/cppgi/documentos/'
-app.config['CERTIFICADOS_FOLDER'] = '/home/perazzo/cppgi/certificados/'
+app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
+app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
 logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
 
@@ -153,29 +158,9 @@ def removerAspas(texto):
     resultado = resultado.replace("'"," ")
     return(resultado)
 
-def enviarEmail(to,subject,body):
-    gmail_user = 'pesquisa.prpi@ufca.edu.br'
-    gmail_password = GMAIL_PASSWORD
-    sent_from = gmail_user
-    para = [to]
-    #msg = MIMEMultipart()
-    msg = MIMEText(body,'plain','utf-8')
-    msg['From'] = gmail_user
-    msg['To'] = to
-    msg['Subject'] = Header(subject, "utf-8")
-    msg['Cc'] = "rafael.mota@ufca.edu.br"
-    try:
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.ehlo()
-        server.login(gmail_user, gmail_password)
-        server.sendmail(sent_from, to, msg.as_string())
-        server.close()
-        logging.debug("E-Mail enviado com sucesso.")
-        return (True)
-    except:
-        e = sys.exc_info()[0]
-        logging.error("Erro ao enviar e-mail: " + str(e))
-        return (False)
+def enviar_email(msg):
+    with app.app_context():
+        mail.send(msg)
 
 def atualizar(consulta):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -380,6 +365,8 @@ def declaracaoOrientador():
     data_agora = getData()
     return render_template('orientador.html',texto=texto_declaracao,data=data_agora,identificador=texto_declaracao[0],bolsistas=bolsistas)
 
+
+
 @app.route("/cadastrarProjeto", methods=['GET', 'POST'])
 def cadastrarProjeto():
 
@@ -426,12 +413,16 @@ def cadastrarProjeto():
     #CRIANDO SENHA DE ACESSO
     consulta = """SELECT * FROM users WHERE username='""" + identificacao + """'"""
     resultados,total = executarSelect(consulta)
+    usuario,senha = ('','')
     if (total==0): #Se o usuário ainda não for cadastrado
         usuario = identificacao
         senha = id_generator(size=8)
         consulta = """INSERT INTO users (username,password,nome,email) VALUES (%s,%s,%s,%s) """
         valores = (usuario,senha,nome,email)
         inserir(consulta,valores)
+    else:
+        #TODO: Recuperar credenciais
+        pass
 
     getID = "SELECT MAX(id) FROM editalProjeto"
     ultimo_id,total = executarSelect(getID,1)
@@ -440,8 +431,10 @@ def cadastrarProjeto():
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = "pesquisa.prpi@ufca.edu.br"
     texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo)
+    #TODO: INCLUIR CREDENCIAIS NO E-MAIL
     msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
-    mail.send(msg)
+    t = threading.Thread(target=enviar_email,args=(msg,))
+    t.start()
     return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo))
 
 
