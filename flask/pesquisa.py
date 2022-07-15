@@ -421,8 +421,8 @@ def cadastrarProjeto():
         valores = (usuario,senha,nome,email)
         inserir(consulta,valores)
     else:
-        #TODO: Recuperar credenciais
-        pass
+        usuario = unicode(linha[1])
+        senha = unicode(linha[2])
 
     getID = "SELECT MAX(id) FROM editalProjeto"
     ultimo_id,total = executarSelect(getID,1)
@@ -430,8 +430,7 @@ def cadastrarProjeto():
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = "pesquisa.prpi@ufca.edu.br"
-    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo)
-    #TODO: INCLUIR CREDENCIAIS NO E-MAIL
+    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=SERVER_URL)
     msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
@@ -581,7 +580,6 @@ def enviarAvaliacao():
     else:
         return("OK")
 
-## TODO: Revisar função abaixo
 def descricaoEdital(codigoEdital):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
@@ -2014,16 +2012,6 @@ def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, outp
     image1 = Image.open(output_png)
     im1 = image1.convert('RGB')
     im1.save(output_pdf)
-
-
-def gerarCertificadoComplexo2(name, template, font_path,posicao, output_png, output_pdf,tamanho):
-    font = ImageFont.truetype(
-        FONT,
-        tamanho # change this according to your needs
-    )
-    wrapper = TextWrapper(name, font, 1200)
-    wrapped_text = wrapper.wrapped_text()
-    #TODO: Continuar
 
 @app.route("/baixarCertificado", methods=['GET', 'POST'])
 @auth.login_required(role=['user','admin'])
