@@ -55,6 +55,7 @@ ATTACHMENTS_DIR = WORKING_DIR + 'static/files/'
 CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'cppgi/temp/'
 CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
+LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -375,11 +376,15 @@ def cadastrarProjeto():
     tipo = int(request.form['tipo_apresentacao'])
     tipo_trabalho = int(request.form['tipo_trabalho'])
     nome = unicode(request.form['autores'])
+    nome = nome.upper()
     identificacao = unicode(request.form['identificacao'])
+    identificacao = identificacao.replace('.','')
+    identificacao = identificacao.replace('-','')
     email = unicode(request.form['email'])
     grande_area = unicode(request.form['grande_area'])
     titulo = unicode(request.form['titulo'])
     titulo = removerAspas(titulo)
+    titulo = titulo.upper()
     palavras = unicode(request.form['palavras'])
     palavras = removerAspas(palavras)
     resumo = unicode(request.form['resumo'])
@@ -403,6 +408,14 @@ def cadastrarProjeto():
         nomeDoArquivoSuplementar2 = "SUPLEMENTAR2" + "." + token + ".pdf"
         filename = anexos.save(request.files['arquivo_suplementar2'],name=nomeDoArquivoSuplementar2)
 
+    #VERIFICANDO SE O TRABALHO JÁ FOI ENVIADO
+    consulta = """
+    SELECT tipo,nome,titulo FROM editalProjeto WHERE tipo=""" + str(destino) + """ 
+    AND titulo='""" + titulo + """' AND siape='""" + identificacao + """'"""
+    linhas,total = executarSelect(consulta)
+    if (total>0):
+        return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
+
     consulta = """INSERT INTO editalProjeto
     (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2)
     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
@@ -411,7 +424,7 @@ def cadastrarProjeto():
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
-    consulta = """SELECT * FROM users WHERE username='""" + identificacao + """'"""
+    consulta = """SELECT username,password FROM users WHERE username='""" + identificacao + """'"""
     resultados,total = executarSelect(consulta)
     usuario,senha = ('','')
     if (total==0): #Se o usuário ainda não for cadastrado
@@ -421,8 +434,8 @@ def cadastrarProjeto():
         valores = (usuario,senha,nome,email)
         inserir(consulta,valores)
     else:
-        usuario = unicode(linha[1])
-        senha = unicode(linha[2])
+        usuario = unicode(resultados[0][0])
+        senha = unicode(resultados[0][1])
 
     getID = "SELECT MAX(id) FROM editalProjeto"
     ultimo_id,total = executarSelect(getID,1)
@@ -430,12 +443,11 @@ def cadastrarProjeto():
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = "pesquisa.prpi@ufca.edu.br"
-    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=SERVER_URL)
+    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos')
     msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
-    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo))
-
+    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos'))
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
@@ -673,6 +685,7 @@ def inserirAvaliador():
         avaliador1_email = str(request.form['txtEmail'])
         consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
         atualizar(consulta)
+        #TODO: Enviar e-mail imediatamente para o avaliador
         return("Avaliador cadastrado com sucesso.")
     else:
         return("OK")
@@ -803,48 +816,33 @@ def editalProjeto():
                 tempoAvaliacao = """SELECT TIMESTAMPDIFF(DAY,data_envio,data_avaliacao) as tempo,count(avaliacoes.id) total FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND valendo=1 and
                 tipo=""" + codigoEdital + """ and finalizado=1 GROUP BY TIMESTAMPDIFF(DAY,data_envio,data_avaliacao)"""
 
-                try:
+                descricao = descricaoEdital(codigoEdital)
 
-                    descricao = descricaoEdital(codigoEdital)
+                cursor.execute(consulta)
+                total = cursor.rowcount
+                linhas = cursor.fetchall()
 
-                    cursor.execute(consulta)
-                    total = cursor.rowcount
-                    linhas = cursor.fetchall()
+                cursor.execute(consulta_novos)
+                total_novos = cursor.rowcount
+                linhas_novos = cursor.fetchall()
 
-                    cursor.execute(consulta_novos)
-                    total_novos = cursor.rowcount
-                    linhas_novos = cursor.fetchall()
-
-                    cursor.execute(demanda)
-                    linhas_demanda = cursor.fetchall()
-
-                    if 'resultado' not in request.args:
-                        gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
-                    if 'resultado' in request.args:
-                        if 'pdf' in request.args:
-                            mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                            gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
-                            return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
-                        else:
-                            mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                cursor.execute(demanda)
+                linhas_demanda = cursor.fetchall()
+                cursor.close()
+                conn.close()
+                if 'resultado' not in request.args:
+                    gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
+                if 'resultado' in request.args:
+                    if 'pdf' in request.args:
+                        mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                        gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                        return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
                     else:
-                        mensagem = ""
-                        return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0))
-                except:
-                    e = sys.exc_info()[0]
-                    logging.error(e)
-                    logging.error("ERRO Na função /editalProjeto. Ver consulta abaixo.")
-                    logging.error(consulta)
-                    logging.error(consulta_novos)
-                    logging.error(demanda)
-                    logging.error(dadosAvaliacoes)
-                    logging.error(tempoAvaliacao)
-                    return("ERRO!")
-                finally:
-                    cursor.close()
-                    conn.close()
-
+                        mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                        return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                else:
+                    mensagem = ""
+                    return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0))
             else:
                 return ("OK")
     else:
@@ -1184,10 +1182,13 @@ def estatisticas():
             totalSubmissoesDefinidas = totalSubmissoesAprovadas+totalSubmissoesReprovadas
 
             #totalAvaliacoesZeradas = totalSubmissoes - totalAvaliacoesConcluidas - totalAvaliacoesPendentes
-            totalAvaliacoesZeradas = totalSubmissoes - totalSubmissoesAprovadas - totalSubmissoesReprovadas - totalSubmissoesIndefinidas - totalAvaliacoesPendentes
-            progresso = ((totalSubmissoesAprovadas + totalSubmissoesReprovadas)/float(totalSubmissoes))*100
-            nomeEdital = obterColunaUnica('editais','nome','id',edital)
-            return(render_template('estatisticas.html',totalSubmissoesAprovadas=totalSubmissoesAprovadas,totalSubmissoesReprovadas=totalSubmissoesReprovadas,totalSubmissoesIndefinidas=totalSubmissoesIndefinidas,totalSubmissoesDefinidas=totalSubmissoesDefinidas,nomeEdital=nomeEdital,total = totalSubmissoes,totalAvaliacoes=totalAvaliacoes,totalAvaliacoesNegadas=totalAvaliacoesNegadas,totalAvaliacoesFinalizadas=totalAvaliacoesFinalizadas,totalAvaliacoesConcluidas=totalAvaliacoesConcluidas,totalAvaliacoesPendentes=totalAvaliacoesPendentes,totalAvaliacoesZeradas=totalAvaliacoesZeradas,progresso=progresso))
+            try:
+                totalAvaliacoesZeradas = totalSubmissoes - totalSubmissoesAprovadas - totalSubmissoesReprovadas - totalSubmissoesIndefinidas - totalAvaliacoesPendentes
+                progresso = ((totalSubmissoesAprovadas + totalSubmissoesReprovadas)/float(totalSubmissoes))*100
+                nomeEdital = obterColunaUnica('editais','nome','id',edital)
+                return(render_template('estatisticas.html',totalSubmissoesAprovadas=totalSubmissoesAprovadas,totalSubmissoesReprovadas=totalSubmissoesReprovadas,totalSubmissoesIndefinidas=totalSubmissoesIndefinidas,totalSubmissoesDefinidas=totalSubmissoesDefinidas,nomeEdital=nomeEdital,total = totalSubmissoes,totalAvaliacoes=totalAvaliacoes,totalAvaliacoesNegadas=totalAvaliacoesNegadas,totalAvaliacoesFinalizadas=totalAvaliacoesFinalizadas,totalAvaliacoesConcluidas=totalAvaliacoesConcluidas,totalAvaliacoesPendentes=totalAvaliacoesPendentes,totalAvaliacoesZeradas=totalAvaliacoesZeradas,progresso=progresso))
+            except Exception as e:
+                return('Estatísticas ainda não disponíveis!')
         else:
             return("Edital?")
     else:
@@ -1794,7 +1795,6 @@ def emailInstrucoesAvaliador():
                 email_avaliador = unicode(linha[2])
                 texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                #msg = Message(subject = nome_edital + u"- ORIENTAÇÕES PARA PARTICIPAÇÃO COMO AVALIADOR",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
                     mail.send(msg)
                     cont = cont + 1
@@ -2345,6 +2345,84 @@ def anais():
             return("OK")
     else:
         return("OK")
+
+def gerarLinkAvaliacao():
+    consulta = """SELECT id,idProjeto,token FROM avaliacoes 
+    WHERE idProjeto in (SELECT id FROM editalProjeto WHERE valendo=1) ORDER BY id """
+    linhas,total = executarSelect(consulta)
+    for linha in linhas:
+        id = str(linha[0])
+        idProjeto = str(linha[1])
+        token = str(linha[2])
+        link = LINK_AVALIACAO + "?id=" + idProjeto + "&token=" + token
+        consulta = "UPDATE avaliacoes SET link=\"" + link + "\"" + " WHERE id=" + id
+        atualizar(consulta)
+
+def enviar_email_avaliadores():
+    gerarLinkAvaliacao()
+    consulta = """
+    SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,
+    e.tipo, DATEDIFF(NOW(),a.data_envio) as enviados,DATE_FORMAT(ed.deadline_avaliacao,'%d/%m/%Y') as deadline_avaliacao,ed.nome 
+    FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto AND e.tipo=ed.id AND e.valendo=1
+    AND a.finalizado=0 AND a.aceitou!=0 AND e.categoria=1 AND DATEDIFF(NOW(),a.data_envio)>1 
+    AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now() AND ADDDATE(deadline,5)<now())
+    """
+    linhas,total = executarSelect(consulta)
+    for linha in linhas:
+        titulo = unicode(linha[1])
+        resumo = unicode(linha[2])
+        link = unicode(linha[4])
+        token = unicode(linha[7])
+        email_avaliador = unicode(linha[3])
+        link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
+        deadline = str(linha[11])
+        nome_longo = unicode(linha[12])
+        with app.app_context():
+            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            try:
+                mail.send(msg)
+                consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
+                atualizar(consulta)    
+            except:
+                logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
+                return("Erro! Verifique o log!")
+
+@app.route("/emailSolicitarAvaliacao", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def email_solicitar_avaliacao():
+    t = threading.Thread(target=enviar_email_avaliadores)
+    t.start()
+    return("Envio de e-mails iniciado!")
+    
+def enviarPedidoAvaliacao(id):
+    gerarLinkAvaliacao()
+    consulta = """
+    SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,e.tipo 
+    FROM editalProjeto as e, avaliacoes as a WHERE e.id=a.idProjeto AND e.valendo=1 
+    AND a.finalizado=0 AND e.categoria=1 and e.id=""" + str(id) + """ 
+    ORDER BY a.id DESC LIMIT 1
+    """
+    linhas,total = executarSelect(consulta)
+    logging.debug("Enviado pedido de avaliacao para: " + str(total))
+    
+    for linha in linhas:
+        titulo = unicode(linha[1])
+        resumo = unicode(linha[2])
+        link = unicode(linha[4])
+        token = unicode(linha[7])
+        email_avaliador = unicode(linha[3])
+        link_recusa = ROOT_SITE + "/pesquisa/recusarConvite?token=" + token
+        deadline = obterColunaUnica('editais',"DATE_FORMAT(deadline_avaliacao,'%d/%m/%Y')",'id',str(linha[9]))
+        nome_longo = obterColunaUnica('editais','nome','id',str(linha[9]))
+        with app.app_context():
+            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE PROJETO DE PESQUISA",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            try:
+                mail.send(msg)
+                logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
+            except:
+                logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
 
 if __name__ == "__main__":
     #app.run()
