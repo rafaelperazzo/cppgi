@@ -47,40 +47,75 @@
       
       
       
-        <div class="alert alert-dark" role="alert">
-          <h2>DADOS PESSOAIS</h2>
-        </div>
+      <div class="alert alert-dark" role="alert">
+        <h2>DADOS PESSOAIS</h2>
+      </div>
       <br>
-      <label><b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: <input name="autores" required="required" size="80" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
-        <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: <input name="identificacao" required="required" size="10" type="text" placeholder="Ex: 00000000000"><br>
-        <b>E-Mail do autor principal</b>: <input name="email" required="required" size="80" type="email"><br>
-        <br>
-        <b>Grande Área</b>:
-        <select class="form-select" name="grande_area" required="required">
-          <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-          <option value="Ciências da Vida">Ciências da Vida</option>
-          <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, Tecnológicas e Multidisciplinar</option>
-          <option value="Humanidades">Humanidades</option>
-        </select>
-        <br>
+      <div class="row g-3">
+        <div class="col">
+          <label>
+            <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
+            <input name="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
+          </label>
+        </div>
+          
+        <div class="col">
+          <label>
+            <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
+            <input name="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
+          </label>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col">
+          <label>
+            <b>E-Mail do autor principal</b>: 
+            <input name="email" required="required" type="email"><br>
+          </label>
+          <br>
+          <br>
+        </div>
+        
+        <div class="col">
+            <label>
+              <b>Grande Área</b>:
+              <select class="form-select" name="grande_area" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                <option value="Ciências da Vida">Ciências da Vida</option>
+                <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, Tecnológicas e Multidisciplinar</option>
+                <option value="Humanidades">Humanidades</option>
+              </select>
+            </label>
+        </div>
+
+      </div>
+      
+     
 
       <div class="alert alert-dark" role="alert">
         <h2>DADOS DO TRABALHO</h2>
       </div>
       <p id="texto_projeto"></p>
-        <div class="form-floating">
-          <b>Título</b>:
-          <textarea style="height: 100px" class="form-control" name="titulo"  required="required" maxlength="200"></textarea>
+        <div class="row g-3">
+          <label>
+            <b>Título</b>:
+            <textarea style="height: 100px" class="form-control" name="titulo"  required="required" maxlength="200"></textarea>
+          </label>
         </div>
 
-        <div class="form-floating">
-          <b>Palavras-chave (separadas por vírgula)</b>:
-          <input name="palavras" required="required" size="80" type="text">
+        <div class="row g-3">
+          <label>
+            <b>Palavras-chave (separadas por vírgula)</b>:
+            <input name="palavras" required="required" type="text">
+          </label>
         </div>
         
-        <div class="form-floating">
-          <b>Resumo do trabalho</b><br>
-          <textarea style="height: 100px" class="form-control" name="resumo"  required="required" maxlength="15000"></textarea>
+        <div class="row g-3">
+          <label>
+            <b>Resumo do trabalho</b><br>
+            <textarea style="height: 100px" class="form-control" name="resumo"  required="required" maxlength="15000"></textarea>
+          </label>
         </div>
 
         <div class="alert alert-dark" role="alert">
@@ -90,30 +125,29 @@
         <div class="alert alert-danger" role="alert">
           <h5>Remova qualquer identificação dos autores do arquivo do trabalho. Arquivos com identificação dos autores serão rejeitados.</h5>
         </div>        
-        
-        <br><b>Arquivo do trabalho</b> <b>(pdf)</b>: <input class="form-control" name="arquivo_trabalho" required="required" onchange="ValidateSingleInput(this);"
-        type="file"><br>
-      <br>
-
-      <h2> Arquivos suplementares (opcional)</h2>
-      <br>
-        <b>Documento Suplementar 1 (pdf)</b>: <input class="form-control" name="arquivo_suplementar1" onchange="ValidateSingleInput(this);"
-          type="file"><br>
-        <b>Documento Suplementar 2 (pdf)</b>: <input class="form-control" name="arquivo_suplementar2"  onchange="ValidateSingleInput(this);" type="file"><br>
-        <br>
-
-      </label>
-<hr>
-        <br>
-      </label>
-      <!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
-      <center><h4>Clique em "Enviar" apenas uma vez!</h4></center>
-      <div style="text-align: center;"><label><input name="btnEnviar" value="Enviar"
-formenctype="multipart/form-data" type="submit"></label><br>
-        <label></label></div>
-      <div style="text-align: right;"><label></label><br>
+      <div class="row g-3">
+        <div class="col">
+          <b>Arquivo do trabalho</b> <b>(pdf)</b>: 
+          <input class="form-control" name="arquivo_trabalho" required="required" onchange="ValidateSingleInput(this);"
+          type="file">
+        </div>
       </div>
-      <br>
+      <h2> Arquivos suplementares (opcional)</h2>
+      <div class="row g-3">
+        <div class="col">
+          <b>Documento Suplementar 1 (pdf)</b>: 
+          <input class="form-control" name="arquivo_suplementar1" onchange="ValidateSingleInput(this);"
+            type="file">
+        </div>
+        <div class="col">
+          <b>Documento Suplementar 2 (pdf)</b>: 
+          <input class="form-control" name="arquivo_suplementar2"  onchange="ValidateSingleInput(this);" type="file"><br>
+        </div>
+      </div>      
+      <!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
+      <div style="text-align: center;"><label><input class="btn btn-secondary btn-lg" name="btnEnviar" value="Enviar"
+formenctype="multipart/form-data" type="submit"></label><br>
+      </div>
       <hr>
 </form>
 {% endblock %}
