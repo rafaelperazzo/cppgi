@@ -1,31 +1,24 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_file,send_from_directory,redirect,flash,Markup,Response,session
+from flask import request,url_for,send_from_directory,redirect,flash,Markup,Response,session
 from flask_httpauth import HTTPBasicAuth
 import datetime
 import MySQLdb
-from werkzeug.utils import secure_filename
 import os
 from ezodf import newdoc
 import zipfile
 import tempfile
 import string
 import random
-import smtplib
-from email.mime.multipart import MIMEMultipart
 from email.MIMEImage import MIMEImage
-from email.mime.text import MIMEText
-from email.header import Header
 import logging
 import sys
 import numpy as np
 import pdfkit
-from functools import wraps
 from flask_mail import Mail
 from flask_mail import Message
 from flask_uploads import *
-import cv2 as cv
 from PIL import Image, ImageDraw, ImageFont
 import threading
 import iniconfig
