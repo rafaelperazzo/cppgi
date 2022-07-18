@@ -67,7 +67,7 @@ app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
-logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -694,6 +694,9 @@ def inserirAvaliador():
         
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
+        update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
+        idProjeto=""" + str(idProjeto)
+        atualizar(update)
         #return(redirect(url_for('editalProjeto')))
         return('Avaliador cadastrado com sucesso! E-mail enviado!')
     else:
@@ -905,7 +908,7 @@ def meusProjetos():
          FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
 
-        return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao']))
+        return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao'],SITE=CPPGI_SITE))
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
 
