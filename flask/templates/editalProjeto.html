@@ -3,48 +3,20 @@
 <html>
   <head>
 	  <style>
-table {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 100%;
-}
-
-td, th {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-}
-
-tr:nth-child(even) {
-    background-color: #dddddd;
-}
-
-table.novos {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 50%;
-}
-
-td.novos, th.novos {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-}
-
-tr.novos:nth-child(even) {
-    background-color: #CCFFCC;
-}
 
 p.aprovado {
-  color: green;
+  color: black;
+  background: green;
 }
 
 p.indefinido {
-  color: orange;
+  color: black;
+  background: orange;
 }
 
 p.reprovado {
-  color: red;
+  color: white;
+  background: red;
 }
 
 .column {
@@ -59,7 +31,6 @@ p.reprovado {
   clear: both;
   display: table;
 }
-
 </style>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
 <script>
@@ -86,6 +57,9 @@ $(document).ready(function(){
 
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <title>Propostas submetidas a edital</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
   </head>
   <body>
     <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
@@ -95,53 +69,45 @@ $(document).ready(function(){
     PRÓ-REITORIA DE PESQUISA, INOVAÇÃO E PÓS-GRADUAÇÃO<br>
     COORDENADORIA DE PESQUISA <br>
     </center>
-    <hr>
-    <h1><b>Propostas submetidas a Edital</b></h1>
+    
+    <div class="alert alert-dark" role="alert">
+      <h1>Propostas submetidas ao Edital</h1>
+    </div>
+    
     <h3>{{ descricao }} </h3>
     {% if resultado==1 %}
         <center><h2>{{mensagem}}</h2></center>
 
     {% endif %}
 
-    <hr>
+    
     {% if resultado==0 %}
-    <h1><b>Resumo da Demanda</b></h1>
+    <div class="alert alert-dark" role="alert">
+      <h1>Resumo da Demanda</h1>
+    </div>
+    
 
-          <table>
+          <table class="table table-striped table-dark">
             <thead>
                 <th>Grande Área</th><th>Número de trabalhos submetidos</th>
             </thead>
             <tbody id="resumoDemanda">
                   {% for linha in linhas_demanda %}
                   <tr>
-                    <td align="center">{{linha[0]}}</td><td align="center">{{linha[1]}}</td>
+                    <td>{{linha[0]}}</td><td>{{linha[1]}}</td>
                   </tr>
                   {% endfor %}
              </tbody>
           </table>
           <b>Total: {{total}}</b>
 
-
-    <br>
-    <div class="row">
-      <div class="column">
-        <center><img src="{{ url_for('static', filename='/plots/grafico-demanda.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center"></center>
-        <center><figcaption>Gráfico 1: Percentual de propostas por unidade acadêmica.</figcaption></center>
-      </div>
-      <div class="column">
-        <center><img src="{{ url_for('static', filename='/plots/grafico-demanda-2.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center"></center>
-        <center><figcaption>Gráfico 2: Quantidade de propostas por unidade acadêmica.</figcaption></center>
-      </div>
-    </div>
-    <br>
-    <hr>
     {% endif %}
 
 {% if todos!=0 %}
 
     <h1>Submissões ordenadas por Grande Área</h1>
     <input id="myInput" type="text" placeholder="Procurar.."><BR>
-    <table>
+    <table class="table table-striped">
       <thead>
         <th>Id</th>
         {% if resultado==0 %}<th>Código do Edital</th>{% endif %}
@@ -223,10 +189,12 @@ $(document).ready(function(){
 
     {% if resultado==0 %}
 
-              <hr>
-              <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
+              <div class="alert alert-dark" role="alert">
+                <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
+              </div>
+              
               <input id="txtNovos" type="text" placeholder="Procurar.."><br>
-              <table>
+              <table class="table table-striped">
                 <thead>
                 <th>Finalizadas as Avaliações ?</th><th>ID</th><th>Nome</th><th>UA</th><th>Título</th><th>Palavras-Chave</th><th>Qtde de avaliações finalizadas</th><th>Inserir Consultor<th>Consultores</th><th>Recomendações</th><th>Enviado?</th><th>Aceitou?</th><th>Finalizados</th>
                 <th>Aprovados</th><th>NÃO Aprovados</th><th>Indefinidos</th><th>Situação</th>
@@ -265,9 +233,9 @@ $(document).ready(function(){
                   <td>{{linha[7]|safe}}</td>
                   <td>{{linha[8]|safe}}</td>
                   <td>{{linha[9]}}</td>
-                  <td>{{linha[12]}}</td>
-                  <td>{{linha[11]}}</td>
-                  <td>{{linha[10]}}</td>
+                  <td style="background:green;">{{linha[12]}}</td>
+                  <td style="background:orange;">{{linha[11]}}</td>
+                  <td style="background:yellow;">{{linha[10]}}</td>
                   <td>
                     {% if (linha[12]+linha[11])>=2 %}
                       {% if linha[12]-linha[11]>0 %}
@@ -290,5 +258,6 @@ $(document).ready(function(){
               </table>
               Total: {{total_novos}} submissões enviadas.
       {% endif %}
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>

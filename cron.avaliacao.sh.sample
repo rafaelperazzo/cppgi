@@ -1,0 +1,1 @@
+/usr/bin/docker run --rm curlimages/curl:latest -s -u usuario:senha https://sci01-ter-jne.ufca.edu.br/cppgi/emailSolicitarAvaliacao > emails.log

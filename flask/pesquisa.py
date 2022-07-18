@@ -67,7 +67,7 @@ app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
-logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -677,9 +677,25 @@ def inserirAvaliador():
         idProjeto = int(request.form['txtProjeto'])
         avaliador1_email = str(request.form['txtEmail'])
         consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
+        #Verificando se existe avaliador para o ID
+        consulta2 = """
+        SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
+        idProjeto=""" + str(idProjeto)
+        linhas,total=executarSelect(consulta2)
+        if total>0:
+            return("Avaliador já cadastrado para o trabalho selecionado!")
         atualizar(consulta)
-        #TODO: Enviar e-mail imediatamente para o avaliador
-        return("Avaliador cadastrado com sucesso.")
+        
+        edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
+        deadline = obterColunaUnica('editais','deadline','id',str(edital))
+        agora = datetime.datetime.now().strftime('%Y-%m-%d')
+        if agora>deadline:
+            return('Prazo de avaliação expirado!')
+        
+        t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
+        t.start()
+        #return(redirect(url_for('editalProjeto')))
+        return('Avaliador cadastrado com sucesso! E-mail enviado!')
     else:
         return("OK")
 
@@ -2393,7 +2409,7 @@ def enviarPedidoAvaliacao(id):
     consulta = """
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,e.tipo 
     FROM editalProjeto as e, avaliacoes as a WHERE e.id=a.idProjeto AND e.valendo=1 
-    AND a.finalizado=0 AND e.categoria=1 and e.id=""" + str(id) + """ 
+    AND a.finalizado=0 AND e.id=""" + str(id) + """ 
     ORDER BY a.id DESC LIMIT 1
     """
     linhas,total = executarSelect(consulta)
@@ -2405,12 +2421,13 @@ def enviarPedidoAvaliacao(id):
         link = unicode(linha[4])
         token = unicode(linha[7])
         email_avaliador = unicode(linha[3])
-        link_recusa = ROOT_SITE + "/pesquisa/recusarConvite?token=" + token
+        app.logger.debug(email_avaliador)
+        link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
         deadline = obterColunaUnica('editais',"DATE_FORMAT(deadline_avaliacao,'%d/%m/%Y')",'id',str(linha[9]))
         nome_longo = obterColunaUnica('editais','nome','id',str(linha[9]))
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
-            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE PROJETO DE PESQUISA",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 mail.send(msg)
                 logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
