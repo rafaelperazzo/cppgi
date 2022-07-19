@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 from flask import Flask
 from flask import render_template
 from flask import request,url_for,send_from_directory,redirect,flash,Markup,Response,session
@@ -1876,17 +1877,20 @@ def organizacao():
 
 @app.route("/admin", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
-def admin():
-    if request.method == "GET":
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            titulo = u"PÁGINA ADMINISTRATIVA"
-            return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE))
-        else:
-            return("OK")
-    else:
-        return("OK")
+def root():
+    titulo = u"PÁGINA ADMINISTRATIVA"
+    consulta = """
+    SELECT id,nome_longo,deadline,deadline_avaliacao FROM editais
+    """
+    linhas,total = executarSelect(consulta)
+    return(render_template('index.html',titulo=titulo,root=CPPGI_SITE,linhas=linhas))
+
+@app.route("/admin/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def admin(edital):
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    titulo = u"PÁGINA ADMINISTRATIVA"
+    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE))
 
 @app.route("/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -2436,6 +2440,16 @@ def enviarPedidoAvaliacao(id):
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
 
+@app.route("/salvarEdital/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def salvar_edital(edital):
+    consulta = """
+    UPDATE editais set deadline='""" + str(request.form['deadline']) +"""',deadline_avaliacao='
+    """ + str(request.form['deadline_avaliacao']) +"""'""" + """,nome_longo='""" + unicode(request.form['nome']) + """' 
+    WHERE id=""" + str(edital)
+    atualizar(consulta)
+    app.logger.error(consulta)
+    return(redirect(url_for('root')))
+
 if __name__ == "__main__":
-    #app.run()
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
