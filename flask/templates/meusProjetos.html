@@ -69,7 +69,7 @@
             <tbody>
             {% for linha in projetos2019 %}
             <tr>
-              <td><a href='{{SITE}}baixarCertificado?id={{linha[0]}}'><img src="{{ url_for('static', filename='certificado.png')}}" style="width:50%" alt="" align="center"></a></td>
+              <td><a href='{{SITE}}baixarCertificado?id={{linha[0]}}'><img src="{{ url_for('static', filename='certificado.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
               <td>{{linha[0]}}</td>
               {% if permissao==1 %}
                   <td>{{linha[1]}}</td>
@@ -114,15 +114,15 @@
                           {% endif %}
               </td>
               <!-- PARECERES -->
-              <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}" style="width:50%" alt="" align="center"></a></td>
+              <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
               <td>
                 {% if linha[13]>0 %}
                     {% if linha[12]=='0' %}
-                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}"  alt="" align="center"><BR><BR>
                         <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ENVIAR VERSÃO FINAL</a><BR><BR>
                     {% else %}
-                        <img src="{{ url_for('static', filename='ok.jpg')}}" style="width:50%" alt="" align="center"><BR><BR>
-                        <a href="/cppgi/static/files/{{linha[12]}}"><img src="{{ url_for('static', filename='pdf.png')}}" style="width:50%" alt="" align="center"></a><BR><BR>
+                        <img src="{{ url_for('static', filename='ok.png')}}" alt="" align="center"><BR><BR>
+                        <a href="/cppgi/static/files/{{linha[12]}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><BR><BR>
                         <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ATUALIZAR VERSÃO FINAL</a><BR><BR>
                     {% endif %}
 
@@ -131,10 +131,10 @@
               <td>
                 {% if linha[13]>0 %}
                     {% if linha[15]=='0' %}
-                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" alt="" align="center"><BR><BR>
                         <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ENVIAR LINK DE APRESENTAÇÃO</a><BR><BR>
                     {% else %}
-                        <img src="{{ url_for('static', filename='ok.jpg')}}" style="width:50%" alt="" align="center"><BR><BR>
+                        <img src="{{ url_for('static', filename='ok.png')}}" alt="" align="center"><BR><BR>
                         <a href="{{linha[15]|safe}}" target="_blank">APRESENTAÇÃO</a><BR><BR>
                         <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><BR><BR>
                     {% endif %}

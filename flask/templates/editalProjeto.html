@@ -192,7 +192,16 @@ $(document).ready(function(){
               <div class="alert alert-dark" role="alert">
                 <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
               </div>
-              
+              {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                  {% for message in messages %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                      <strong>{{message}}</strong>
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
               <input id="txtNovos" type="text" placeholder="Procurar.."><br>
               <table class="table table-striped">
                 <thead>
@@ -204,23 +213,23 @@ $(document).ready(function(){
                 <tr>
                   <td>
                     {% if (linha[9]==0) %}
-                      <img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                      <img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center">
                       SEM AVALIAÇÕES!
                     {% endif %}
                     {% if (linha[9]==1) %}
-                      <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                      <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center">
                       APENAS 1 AVALIAÇÃO!
                     {% endif %}
                     {% if (linha[9]>1) %}
                       {% if linha[12]-linha[11]==0 %}
-                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center">
                         <br>EMPATADO
                       {% else %}
                         {% if linha[12]-linha[11]>0 %}
-                          <img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                          <img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center">
                           APROVADO
                         {% else %}
-                          <img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}" style="width:100%" alt="" align="center">
+                          <img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center">
                           REPROVADO
                         {% endif %}
                       {% endif %}

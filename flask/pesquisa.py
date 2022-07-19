@@ -45,7 +45,7 @@ ROOT_SITE = SERVER_URL
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
 ATTACHMENTS_DIR = WORKING_DIR + 'static/files/'
-CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'cppgi/temp/'
+CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'temp/'
 CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
@@ -682,23 +682,26 @@ def inserirAvaliador():
         SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
         idProjeto=""" + str(idProjeto)
         linhas,total=executarSelect(consulta2)
+        edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
         if total>0:
-            return("Avaliador já cadastrado para o trabalho selecionado!")
+            flash(u"Avaliador já cadastrado para o trabalho selecionado!")
+            return(redirect(url_for('editalProjeto',edital=edital)))
         atualizar(consulta)
         
-        edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
         deadline = obterColunaUnica('editais','deadline','id',str(edital))
         agora = datetime.datetime.now().strftime('%Y-%m-%d')
         if agora>deadline:
-            return('Prazo de avaliação expirado!')
+            flash(u"Prazo de avaliação expirado!")
+            return(redirect(url_for('editalProjeto',edital=edital)))
         
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
         update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
         idProjeto=""" + str(idProjeto)
         atualizar(update)
-        #return(redirect(url_for('editalProjeto')))
-        return('Avaliador cadastrado com sucesso! E-mail enviado!')
+        flash(u"Avaliador incluído com sucesso!")
+        return(redirect(url_for('editalProjeto',edital=edital)))
+        
     else:
         return("OK")
 
@@ -792,71 +795,67 @@ def gerarPDF(template):
         logging.error("ERRO Na função gerarPDF")
     #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
 
-@app.route("/editalProjeto", methods=['GET', 'POST'])
-def editalProjeto():
+@app.route("/editalProjeto/<edital>", methods=['GET', 'POST'])
+def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
-        if request.method == "GET":
-            #Recuperando o código do edital
-            if 'edital' in request.args:
-                codigoEdital = str(request.args.get('edital'))
-                conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
-                conn.select_db('cppgi')
-                cursor  = conn.cursor()
+        codigoEdital = str(edital)
+        conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn.select_db('cppgi')
+        cursor  = conn.cursor()
 
-                consulta = """SELECT id,tipo,categoria,modalidade,nome,email,ua,titulo,arquivo_projeto,arquivo_plano1,arquivo_plano2
-                ,DATE_FORMAT(data,'%d/%m/%Y - %H:%i') as data FROM editalProjeto
-                WHERE tipo=""" + codigoEdital + """ AND valendo=1 ORDER BY ua,nome"""
-                '''
-                consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
-                GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
-                sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
-                consulta_novos = consulta_novos + """ FROM editalProjeto,avaliacoes WHERE tipo=""" + codigoEdital + """ AND valendo=1
-                AND editalProjeto.id=avaliacoes.idProjeto GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
-                '''
-                consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
-                GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
-                sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
-                consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=""" + codigoEdital + """ AND valendo=1
-                GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
+        consulta = """SELECT id,tipo,categoria,modalidade,nome,email,ua,titulo,arquivo_projeto,arquivo_plano1,arquivo_plano2
+        ,DATE_FORMAT(data,'%d/%m/%Y - %H:%i') as data FROM editalProjeto
+        WHERE tipo=""" + codigoEdital + """ AND valendo=1 ORDER BY ua,nome"""
+        '''
+        consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
+        GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
+        sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
+        consulta_novos = consulta_novos + """ FROM editalProjeto,avaliacoes WHERE tipo=""" + codigoEdital + """ AND valendo=1
+        AND editalProjeto.id=avaliacoes.idProjeto GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
+        '''
+        consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
+        GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
+        sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
+        consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=""" + codigoEdital + """ AND valendo=1
+        GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
 
-                demanda = """SELECT ua,count(id) FROM editalProjeto WHERE valendo=1 and tipo=""" + codigoEdital + """ GROUP BY ua ORDER BY ua"""
+        demanda = """SELECT ua,count(id) FROM editalProjeto WHERE valendo=1 and tipo=""" + codigoEdital + """ GROUP BY ua ORDER BY ua"""
 
-                dadosAvaliacoes = """SELECT if(finalizado=1,"FINALIZADO","EM AVALIAÇÃO/NÃO SINALIZOU") as finalizados,count(avaliacoes.id) FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND
-                tipo=""" + codigoEdital + """ AND valendo=1 AND aceitou!=0 GROUP BY finalizado"""
+        dadosAvaliacoes = """SELECT if(finalizado=1,"FINALIZADO","EM AVALIAÇÃO/NÃO SINALIZOU") as finalizados,count(avaliacoes.id) FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND
+        tipo=""" + codigoEdital + """ AND valendo=1 AND aceitou!=0 GROUP BY finalizado"""
 
-                tempoAvaliacao = """SELECT TIMESTAMPDIFF(DAY,data_envio,data_avaliacao) as tempo,count(avaliacoes.id) total FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND valendo=1 and
-                tipo=""" + codigoEdital + """ and finalizado=1 GROUP BY TIMESTAMPDIFF(DAY,data_envio,data_avaliacao)"""
+        tempoAvaliacao = """SELECT TIMESTAMPDIFF(DAY,data_envio,data_avaliacao) as tempo,count(avaliacoes.id) total FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND valendo=1 and
+        tipo=""" + codigoEdital + """ and finalizado=1 GROUP BY TIMESTAMPDIFF(DAY,data_envio,data_avaliacao)"""
 
-                descricao = descricaoEdital(codigoEdital)
+        descricao = descricaoEdital(codigoEdital)
 
-                cursor.execute(consulta)
-                total = cursor.rowcount
-                linhas = cursor.fetchall()
+        cursor.execute(consulta)
+        total = cursor.rowcount
+        linhas = cursor.fetchall()
 
-                cursor.execute(consulta_novos)
-                total_novos = cursor.rowcount
-                linhas_novos = cursor.fetchall()
+        cursor.execute(consulta_novos)
+        total_novos = cursor.rowcount
+        linhas_novos = cursor.fetchall()
 
-                cursor.execute(demanda)
-                linhas_demanda = cursor.fetchall()
-                cursor.close()
-                conn.close()
-                if 'resultado' not in request.args:
-                    gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
-                if 'resultado' in request.args:
-                    if 'pdf' in request.args:
-                        mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                        gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
-                        return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
-                    else:
-                        mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                        return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
-                else:
-                    mensagem = ""
-                    return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0))
+        cursor.execute(demanda)
+        linhas_demanda = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        if 'resultado' not in request.args:
+            gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
+        if 'resultado' in request.args:
+            if 'pdf' in request.args:
+                mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
             else:
-                return ("OK")
+                mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+        else:
+            mensagem = ""
+            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0))
+    
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
 
@@ -2056,11 +2055,11 @@ def baixarCertificado():
                 output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
                 output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
                 template = CERTIFICADOS_TEMPLATE_DIR + template
-                try:
-                    gerarCertificadoComplexo(nome,template,FONT_PATH,550,output_png,output_pdf,40,titulo,34)
-                    return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
-                except:
-                    return("Erro ao gerar o certificado!")
+                #try:
+                gerarCertificadoComplexo(nome,template,FONT_PATH,550,output_png,output_pdf,40,titulo,34)
+                return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
+                #except:
+                #    return("Erro ao gerar o certificado!")
         else:
             return("OK")
     else:
