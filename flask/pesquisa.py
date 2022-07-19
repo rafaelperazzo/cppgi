@@ -83,7 +83,8 @@ mail = Mail(app)
 app.config['UPLOADED_DOCUMENTS_DEST'] = ATTACHMENTS_DIR
 app.config['UPLOADS_DEFAULT_DEST'] = ATTACHMENTS_DIR
 anexos = UploadSet('documents',ALL)
-configure_uploads(app, anexos)
+certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
+configure_uploads(app, (anexos,certificados))
 patch_request_class(app)
 
 class TextWrapper(object):
@@ -1880,7 +1881,9 @@ def organizacao():
 def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
     consulta = """
-    SELECT id,nome_longo,deadline,deadline_avaliacao FROM editais
+    SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
+    isbn,situacao 
+    FROM editais
     """
     linhas,total = executarSelect(consulta)
     return(render_template('index.html',titulo=titulo,root=CPPGI_SITE,linhas=linhas))
@@ -2447,9 +2450,69 @@ def salvar_edital(edital):
     UPDATE editais set deadline='""" + str(request.form['deadline']) +"""',deadline_avaliacao='
     """ + str(request.form['deadline_avaliacao']) +"""'""" + """,nome_longo='""" + unicode(request.form['nome']) + """' 
     WHERE id=""" + str(edital)
+    
+    consulta = """
+    UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
+    deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s' 
+    WHERE id=%s 
+    """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),unicode(request.form['nome']),unicode(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),unicode(request.form['situacao']),str(request.form['isbn']),str(edital))
     atualizar(consulta)
-    app.logger.error(consulta)
+    
+    if 'apresentador' in request.files:
+        certificado = "apresentador_" + str(edital) + ".pdf"
+        anexos.save(request.files['apresentador'],name=certificado)
+        consulta = """
+        UPDATE editais set certificado_apresentador='%s' WHERE id=%s
+        """ % (certificado,str(edital))
+        atualizar(consulta)
+    if 'convidado' in request.files:
+        certificado = "convidado_" + str(edital) + ".pdf"
+        anexos.save(request.files['convidado'],name=certificado)
+        consulta = """
+        UPDATE editais set certificado_convidado='%s' WHERE id=%s
+        """ % (certificado,str(edital))
+        atualizar(consulta)
+    if 'moderador' in request.files:
+        certificado = "moderador_" + str(edital) + ".pdf"
+        anexos.save(request.files['moderador'],name=certificado)
+        consulta = """
+        UPDATE editais set certificado_moderador='%s' WHERE id=%s
+        """ % (certificado,str(edital))
+        atualizar(consulta)
+    if 'participante' in request.files:
+        certificado = "participante_" + str(edital) + ".pdf"
+        anexos.save(request.files['participante'],name=certificado)
+        consulta = """
+        UPDATE editais set certificado_participante='%s' WHERE id=%s
+        """ % (certificado,str(edital))
+        atualizar(consulta)
+    if 'demais' in request.files:
+        certificado = "demais_" + str(edital) + ".pdf"
+        anexos.save(request.files['demais'],name=certificado)
+        consulta = """
+        UPDATE editais set certificado_demais='%s' WHERE id=%s
+        """ % (certificado,str(edital))
+        atualizar(consulta)
+
     return(redirect(url_for('root')))
 
+@app.route("/cadastrar_edital", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def cadastrar_edital():
+    if request.method == "GET":
+        return(render_template('cadastrar_edital.html'))
+    else:
+        try:
+            consulta = """
+            INSERT INTO editais 
+            (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,deadline_apresentacao,
+            certificado_moderador,certificado_apresentador,certificado_participante,certificado_demais,certificado_convidado
+            situacao,isbn) values ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')
+            """ % (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),unicode(request.form['deadline']),unicode(request.form['deadline_avaliacao']),unicode(request.form['deadline_final']),unicode(request.form['deadline_apresentacao']),unicode(request.form['moderador']),unicode(request.form['apresentador']),unicode(request.form['participante']),unicode(request.form['demais']),unicode(request.form['convidado']),unicode(request.form['situacao']),unicode(request.form['isbn']))
+        except Exception as e:
+            return(str(e))
+    #inserir(consulta)
+    flash('Edital adicionado com sucesso')
+    return(redirect(url_for('root')))
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

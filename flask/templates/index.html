@@ -27,6 +27,33 @@ tr:nth-child(even) {
     function salvar(formulario) {
         document.getElementById(formulario).submit(); 
     }
+    function addForm() {
+        const f = document.createElement("form");
+        f.setAttribute('method', "post");
+        f.setAttribute('action', "submit.php");
+        f.setAttribute('class', "form-control");
+
+        const nome_curto = document.createElement("input");
+        nome_curto.setAttribute('type', "text");
+        nome_curto.setAttribute('name', "nome_curto");
+        nome_curto.setAttribute('class', "form-control");
+
+        const i = document.createElement("input");
+        i.setAttribute('type', "text");
+        i.setAttribute('name', "nome");
+        i.setAttribute('class', "form-control");
+
+        const s = document.createElement("input");
+        s.setAttribute('type', "submit");
+        s.setAttribute('value', "Salvar");
+        s.setAttribute('class', "btn");
+
+        f.appendChild(nome_curto);
+        f.appendChild(i);
+        f.appendChild(s);
+
+        document.body.appendChild(f);
+    }
 </script>  
 
 </head>
@@ -38,30 +65,61 @@ tr:nth-child(even) {
     <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
     <hr>
     <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
-    
+    <h4><a href="{{url_for('cadastrar_edital')}}">CADASTRAR EDITAL</a></h4>
         <table class="table">
-
             <thead>
                 <th>id</th>
-                <th>Descrição</th>
+                <th style="width: 10%">Nome curto</th>
+                <th style="width: 25%">Nome longo do edital</th>
                 <th>Deadline Submissão</th>
                 <th>Deadline Avaliação</th>
+                <th>Deadline Apresentação</th>
+                <th>Deadline versão final</th>
+                <th style="width: 25%">ISBN</th>
+                <th style="width: 25%">Situação</th>
+                <th>Mod,Apr,Part,De,Con</th>
             </thead>
             <tbody>
                 {% for linha in linhas %}
                     <tr>
-                        <form action="{{url_for('salvar_edital',edital=linha[0])}}" method="POST" id="form_{{linha[0]}}">
-                            <td><a href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a></td>
+                        <form action="{{url_for('salvar_edital',edital=linha[0])}}" method="POST" id="form_{{linha[0]}}" enctype="multipart/form-data">
                             <td>
-                                <input type="text" class="form-control" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required" onblur="salvar('form_{{linha[0]}}');" value="{{linha[1]}}">
+                                <a href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required" onblur="salvar('form_{{linha[0]}}');" value="{{linha[4]}}">                                
+                            </td>
+                            <td>
+                                <textarea type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required" onblur="salvar('form_{{linha[0]}}');" rows="3">{{linha[1]}}</textarea>
                             </td>
                             <td> 
-                                <input type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
+                                <input class="form-control-sm" type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
                             </td>
                             <td>
-                                <input type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
+                                <input class="form-control-sm" type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
+                            </td>
+                            <td>
+                                <input type="datetime-local" class="form-control-sm" id="deadline_final" name="deadline_final" value="{{linha[5]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
+                            </td>
+                            <td>
+                                <input type="datetime-local" class="form-control-sm" id="deadline_apresentacao" name="deadline_apresentacao" value="{{linha[6]}}"  onblur="salvar('form_{{linha[0]}}');" required="required">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" id="isbn" name="isbn" placeholder="ISBN" required="required" onblur="salvar('form_{{linha[0]}}');" value="{{linha[7]}}">                                
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="salvar('form_{{linha[0]}}');" value="{{linha[8]}}">                                
+                                
+                            </td>
+                            <td>
+                                <input class="form-control form-control-sm" name="moderador" type="file">
+                                <input class="form-control form-control-sm" name="apresentador" type="file">
+                                <input class="form-control form-control-sm" name="participante" type="file">
+                                <input class="form-control form-control-sm" name="demais" type="file">
+                                <input class="form-control form-control-sm" name="convidado" type="file">
                                 <input class="btn btn-success" type="submit" name="enviar" value="salvar">
                             </td>
+
                         </form>
                     </tr>
                 {%endfor%}
