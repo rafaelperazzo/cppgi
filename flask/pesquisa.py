@@ -183,11 +183,9 @@ def inserir(consulta,valores):
     try:
         cursor.execute(consulta,valores)
         conn.commit()
-    except MySQLdb.Error, e:
-        #e = sys.exc_info()[0]
+    except MySQLdb.Error as e:
         logging.error(e)
-	logging.error(consulta)
-        #conn.rollback()
+        logging.error(consulta)
     finally:
         cursor.close()
         conn.close()
@@ -2493,7 +2491,7 @@ def salvar_edital(edital):
         UPDATE editais set certificado_demais='%s' WHERE id=%s
         """ % (certificado,str(edital))
         atualizar(consulta)
-
+    flash('Edital atualizado com sucesso!')
     return(redirect(url_for('root')))
 
 @app.route("/cadastrar_edital", methods=['GET', 'POST'])
@@ -2505,16 +2503,13 @@ def cadastrar_edital():
         try:
             consulta = """INSERT INTO editais 
             (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,
-            deadline_apresentacao,certificado_moderador,certificado_apresentador,
-            certificado_participante,certificado_demais,certificado_convidado,
-            situacao,isbn) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
-            #TODO: Corrigir abaixo
-            #valores = (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['moderador']),str(request.form['apresentador']),str(request.form['participante']),str(request.form['demais']),str(request.form['convidado']),str(request.form['situacao']),str(request.form['isbn']))
-            #app.logger.error(str(valores))
+            deadline_apresentacao,situacao,isbn,setor) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,1)"""
+            valores = (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['situacao']),str(request.form['isbn']))
         except Exception as e:
             return(str(e))
-    #inserir(consulta)
+    inserir(consulta,valores)
     flash('Edital adicionado com sucesso')
     return(redirect(url_for('root')))
+
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

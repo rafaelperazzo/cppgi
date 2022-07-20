@@ -65,6 +65,16 @@ tr:nth-child(even) {
     <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
     <hr>
     <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>{{message}}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
     <h4><a href="{{url_for('cadastrar_edital')}}">CADASTRAR EDITAL</a></h4>
         <table class="table">
             <thead>
