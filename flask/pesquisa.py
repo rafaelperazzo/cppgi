@@ -2503,12 +2503,14 @@ def cadastrar_edital():
         return(render_template('cadastrar_edital.html'))
     else:
         try:
-            consulta = """
-            INSERT INTO editais 
-            (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,deadline_apresentacao,
-            certificado_moderador,certificado_apresentador,certificado_participante,certificado_demais,certificado_convidado
-            situacao,isbn) values ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')
-            """ % (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),unicode(request.form['deadline']),unicode(request.form['deadline_avaliacao']),unicode(request.form['deadline_final']),unicode(request.form['deadline_apresentacao']),unicode(request.form['moderador']),unicode(request.form['apresentador']),unicode(request.form['participante']),unicode(request.form['demais']),unicode(request.form['convidado']),unicode(request.form['situacao']),unicode(request.form['isbn']))
+            consulta = """INSERT INTO editais 
+            (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,
+            deadline_apresentacao,certificado_moderador,certificado_apresentador,
+            certificado_participante,certificado_demais,certificado_convidado,
+            situacao,isbn) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+            #TODO: Corrigir abaixo
+            #valores = (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['moderador']),str(request.form['apresentador']),str(request.form['participante']),str(request.form['demais']),str(request.form['convidado']),str(request.form['situacao']),str(request.form['isbn']))
+            #app.logger.error(str(valores))
         except Exception as e:
             return(str(e))
     #inserir(consulta)
