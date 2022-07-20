@@ -2441,9 +2441,10 @@ def enviarPedidoAvaliacao(id):
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
 
-@app.route("/salvarEdital/<edital>", methods=['GET', 'POST'])
+@app.route("/salvarEdital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
-def salvar_edital(edital):
+def salvar_edital():
+    edital = int(request.form['codigo_edital'])
     consulta = """
     UPDATE editais set deadline='""" + str(request.form['deadline']) +"""',deadline_avaliacao='
     """ + str(request.form['deadline_avaliacao']) +"""'""" + """,nome_longo='""" + unicode(request.form['nome']) + """' 
@@ -2455,7 +2456,7 @@ def salvar_edital(edital):
     WHERE id=%s 
     """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),unicode(request.form['nome']),unicode(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),unicode(request.form['situacao']),str(request.form['isbn']),str(edital))
     atualizar(consulta)
-    
+    '''
     if 'apresentador' in request.files:
         certificado = "apresentador_" + str(edital) + ".pdf"
         anexos.save(request.files['apresentador'],name=certificado)
@@ -2491,8 +2492,8 @@ def salvar_edital(edital):
         UPDATE editais set certificado_demais='%s' WHERE id=%s
         """ % (certificado,str(edital))
         atualizar(consulta)
-    flash('Edital atualizado com sucesso!')
-    return(redirect(url_for('root')))
+    '''
+    return("Alterações gravadas com sucesso!")
 
 @app.route("/cadastrar_edital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -2510,6 +2511,11 @@ def cadastrar_edital():
     inserir(consulta,valores)
     flash('Edital adicionado com sucesso')
     return(redirect(url_for('root')))
+
+@app.route("/ajax", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def ajax():
+    return("OK")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
