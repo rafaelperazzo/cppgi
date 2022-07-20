@@ -63,7 +63,7 @@ tr:nth-child(even) {
             event.preventDefault();
             var form_id = $(this).get(0).form.id;
             var formValues= $('#' + form_id).serialize();
-            $.post("{{url_for('salvar_edital')}}", formValues, function(data){
+            $.post("{{url_for('salvar_edital',operacao=0)}}", formValues, function(data){
                 // Display the returned data in browser
                 $("#result").show();
                 $("#mensagem").html(data);
@@ -112,7 +112,7 @@ tr:nth-child(even) {
             <tbody>
                 {% for linha in linhas %}
                     <tr>
-                        <form action="{{url_for('salvar_edital')}}" method="POST" id="form_{{linha[0]}}">
+                        <form action="{{url_for('salvar_edital',operacao=0)}}" method="POST" id="form_{{linha[0]}}">
                             <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
                             <td>
                                 <a href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
@@ -141,19 +141,18 @@ tr:nth-child(even) {
                             <td>
                                 <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">                                
                             </td>
+                        </form>
                             <td>
-                                <form action="{{url_for('salvar_edital')}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data">
+                                <form action="{{url_for('salvar_edital',operacao=1)}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data">
                                     <input class="form-control form-control-sm" name="moderador" type="file">
                                     <input class="form-control form-control-sm" name="apresentador" type="file">
                                     <input class="form-control form-control-sm" name="participante" type="file">
                                     <input class="form-control form-control-sm" name="demais" type="file">
                                     <input class="form-control form-control-sm" name="convidado" type="file">
                                     <input class="btn btn-success" type="submit" name="enviar" value="salvar">
-                                    <input type="hidden" name="edital" id="edital" value="{{linha[0]}}">
+                                    <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
                                 </form>
                             </td>
-
-                        </form>
                     </tr>
                 {%endfor%}
             </tbody>

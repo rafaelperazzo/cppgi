@@ -68,7 +68,7 @@ app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
-logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -83,6 +83,7 @@ mail = Mail(app)
 app.config['UPLOADED_DOCUMENTS_DEST'] = ATTACHMENTS_DIR
 app.config['UPLOADS_DEFAULT_DEST'] = ATTACHMENTS_DIR
 anexos = UploadSet('documents',ALL)
+#TODO: Corrigir o salvamento dos templates dos certificados. Não está funcionando!
 certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
 configure_uploads(app, (anexos,certificados))
 patch_request_class(app)
@@ -2441,59 +2442,55 @@ def enviarPedidoAvaliacao(id):
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
 
-@app.route("/salvarEdital", methods=['GET', 'POST'])
+@app.route("/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
-def salvar_edital():
+def salvar_edital(operacao):
     edital = int(request.form['codigo_edital'])
-    consulta = """
-    UPDATE editais set deadline='""" + str(request.form['deadline']) +"""',deadline_avaliacao='
-    """ + str(request.form['deadline_avaliacao']) +"""'""" + """,nome_longo='""" + unicode(request.form['nome']) + """' 
-    WHERE id=""" + str(edital)
-    
-    consulta = """
-    UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
-    deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s' 
-    WHERE id=%s 
-    """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),unicode(request.form['nome']),unicode(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),unicode(request.form['situacao']),str(request.form['isbn']),str(edital))
-    atualizar(consulta)
-    '''
-    if 'apresentador' in request.files:
-        certificado = "apresentador_" + str(edital) + ".pdf"
-        anexos.save(request.files['apresentador'],name=certificado)
+    if int(operacao)==0:
         consulta = """
-        UPDATE editais set certificado_apresentador='%s' WHERE id=%s
-        """ % (certificado,str(edital))
+        UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
+        deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s' 
+        WHERE id=%s 
+        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),unicode(request.form['nome']),unicode(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),unicode(request.form['situacao']),str(request.form['isbn']),str(edital))
         atualizar(consulta)
-    if 'convidado' in request.files:
-        certificado = "convidado_" + str(edital) + ".pdf"
-        anexos.save(request.files['convidado'],name=certificado)
-        consulta = """
-        UPDATE editais set certificado_convidado='%s' WHERE id=%s
-        """ % (certificado,str(edital))
-        atualizar(consulta)
-    if 'moderador' in request.files:
-        certificado = "moderador_" + str(edital) + ".pdf"
-        anexos.save(request.files['moderador'],name=certificado)
-        consulta = """
-        UPDATE editais set certificado_moderador='%s' WHERE id=%s
-        """ % (certificado,str(edital))
-        atualizar(consulta)
-    if 'participante' in request.files:
-        certificado = "participante_" + str(edital) + ".pdf"
-        anexos.save(request.files['participante'],name=certificado)
-        consulta = """
-        UPDATE editais set certificado_participante='%s' WHERE id=%s
-        """ % (certificado,str(edital))
-        atualizar(consulta)
-    if 'demais' in request.files:
-        certificado = "demais_" + str(edital) + ".pdf"
-        anexos.save(request.files['demais'],name=certificado)
-        consulta = """
-        UPDATE editais set certificado_demais='%s' WHERE id=%s
-        """ % (certificado,str(edital))
-        atualizar(consulta)
-    '''
-    return("Alterações gravadas com sucesso!")
+        return("Alterações gravadas com sucesso!")
+    else:
+        if 'apresentador' in request.files:
+            certificado = "apresentador_" + str(edital) + ".png"
+            anexos.save(request.files['apresentador'],name=certificado)
+            consulta = """
+            UPDATE editais set certificado_apresentador='%s' WHERE id=%s
+            """ % (certificado,str(edital))
+            atualizar(consulta)
+        if 'convidado' in request.files:
+            certificado = "convidado_" + str(edital) + ".png"
+            anexos.save(request.files['convidado'],name=certificado)
+            consulta = """
+            UPDATE editais set certificado_convidado='%s' WHERE id=%s
+            """ % (certificado,str(edital))
+            atualizar(consulta)
+        if 'moderador' in request.files:
+            certificado = "moderador_" + str(edital) + ".png"
+            anexos.save(request.files['moderador'],name=certificado)
+            consulta = """
+            UPDATE editais set certificado_moderador='%s' WHERE id=%s
+            """ % (certificado,str(edital))
+            atualizar(consulta)
+        if 'participante' in request.files:
+            certificado = "participante_" + str(edital) + ".png"
+            anexos.save(request.files['participante'],name=certificado)
+            consulta = """
+            UPDATE editais set certificado_participante='%s' WHERE id=%s
+            """ % (certificado,str(edital))
+            atualizar(consulta)
+        if 'demais' in request.files:
+            certificado = "demais_" + str(edital) + ".png"
+            anexos.save(request.files['demais'],name=certificado)
+            consulta = """
+            UPDATE editais set certificado_demais='%s' WHERE id=%s
+            """ % (certificado,str(edital))
+            atualizar(consulta)
+        return(redirect(url_for('root')))
 
 @app.route("/cadastrar_edital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -2511,11 +2508,6 @@ def cadastrar_edital():
     inserir(consulta,valores)
     flash('Edital adicionado com sucesso')
     return(redirect(url_for('root')))
-
-@app.route("/ajax", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
-def ajax():
-    return("OK")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
