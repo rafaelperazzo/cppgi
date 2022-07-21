@@ -47,8 +47,12 @@ tr:nth-child(even) {
         <td><a href="/cppgi/editalProjeto/{{edital}}">Lista de trabalhos submetidos</a></td>
         <td>Página de acompanhamento dos trabalhos submetidos e inclusão de avaliadores.</td>
       </tr>
+      <tr>
+        <td><a href="{{url_for('email_solicitar_avaliacao')}}">Enviar e-mails para avaliadores</a> </td>
+        <td>Envio dos pedidos de avalição para avaliadores</td>
+      </tr>
     </table>
-
+    
     <hr>
     <h2>APÓS O PERÍODO DE AVALIAÇÃO</h2>
     <table class="table">

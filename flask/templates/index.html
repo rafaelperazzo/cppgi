@@ -95,7 +95,8 @@ tr:nth-child(even) {
         {% endfor %}
     {% endif %}
     {% endwith %}
-    <h4><a href="{{url_for('cadastrar_edital')}}">CADASTRAR EDITAL</a></h4>
+    <a href="{{url_for('cadastrar_edital')}}"><button type="button" class="btn btn-outline-primary">Cadastrar Novo Edital</button></a>
+    <a href="{{url_for('email_solicitar_avaliacao')}}"><button type="button" class="btn btn-outline-primary">Enviar E-mail para os avaliadores</button></a>
         <table class="table">
             <thead>
                 <th>id</th>

@@ -2382,8 +2382,15 @@ def enviar_email_avaliadores():
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,
     e.tipo, DATEDIFF(NOW(),a.data_envio) as enviados,DATE_FORMAT(ed.deadline_avaliacao,'%d/%m/%Y') as deadline_avaliacao,ed.nome 
     FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto AND e.tipo=ed.id AND e.valendo=1
-    AND a.finalizado=0 AND a.aceitou!=0 AND e.categoria=1 AND DATEDIFF(NOW(),a.data_envio)>1 
+    AND a.finalizado=0 AND a.aceitou!=0 AND DATEDIFF(NOW(),a.data_envio)>1 
     AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now() AND ADDDATE(deadline,5)<now())
+    """
+    consulta = """
+    SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,
+    e.tipo, DATEDIFF(NOW(),a.data_envio) as enviados,DATE_FORMAT(ed.deadline_avaliacao,'%d/%m/%Y') as deadline_avaliacao,ed.nome 
+    FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto AND e.tipo=ed.id AND e.valendo=1
+    AND a.finalizado=0 AND a.aceitou!=0 AND DATEDIFF(NOW(),a.data_envio)>=1 
+    AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now())
     """
     linhas,total = executarSelect(consulta)
     for linha in linhas:
@@ -2411,7 +2418,8 @@ def enviar_email_avaliadores():
 def email_solicitar_avaliacao():
     t = threading.Thread(target=enviar_email_avaliadores)
     t.start()
-    return("Envio de e-mails iniciado!")
+    flash("Envio de e-mails iniciado!")
+    return(redirect(url_for('root')))
     
 def enviarPedidoAvaliacao(id):
     gerarLinkAvaliacao()
