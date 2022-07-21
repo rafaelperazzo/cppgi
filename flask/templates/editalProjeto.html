@@ -292,7 +292,7 @@ $(document).ready(function(){
                       </td>
                       <td>{{linha[9]}}</td></td>
                       <td><a href="/cppgi/avaliacoesNegadas?edital={{codigoEdital}}&id={{linha[0]}}"><img src="{{url_for('static',filename='avaliador.png')}}"></a></td>
-                      <td>{{linha[5]|safe}}</td>
+                      <td><a href="{{url_for('listar_consultores',id_projeto=linha[0])}}">{{linha[5]|safe}}</a></td>
                       <td>{{linha[6]|safe}}</td>
                       <td>{{linha[7]|safe}}</td>
                       <td>{{linha[8]|safe}}</td>

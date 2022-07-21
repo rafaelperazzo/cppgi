@@ -22,9 +22,7 @@
       <br>
 
     </form>
-    <p><br>
-    </p>
-    <a href="/cppgi/editalProjeto?edital={{codigoEdital}}"> VOLTAR PARA LISTA DE PROJETOS</a>
+    <a href="{{url_for('listar_consultores',id_projeto=listaProjetos[0][0])}}"><button type="button" class="btn btn-outline-primary">Voltar para lista de submissões</button></a>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>

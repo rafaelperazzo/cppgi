@@ -658,13 +658,11 @@ def avaliacoesNegadas():
                 cursor.execute(consulta)
                 linha = cursor.fetchall()
                 total = cursor.rowcount
-                conn.close()
                 return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital))
             except:
                 e = sys.exc_info()[0]
                 logging.error(e)
                 logging.error(consulta)
-                conn.close()
                 return(consulta)
         else:
             return ("OK")
@@ -701,7 +699,8 @@ def inserirAvaliador():
         idProjeto=""" + str(idProjeto)
         atualizar(update)
         flash(u"Avaliador incluído com sucesso!")
-        return(redirect(url_for('editalProjeto',edital=edital)))
+        #return(redirect(url_for('editalProjeto',edital=edital)))
+        return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         
     else:
         return("OK")
@@ -845,7 +844,8 @@ def editalProjeto(edital):
         cursor.close()
         conn.close()
         if 'resultado' not in request.args:
-            gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
+            #gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
+            pass
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
@@ -2560,6 +2560,46 @@ def salvar_projeto():
     """ % (nome,ga,titulo,palavras,situacao,id_projeto)
     atualizar(consulta)
     return("OK")
+
+@app.route("/listar_consultores/<id_projeto>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def listar_consultores(id_projeto):
+    
+    consulta = """
+    SELECT id,idProjeto,token,avaliador,nome_avaliador,recomendacao,link,finalizado,data_avaliacao 
+    FROM avaliacoes 
+    WHERE idProjeto=%s ORDER BY finalizado DESC, recomendacao DESC
+    """ % (id_projeto)
+    avaliacoes,total = executarSelect(consulta)
+    titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
+    autores = obterColunaUnica('editalProjeto','nome','id',id_projeto)
+    edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
+    return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital))
+    
+@app.route("/salvar_consultores", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_consultores():
+    id_avaliacao = request.form['id_avaliacao']
+    avaliador = request.form['avaliador']
+    nome = unicode(request.form['nome_avaliador'])
+    recomendacao = request.form['recomendacao']
+    finalizado = request.form['finalizado']
+    consulta = """
+    UPDATE avaliacoes SET avaliador='%s',nome_avaliador='%s',recomendacao=%s,finalizado=%s 
+    WHERE id=%s
+    """ % (avaliador,nome,recomendacao,finalizado,id_avaliacao)
+    atualizar(consulta)
+    return(str(id_avaliacao))
+
+@app.route("/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def remover_avaliacao(id_avaliacao,id_projeto):
+    consulta = """
+    DELETE FROM avaliacoes WHERE id=%s
+    """ % (id_avaliacao)
+    atualizar(consulta)
+    flash("Avaliação removida com sucesso!")
+    return(redirect(url_for('listar_avaliadores',id_projeto=id_projeto)))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
