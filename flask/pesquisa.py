@@ -652,13 +652,21 @@ def avaliacoesNegadas():
             if 'id' in request.args:
                 idProjeto = str(request.args.get('id'))
                 consulta = "SELECT id,titulo FROM editalProjeto WHERE tipo=" + codigoEdital + " AND id=" + idProjeto
+                identificador = obterColunaUnica('editalProjeto','siape','id',idProjeto)
+                possiveis_avaliadores = """
+                SELECT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
+                INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
+                WHERE editalProjeto.siape="%s"
+                AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
+                """ % (identificador)
+                avaliadores_sugeridos,total = executarSelect(possiveis_avaliadores)
             else:
                 consulta = "SELECT resumoGeralAvaliacoes.id,CONCAT(SUBSTRING(resumoGeralAvaliacoes.titulo,1,80),\" - (\",resumoGeralAvaliacoes.nome,\" )\"),(resumoGeralAvaliacoes.aceites+resumoGeralAvaliacoes.rejeicoes) as resultado,resumoGeralAvaliacoes.indefinido FROM resumoGeralAvaliacoes WHERE ((aceites+rejeicoes<2) OR (aceites=rejeicoes)) AND tipo=" + codigoEdital + " ORDER BY aceites+rejeicoes, id"
             try:
                 cursor.execute(consulta)
                 linha = cursor.fetchall()
                 total = cursor.rowcount
-                return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital))
+                return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos))
             except:
                 e = sys.exc_info()[0]
                 logging.error(e)
