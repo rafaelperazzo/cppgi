@@ -806,18 +806,19 @@ def editalProjeto(edital):
         cursor  = conn.cursor()
 
         consulta = """SELECT id,tipo,categoria,modalidade,nome,email,ua,titulo,arquivo_projeto,arquivo_plano1,arquivo_plano2
-        ,DATE_FORMAT(data,'%d/%m/%Y - %H:%i') as data FROM editalProjeto
+        ,DATE_FORMAT(data,'%d/%m/%Y - %H:%i') as data,situacao FROM editalProjeto
         WHERE tipo=""" + codigoEdital + """ AND valendo=1 ORDER BY ua,nome"""
-        '''
+        
         consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
-        GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
-        sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
-        consulta_novos = consulta_novos + """ FROM editalProjeto,avaliacoes WHERE tipo=""" + codigoEdital + """ AND valendo=1
-        AND editalProjeto.id=avaliacoes.idProjeto GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
-        '''
-        consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
-        GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
-        sum(avaliacoes.finalizado) as finalizados,sum(if(recomendacao=-1,1,0)), sum(if(recomendacao=0,1,0)),sum(if(recomendacao=1,1,0)),palavras"""
+        GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,
+        GROUP_CONCAT(avaliacoes.recomendacao ORDER BY avaliador SEPARATOR '<BR>') as recomendacoes,
+        GROUP_CONCAT(avaliacoes.enviado ORDER BY avaliador SEPARATOR '<BR>') as enviado,
+        GROUP_CONCAT(avaliacoes.aceitou ORDER BY avaliador SEPARATOR '<BR>') as aceitou,
+        sum(avaliacoes.finalizado) as finalizados,
+        sum(if(recomendacao=-1,1,0)), 
+        sum(if(recomendacao=0,1,0)),
+        sum(if(recomendacao=1,1,0)),
+        palavras,editalProjeto.situacao"""
         consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=""" + codigoEdital + """ AND valendo=1
         GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
 
@@ -2544,6 +2545,21 @@ def cadastrar_edital():
 @auth.login_required(role=['admin'])
 def ver_imagem(qual):
     return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
+
+@app.route("/salvar_projeto", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def salvar_projeto():
+    nome = unicode(request.form['nome'])
+    ga = unicode(request.form['grande_area'])
+    titulo = unicode(request.form['titulo'])
+    palavras = unicode(request.form['palavras'])
+    situacao = unicode(request.form['situacao'])
+    id_projeto = str(request.form['id_projeto'])
+    consulta = """
+    UPDATE editalProjeto SET nome='%s',ua='%s',titulo='%s',palavras='%s',situacao=%s WHERE id=%s
+    """ % (nome,ga,titulo,palavras,situacao,id_projeto)
+    atualizar(consulta)
+    return("OK")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
