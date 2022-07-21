@@ -140,6 +140,11 @@ tr:nth-child(even) {
                             </td>
                             <td>
                                 <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">                                
+                                <p><a href="{{url_for('ver_imagem',qual=linha[10])}}">{{linha[10]}}</a></p>
+                                <p><a href="{{url_for('ver_imagem',qual=linha[9])}}">{{linha[9]}}</a></p>
+                                <p><a href="{{url_for('ver_imagem',qual=linha[11])}}">{{linha[11]}}</a></p>
+                                <p><a href="{{url_for('ver_imagem',qual=linha[12])}}">{{linha[12]}}</a></p>
+                                <p><a href="{{url_for('ver_imagem',qual=linha[13])}}">{{linha[13]}}</a></p>
                             </td>
                         </form>
                             <td>

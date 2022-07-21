@@ -1881,7 +1881,7 @@ def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
     consulta = """
     SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
-    isbn,situacao 
+    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado 
     FROM editais
     """
     linhas,total = executarSelect(consulta)
@@ -2442,6 +2442,13 @@ def enviarPedidoAvaliacao(id):
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
 
+def remover_arquivo(arquivo):
+    if os.path.exists(arquivo):
+        try:
+            os.remove(arquivo)
+        except Exception as e:
+            app.logger.debug(str(e))
+
 @app.route("/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def salvar_edital(operacao):
@@ -2457,39 +2464,63 @@ def salvar_edital(operacao):
     else:
         if 'apresentador' in request.files:
             certificado = "apresentador_" + str(edital) + ".png"
-            anexos.save(request.files['apresentador'],name=certificado)
-            consulta = """
-            UPDATE editais set certificado_apresentador='%s' WHERE id=%s
-            """ % (certificado,str(edital))
-            atualizar(consulta)
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['apresentador'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set certificado_apresentador='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+            else:
+                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
         if 'convidado' in request.files:
             certificado = "convidado_" + str(edital) + ".png"
-            anexos.save(request.files['convidado'],name=certificado)
-            consulta = """
-            UPDATE editais set certificado_convidado='%s' WHERE id=%s
-            """ % (certificado,str(edital))
-            atualizar(consulta)
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['convidado'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set certificado_convidado='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+            else:
+                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+
         if 'moderador' in request.files:
             certificado = "moderador_" + str(edital) + ".png"
-            anexos.save(request.files['moderador'],name=certificado)
-            consulta = """
-            UPDATE editais set certificado_moderador='%s' WHERE id=%s
-            """ % (certificado,str(edital))
-            atualizar(consulta)
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['moderador'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set certificado_moderador='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+            else:
+                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+
         if 'participante' in request.files:
             certificado = "participante_" + str(edital) + ".png"
-            anexos.save(request.files['participante'],name=certificado)
-            consulta = """
-            UPDATE editais set certificado_participante='%s' WHERE id=%s
-            """ % (certificado,str(edital))
-            atualizar(consulta)
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['participante'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set certificado_participante='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+            else:
+                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+
         if 'demais' in request.files:
             certificado = "demais_" + str(edital) + ".png"
-            anexos.save(request.files['demais'],name=certificado)
-            consulta = """
-            UPDATE editais set certificado_demais='%s' WHERE id=%s
-            """ % (certificado,str(edital))
-            atualizar(consulta)
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['demais'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set certificado_demais='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+            else:
+                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+
         return(redirect(url_for('root')))
 
 @app.route("/cadastrar_edital", methods=['GET', 'POST'])
@@ -2508,6 +2539,11 @@ def cadastrar_edital():
     inserir(consulta,valores)
     flash('Edital adicionado com sucesso')
     return(redirect(url_for('root')))
+
+@app.route("/ver_imagem/<qual>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def ver_imagem(qual):
+    return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
