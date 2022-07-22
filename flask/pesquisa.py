@@ -2637,7 +2637,23 @@ def listar_consultores(id_projeto):
     edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
     area = obterColunaUnica('editalProjeto','ua','id',id_projeto)
     return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital,area=area))
-    
+
+@app.route("/listar_consultores_edital/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def listar_consultores_edital(edital):
+    consulta = """
+    SELECT avaliacoes.id,idProjeto,avaliacoes.token,avaliador,nome_avaliador,
+    recomendacao,avaliacoes.link,finalizado,data_avaliacao 
+    FROM avaliacoes 
+    INNER JOIN editalProjeto on editalProjeto.id=avaliacoes.idProjeto 
+    INNER JOIN editais ON editais.id=editalProjeto.tipo 
+    WHERE editais.id=%s
+    ORDER BY avaliacoes.idProjeto,avaliacoes.finalizado DESC
+    """ %(edital)
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    avaliacoes,total = executarSelect(consulta)
+    return(render_template('listar_avaliadores_edital.html',avaliacoes=avaliacoes,edital=edital,nome_longo=nome_longo))
+
 @app.route("/salvar_consultores", methods=['POST'])
 @auth.login_required(role=['admin'])
 def salvar_consultores():
@@ -2660,7 +2676,7 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     DELETE FROM avaliacoes WHERE id=%s
     """ % (id_avaliacao)
     atualizar(consulta)
-    flash("Avaliação removida com sucesso!")
+    flash(u"Avaliação removida com sucesso!")
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
 if __name__ == "__main__":
