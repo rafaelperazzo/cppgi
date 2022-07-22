@@ -629,7 +629,7 @@ def getDeclaracaoAvaliador():
             nome_avaliador = unicode(linha[0])
         data_agora = getData()
         #Recuperando descrição do edital
-        consulta = "SELECT editais.id,editais.nome FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + tokenAvaliacao + "\""
+        consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + tokenAvaliacao + "\""
         linhas = consultar(consulta)
         for linha in linhas:
             descricaoEdital = unicode(linha[1])
