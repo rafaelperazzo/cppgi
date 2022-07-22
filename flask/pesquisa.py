@@ -647,9 +647,9 @@ def getDeclaracaoAvaliador():
             'margin-bottom': '1cm',
             'margin-left': '2cm',
         }
-        pdfkit.from_string(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo),arquivoDeclaracao,options=options)
+        pdfkit.from_string(render_template('declaracao_avaliador.html',nome=nome_avaliador,local_data="Juazeiro do Norte, " + data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo,token=token),arquivoDeclaracao,options=options)
         return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
-        #return(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,edital=descricaoEdital))
+        
     else:
         return("OK")
 
@@ -668,9 +668,6 @@ def recusarConvite():
         tokenAvaliacao = str(request.args.get('token'))
         consulta = "UPDATE avaliacoes SET aceitou=0 WHERE token=\"" + tokenAvaliacao + "\""
         atualizar(consulta)
-        #SELECT editalProjeto.titulo,editalProjeto.nome FROM editalProjeto,avaliacoes WHERE editalProjeto.id=avaliacoes.idProjeto AND avaliacoes.token="DL7tueygfszlgqVc2V6HTgN7fSaDjsIPq7O2LpWT"
-        #body = "O avaliador de token " + tokenAvaliacao + " recusou o convite de avaliacao."
-        #enviarEmail("pesquisa.prpi@ufca.edu.br","[PIICT - RECUSA] Recusa de convite para avaliacao",body)
         return("Avaliação cancelada com sucesso. Agradecemos a atenção.")
     else:
         return("OK")
