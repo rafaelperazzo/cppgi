@@ -41,7 +41,7 @@ PLOTS_DIR = WORKING_DIR + 'static/plots/'
 CURRICULOS_DIR=WORKING_DIR + 'static/files/'
 SITE = SERVER_URL + "/cppgi/static/files/"
 IMAGENS_URL = SERVER_URL + "/cppgi/static/"
-DECLARACOES_DIR = WORKING_DIR + 'cppgi/pdfs/'
+DECLARACOES_DIR = WORKING_DIR + 'pdfs/'
 ROOT_SITE = SERVER_URL
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
@@ -83,7 +83,7 @@ mail = Mail(app)
 app.config['UPLOADED_DOCUMENTS_DEST'] = ATTACHMENTS_DIR
 app.config['UPLOADS_DEFAULT_DEST'] = ATTACHMENTS_DIR
 anexos = UploadSet('documents',ALL)
-#TODO: Corrigir o salvamento dos templates dos certificados. Não está funcionando!
+
 certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
 configure_uploads(app, (anexos,certificados))
 patch_request_class(app)
@@ -540,6 +540,18 @@ def enviarAvaliacao():
         c7 = str(request.form['c7'])
         c8 = str(request.form['c8'])
         c9 = str(request.form['c9'])
+        consulta = """
+        SELECT id FROM avaliacoes WHERE token="%s"
+        """ %(token)
+        ids,total = executarSelect(consulta)
+        id_avaliacao = str(ids[0][0])
+        id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
+        avaliador = obterColunaUnica('avaliacoes','avaliador','id',id_avaliacao)
+        edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
+        nome_curto = obterColunaUnica('editais','nome_curto','id',edital)
+        nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+        link_declaracao = url_for("getDeclaracaoAvaliador",token=token,_external=True)
 
         try:
             consulta = "UPDATE avaliacoes SET recomendacao=" + recomendacao + " WHERE token=\"" + token + "\""
@@ -582,7 +594,13 @@ def enviarAvaliacao():
         linhas = consultar(consulta)
         for linha in linhas:
             descricaoEdital = unicode(linha[1])
-        return(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,congresso=descricaoEdital,raiz=ROOT_SITE))
+        #Enviando e-mail para o avaliador com o link
+        texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
+        msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
+        t = threading.Thread(target=enviar_email,args=(msg,))
+        t.start()
+        return(redirect(url_for('getDeclaracaoAvaliador',token=token)))
+        #return(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo))
     else:
         return("OK")
 
@@ -615,7 +633,23 @@ def getDeclaracaoAvaliador():
         linhas = consultar(consulta)
         for linha in linhas:
             descricaoEdital = unicode(linha[1])
-        return(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,edital=descricaoEdital))
+        #Gerando declaração e enviando ao navegador
+        token=tokenAvaliacao
+        ids,total = executarSelect(consulta)
+        id_avaliacao = str(ids[0][0])
+        id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
+        arquivoDeclaracao = app.config['DECLARACOES_FOLDER'] + 'declaracao.pdf'
+        options = {
+            'page-size': 'A4',
+            'margin-top': '2cm',
+            'margin-right': '2cm',
+            'margin-bottom': '1cm',
+            'margin-left': '2cm',
+        }
+        pdfkit.from_string(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo),arquivoDeclaracao,options=options)
+        return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
+        #return(render_template('declaracao_avaliador.html',nome=nome_avaliador,data=data_agora,edital=descricaoEdital))
     else:
         return("OK")
 
