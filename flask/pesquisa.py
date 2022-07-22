@@ -653,20 +653,28 @@ def avaliacoesNegadas():
                 idProjeto = str(request.args.get('id'))
                 consulta = "SELECT id,titulo FROM editalProjeto WHERE tipo=" + codigoEdital + " AND id=" + idProjeto
                 identificador = obterColunaUnica('editalProjeto','siape','id',idProjeto)
+                area = obterColunaUnica('editalProjeto','ua','id',idProjeto)
                 possiveis_avaliadores = """
-                SELECT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
+                SELECT DISTINCT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
                 INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
                 WHERE editalProjeto.siape="%s"
                 AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
                 """ % (identificador)
                 avaliadores_sugeridos,total = executarSelect(possiveis_avaliadores)
+                avaliadores_area = """
+                SELECT DISTINCT avaliacoes.avaliador,UPPER(avaliacoes.nome_avaliador) FROM avaliacoes 
+                INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
+                WHERE editalProjeto.ua="%s"
+                AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
+                """ % (area)
+                lista_area,total = executarSelect(avaliadores_area)
             else:
                 consulta = "SELECT resumoGeralAvaliacoes.id,CONCAT(SUBSTRING(resumoGeralAvaliacoes.titulo,1,80),\" - (\",resumoGeralAvaliacoes.nome,\" )\"),(resumoGeralAvaliacoes.aceites+resumoGeralAvaliacoes.rejeicoes) as resultado,resumoGeralAvaliacoes.indefinido FROM resumoGeralAvaliacoes WHERE ((aceites+rejeicoes<2) OR (aceites=rejeicoes)) AND tipo=" + codigoEdital + " ORDER BY aceites+rejeicoes, id"
             try:
                 cursor.execute(consulta)
                 linha = cursor.fetchall()
                 total = cursor.rowcount
-                return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos))
+                return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos,avaliadores_area=lista_area,area=area))
             except:
                 e = sys.exc_info()[0]
                 logging.error(e)
@@ -682,7 +690,13 @@ def inserirAvaliador():
     if request.method == "POST":
         token = id_generator(40)
         idProjeto = int(request.form['txtProjeto'])
-        avaliador1_email = str(request.form['txtEmail'])
+        if (request.form['avaliador_sugerido']=='0'):
+            if (request.form['avaliador_area']=='0'):
+                avaliador1_email = str(request.form['txtEmail'])
+            else:
+                avaliador1_email = str(request.form['avaliador_area'])
+        else:
+            avaliador1_email = str(request.form['avaliador_sugerido']);
         consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
         #Verificando se existe avaliador para o ID
         consulta2 = """
@@ -692,14 +706,14 @@ def inserirAvaliador():
         edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
         if total>0:
             flash(u"Avaliador já cadastrado para o trabalho selecionado!")
-            return(redirect(url_for('editalProjeto',edital=edital)))
+            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         atualizar(consulta)
         
-        deadline = obterColunaUnica('editais','deadline','id',str(edital))
+        deadline = obterColunaUnica('editais','deadline_avaliacao','id',str(edital))
         agora = datetime.datetime.now().strftime('%Y-%m-%d')
         if agora>deadline:
             flash(u"Prazo de avaliação expirado!")
-            return(redirect(url_for('editalProjeto',edital=edital)))
+            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
@@ -707,7 +721,7 @@ def inserirAvaliador():
         idProjeto=""" + str(idProjeto)
         atualizar(update)
         flash(u"Avaliador incluído com sucesso!")
-        #return(redirect(url_for('editalProjeto',edital=edital)))
+        
         return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         
     else:
@@ -2584,13 +2598,14 @@ def listar_consultores(id_projeto):
     consulta = """
     SELECT id,idProjeto,token,avaliador,nome_avaliador,recomendacao,link,finalizado,data_avaliacao 
     FROM avaliacoes 
-    WHERE idProjeto=%s ORDER BY finalizado DESC, recomendacao DESC
+    WHERE idProjeto=%s ORDER BY finalizado DESC, id ASC
     """ % (id_projeto)
     avaliacoes,total = executarSelect(consulta)
     titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
     autores = obterColunaUnica('editalProjeto','nome','id',id_projeto)
     edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
-    return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital))
+    area = obterColunaUnica('editalProjeto','ua','id',id_projeto)
+    return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital,area=area))
     
 @app.route("/salvar_consultores", methods=['POST'])
 @auth.login_required(role=['admin'])
@@ -2615,7 +2630,7 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     """ % (id_avaliacao)
     atualizar(consulta)
     flash("Avaliação removida com sucesso!")
-    return(redirect(url_for('listar_avaliadores',id_projeto=id_projeto)))
+    return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
