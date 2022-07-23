@@ -1341,43 +1341,8 @@ def distribuirSalas():
         #Recuperando o edital
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
-            '''
-            turno1 = []
-            turno2 = []
-            turno3 = []
-            local1 = []
-            local2 = []
-            local3 = []
-            #DIA 1
-            dia = "2021-04-13"
-            start_time = '9:00'
-            end_time = '09:35'
-            slot_time = 5
-            salas = ['S1','S2','S3','S4','S5','S6']
-            turno1,local1 = getSlots(dia,start_time,end_time,slot_time,salas)
-
-            #DIA 2
-            dia = "2021-04-14"
-            start_time = '9:00'
-            end_time = '09:45'
-            slot_time = 5
-            salas = ['S1','S2','S3','S4','S5']
-            turno2,local2 = getSlots(dia,start_time,end_time,slot_time,salas)
-
-            #DIA 3
-            dia = "2021-04-15"
-            start_time = '9:00'
-            end_time = '09:45'
-            slot_time = 5
-            salas = ['S1','S2','S3','S4','S5']
-            turno3,local3 = getSlots(dia,start_time,end_time,slot_time,salas)
-
-            turno_todos = turno1 + turno2 + turno3
-            local_todos = local1 + local2 + local3
-            '''
             turno_todos,local_todos=getSessoesSalas(edital,"0")
             #APRESENTAÇÕES ORAIS - PREMIACAO
-            #consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " ORDER BY premiacao DESC,ua,modalidade DESC,media1 DESC,nome,titulo"
             consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=1 ORDER BY premiacao DESC,ua,modalidade DESC,media1 DESC,nome,titulo"
             principal,total = executarSelect(consulta_principal)
             
@@ -1417,11 +1382,10 @@ def distribuirSalas():
             i = 1
             data_apresentacao,inicio,local_apresentacao = getSessoesPosters(edital)
             data_apresentacao = data_apresentacao + " " + inicio
-            #data_apresentacao = "2021-04-14 09:00"
+            
             for linha in principal:
                 id = str(linha[0])
-                #local_apresentacao = "AMBIENTE VIRTUAL - PAINEL " + "{:03d}".format(i)
-                #local_apresentacao = "AMBIENTE VIRTUAL - PAINEL"
+                
                 update = """UPDATE editalProjeto SET local_apresentacao='""" + local_apresentacao + """' WHERE id=""" + id
                 atualizar(update)
                 update = update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
@@ -1429,8 +1393,6 @@ def distribuirSalas():
                 i = i + 1
             
             return(redirect(url_for('programacao',edital=edital)))
-            #return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE))
-
         else:
             return("OK")
     else:
@@ -1945,8 +1907,16 @@ def root():
 @auth.login_required(role=['admin'])
 def admin(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
+    deadline_avaliacao = obterColunaUnica('editais','deadline_avaliacao','id',edital)
+    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    if agora>deadline_avaliacao:
+        mostrar_pos_avaliacao = True
+    else:
+        mostrar_pos_avaliacao = False
+    
     titulo = u"PÁGINA ADMINISTRATIVA"
-    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE))
+    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao))
 
 @app.route("/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -2678,6 +2648,90 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     atualizar(consulta)
     flash(u"Avaliação removida com sucesso!")
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
+
+@app.route("/cadastrar_salas/<edital>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def cadastrar_salas(edital):
+    if request.method=='GET':
+        return(render_template('cadastrar_salas.html',edital=edital))
+    else:
+        tipo = request.form['tipo']
+        dia = request.form['dia']
+        inicio = request.form['inicio']
+        fim = request.form['fim']
+        slot = request.form['slots']
+        salas = request.form['salas']
+        consulta = """
+        INSERT INTO salas (edital,tipo,dia,inicio,termino,slot,salas) VALUES (%s,%s,'%s','%s','%s',%s,'%s')
+        """ % (edital,tipo,dia,inicio,fim,slot,salas)
+        atualizar(consulta)
+        flash(u"Sessão incluída com sucesso")
+        return(redirect(url_for('listar_salas',edital=edital)))
+
+@app.route("/listar_salas/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def listar_salas(edital):
+    consulta = """
+    SELECT id,edital,tipo,dia,time_format(inicio,'%H:%i') as inicio,time_format(termino,'%H:%i') as termino,slot,salas FROM salas WHERE edital=""" + str(edital)
+    linhas,total = executarSelect(consulta)
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    return(render_template('listar_salas.html',sessoes=linhas,nome_longo=nome_longo,edital=edital))
+
+@app.route("/salvar_salas", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_salas():
+    tipo = request.form['tipo']
+    dia = request.form['dia']
+    inicio = request.form['inicio']
+    fim = request.form['fim']
+    slot = request.form['slot']
+    salas = request.form['salas']
+    id_salas = request.form['id_salas']
+    consulta = """
+    UPDATE salas SET tipo=%s,dia='%s',inicio='%s',termino='%s',slot=%s,salas='%s'
+    WHERE id=%s
+    """ % (tipo,dia,inicio,fim,slot,salas,id_salas)
+    atualizar(consulta)
+    return("OK")
+
+@app.route("/remover_salas/<id_salas>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def remover_salas(id_salas):
+    consulta = """DELETE FROM salas WHERE id=%s""" % (id_salas)
+    atualizar(consulta)
+    edital = obterColunaUnica('salas','edital','id',id_salas)
+    return(redirect(url_for('listar_salas',edital=edital)))
+
+@app.route("/local_apresentacao/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def local_apresentacao(edital):
+    consulta = u"""
+    SELECT id,nome,ua,titulo,data_apresentacao,local_apresentacao,
+    IF(categoria=0,'APRESENTAÇÃO ORAL','POSTER'),
+    IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO'))
+    FROM editalProjeto 
+    WHERE valendo=1 and situacao=1 and tipo=%s 
+    ORDER BY categoria,ua,data_apresentacao,local_apresentacao
+    """ %(edital)
+    linhas,total = executarSelect(consulta)
+    consulta_salas = """
+    SELECT 
+    """
+    descricao = obterColunaUnica('editais','nome_longo','id',edital)
+    return(render_template('local_apresentacao.html',novos=linhas,total_novos=total,descricao=descricao))
+
+@app.route("/salvar_local_data", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_local_data():
+    id_projeto = request.form['id_projeto']
+    local = request.form['local_apresentacao']
+    data = request.form['data_apresentacao']
+    consulta = """
+    UPDATE editalProjeto SET local_apresentacao='%s',data_apresentacao='%s' 
+    WHERE id=%s
+    """ %(local,data,id_projeto)
+    atualizar(consulta)
+    return("OK")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

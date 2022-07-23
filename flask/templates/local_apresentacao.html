@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+	  <style>
+
+p.aprovado {
+  color: black;
+  background: green;
+}
+
+p.indefinido {
+  color: black;
+  background: orange;
+}
+
+p.reprovado {
+  color: white;
+  background: red;
+}
+
+.column {
+  float: left;
+  width: 45%;
+  padding: 5px;
+}
+
+/* Clearfix (clear floats) */
+.row::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+ $("#myInput").on("keyup", function() {
+   var value = $(this).val().toLowerCase();
+   $("#myTable tr").filter(function() {
+     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+   });
+ });
+});
+</script>
+
+<script>
+  $(document).ready(function(){
+      $("#txtNovos").on("keyup", function() {
+        var value = $(this).val().toLowerCase();
+        $("#tabelaNovos tr").filter(function() {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+        });
+      });
+      
+  });
+</script>
+
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Propostas submetidas a edital</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $("input").on("change", function(event){
+                event.preventDefault();
+                var form_id = $(this).get(0).form.id;
+                var formValues= $('#' + form_id).serialize();
+                var str = form_id.split("_");
+                var id_projeto = str[1]; 
+                $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
+                    //console.log(data);
+                },"text");
+            });
+        });
+    </script>
+  </head>
+  <body>
+    <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
+    <center>
+    MINISTÉRIO DA EDUCAÇÃO<br>
+    UNIVERSIDADE FEDERAL DO CARIRI<br>
+    PRÓ-REITORIA DE PESQUISA, INOVAÇÃO E PÓS-GRADUAÇÃO<br>
+    COORDENADORIA DE PESQUISA <br>
+    </center>
+    
+    <div class="alert alert-dark" role="alert">
+      <h1>Propostas submetidas ao Edital</h1>
+    </div>
+    
+    <h3>{{ descricao }} </h3>
+
+              <div class="alert alert-dark" role="alert">
+                <h1>LISTA DE TRABALHOS APROVADOS</h1>
+              </div>
+              <div>
+                <a href="{{url_for('root')}}"><button type="button" class="btn btn-outline-primary">Voltar para lista de editais</button></a>
+              </div>
+              {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                  {% for message in messages %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                      <strong>{{message}}</strong>
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
+              <input id="txtNovos" type="text" placeholder="Procurar.."><br>
+              <table class="table table-striped">
+                <thead>
+                <th>ID</th>
+                <th style="width: 25%">Nome</th>
+                <th style="width: 15%">Grande Área</th>
+                <th style="width: 25%">Título</th>
+                <th>Tipo de apresentação</th>
+                <th>Tipo de trabalho</th>
+                <th>Data de apresentação</th>
+                <th>Local de apresentação</th>
+              </thead>
+              <tbody id="tabelaNovos">
+                {% for linha in novos %}
+                  <tr>
+                    <form action="{{url_for('salvar_local_data')}}" method="POST" id="form_{{linha[0]}}">
+                      <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
+                      
+                      <td><a href="/cppgi/static/files/{{ linha[4] }}">{{linha[0]}}</a></td>
+                      <td>
+                        {{linha[1]}}
+                      </td>
+                      <td>
+                        {{linha[2]}}
+                      </td>
+                      <td>
+                        {{linha[3]}}
+                      </td>
+                      <td>
+                        {{linha[6]}}
+                      </td>
+                      <td>
+                        {{linha[7]}}
+                      </td>
+                      <td>
+                        <input class="form-control" type="datetime-local" id="data_apresentacao" name="data_apresentacao" value="{{linha[4]}}">
+                      </td>
+                      <td>
+                        <input class="form-control" type="text" id="local_apresentacao" name="local_apresentacao" value="{{linha[5]}}">
+                      </td>
+                    </form>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+              Total: {{total_novos}} trabalhos aprovados.
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+  </body>
+</html>

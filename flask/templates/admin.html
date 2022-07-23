@@ -40,11 +40,11 @@ tr:nth-child(even) {
       <th>Recurso</th><th>Descrição</th>
       </tr>
       <tr>
-        <td><a href="/cppgi/estatisticas?edital={{edital}}">Estatísticas das avaliações</a></td>
+        <td><a href="{{url_for('estatisticas',edital=edital)}}">Estatísticas das avaliações</a></td>
         <td>Página de acompanhamento das avaliações dos trabalhos submetidos</td>
       </tr>
       <tr>
-        <td><a href="/cppgi/editalProjeto/{{edital}}">Lista de trabalhos submetidos</a></td>
+        <td><a href="{{url_for('editalProjeto',edital=edital)}}">Lista de trabalhos submetidos</a></td>
         <td>Página de acompanhamento dos trabalhos submetidos e inclusão de avaliadores.</td>
       </tr>
       <tr>
@@ -58,43 +58,56 @@ tr:nth-child(even) {
     </table>
     
     <hr>
-    <h2>APÓS O PERÍODO DE AVALIAÇÃO</h2>
-    <table class="table">
-      
-      <tr>
-      <th>Recurso</th><th>Descrição</th>
-      </tr>
-        <tr>
-          <td><a href="/cppgi/resultados?edital={{edital}}">RESULTADO</a></td>
-          <td>Listagem geral dos trabalhos aprovados e não aprovados. (para gerar PDF de resultados)</td>
-        </tr>  
-        <tr>
-          <td><!--<a href="{{root}}premiacao?edital={{edital}}">Calcular médias</a>--></td>
-          <td>Calcula as médias e marca os candidatos a premiação.</td>
-        </tr>
-        <tr>
-          <td><!--<a href="{{root}}distribuirSalas?edital={{edital}}">Refazer distribuição de salas</a>--></td>
-          <td>Refazer distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
-        </tr>
-        <tr>
-          <td><a href="/cppgi/programacao?edital={{edital}}">Programação Geral</a></td>
-          <td>Programação após a distribuição automática</td>
-        </tr>
-        <tr>
-          <td><a href="/cppgi/organizacao?edital={{edital}}">LISTAGEM DE SESSÕES ORAIS E POSTERS</a></td>
-          <td>Links de todas as sessões que devem ser avaliadas.</td>
-        </tr>
-        <tr>
-          <td><a href="/cppgi/mapa?edital={{edital}}">MAPA GERAL DE APRESENTAÇÕES</a></td>
-          <td>Listagem geral de todas as apresentações, por sala e dia</td>
-        </tr>
-        <tr>
-          <td><a href="/cppgi/mapaavaliadores?edital={{edital}}">MAPA DE AVALIADORES</a></td>
-          <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
-        </tr>
-        
-        
-    </table>
+    {%if mostrar_pos_avaliacao%}
+        <h2>APÓS O PERÍODO DE AVALIAÇÃO</h2>
+        <table class="table">
+          
+          <tr>
+          <th>Recurso</th><th>Descrição</th>
+          </tr>
+            <tr>
+              <td><a href="{{url_for('resultados',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">RESULTADO</a></td>
+              <td>Listagem geral dos trabalhos aprovados e não aprovados. (para gerar PDF de resultados)</td>
+            </tr>  
+            <tr>
+              <td><a href="{{url_for('listar_salas',edital=edital)}}">Listar Sessões de apresentações</a></td>
+              <td>Listar e cadastrar sessões</td>
+            </tr>
+            <tr>
+              <td>
+                <a href="{{url_for('premiacao',edital=edital)}}">Calcular médias</a>
+                <!--<a href="{{root}}premiacao?edital={{edital}}">Calcular médias</a>--></td>
+              <td>Calcula as médias e marca os candidatos a premiação.</td>
+            </tr>
+            <tr>
+              <td><!--<a href="{{root}}distribuirSalas?edital={{edital}}">Refazer distribuição de salas</a>-->
+                <a href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
+                  Refazer distribuição de salas</a>
+              </td>
+              <td>Refazer distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
+            </tr>
+            <tr>
+              <td><!--<a href="/cppgi/programacao?edital={{edital}}">Programação Geral</a>-->
+                  <a href="{{url_for('programacao',edital=edital)}}">Programação Geral</a>
+              </td>
+              <td>Programação após a distribuição automática</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('organizacao',edital=edital)}}">LISTAGEM DE SESSÕES ORAIS E POSTERS</a></td>
+              <td>Links de todas as sessões que devem ser avaliadas.</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('mapa',edital=edital)}}">MAPA GERAL DE APRESENTAÇÕES</a></td>
+              <td>Listagem geral de todas as apresentações, por sala e dia</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('mapaavaliadores',edital=edital)}}">MAPA DE AVALIADORES</a></td>
+              <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
+            </tr>
+            
+            
+        </table>
+      {%endif%}
     <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
