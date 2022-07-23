@@ -1575,8 +1575,8 @@ def premiacao():
                 id = str(linha[0])
                 consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
                 atualizar(consulta_update)
-
-            return("Medias calculadas com sucesso!")
+            flash(u"Médias calculadas com sucesso!")
+            return(redirect(url_for('admin',edital=edital)))
         else:
             return("OK")
     else:
@@ -2706,9 +2706,8 @@ def remover_salas(id_salas):
 @auth.login_required(role=['admin'])
 def local_apresentacao(edital):
     consulta = u"""
-    SELECT id,nome,ua,titulo,data_apresentacao,local_apresentacao,
-    IF(categoria=0,'APRESENTAÇÃO ORAL','POSTER'),
-    IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO'))
+    SELECT id,UPPER(nome),ua,UPPER(titulo),data_apresentacao,local_apresentacao,
+    categoria,modalidade,media1,media2,obs,arquivo_projeto
     FROM editalProjeto 
     WHERE valendo=1 and situacao=1 and tipo=%s 
     ORDER BY categoria,ua,data_apresentacao,local_apresentacao
@@ -2718,7 +2717,7 @@ def local_apresentacao(edital):
     SELECT 
     """
     descricao = obterColunaUnica('editais','nome_longo','id',edital)
-    return(render_template('local_apresentacao.html',novos=linhas,total_novos=total,descricao=descricao))
+    return(render_template('local_apresentacao.html',novos=linhas,total_novos=total,descricao=descricao,edital=edital))
 
 @app.route("/salvar_local_data", methods=['POST'])
 @auth.login_required(role=['admin'])
@@ -2726,12 +2725,18 @@ def salvar_local_data():
     id_projeto = request.form['id_projeto']
     local = request.form['local_apresentacao']
     data = request.form['data_apresentacao']
+    categoria = request.form['categoria']
+    modalidade = request.form['modalidade']
+    obs = request.form['obs']
     consulta = """
-    UPDATE editalProjeto SET local_apresentacao='%s',data_apresentacao='%s' 
+    UPDATE editalProjeto SET local_apresentacao='%s',data_apresentacao='%s',categoria=%s,modalidade=%s,obs='%s' 
     WHERE id=%s
-    """ %(local,data,id_projeto)
+    """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
+    #TODO: Na admin.html, ordenar as opções para ficarem na ordem de execução
+    #TODO: Sala_link
+    #TODO: usuarios_salas
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

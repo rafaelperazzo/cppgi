@@ -74,6 +74,16 @@ $(document).ready(function(){
                     //console.log(data);
                 },"text");
             });
+            $("select").on("change", function(event){
+                event.preventDefault();
+                var form_id = $(this).get(0).form.id;
+                var formValues= $('#' + form_id).serialize();
+                var str = form_id.split("_");
+                var id_projeto = str[1]; 
+                $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
+                    console.log(data);
+                },"text");
+            });
         });
     </script>
   </head>
@@ -96,7 +106,7 @@ $(document).ready(function(){
                 <h1>LISTA DE TRABALHOS APROVADOS</h1>
               </div>
               <div>
-                <a href="{{url_for('root')}}"><button type="button" class="btn btn-outline-primary">Voltar para lista de editais</button></a>
+                <a href="{{url_for('admin',edital=edital)}}"><button type="button" class="btn btn-outline-primary">Voltar</button></a>
               </div>
               {% with messages = get_flashed_messages() %}
                 {% if messages %}
@@ -112,13 +122,16 @@ $(document).ready(function(){
               <table class="table table-striped">
                 <thead>
                 <th>ID</th>
-                <th style="width: 25%">Nome</th>
-                <th style="width: 15%">Grande Área</th>
-                <th style="width: 25%">Título</th>
-                <th>Tipo de apresentação</th>
-                <th>Tipo de trabalho</th>
-                <th>Data de apresentação</th>
+                <th>Nome</th>
+                <th>Grande Área</th>
+                <th>Título</th>
+                <th style="width: 10%">Tipo de apresentação</th>
+                <th style="width: 10%">Tipo de trabalho</th>
+                <th style="width: 10%">Data de apresentação</th>
                 <th>Local de apresentação</th>
+                <th>Média 1</th>
+                <th>Média 2</th>
+                <th style="width: 15%">Obs</th>
               </thead>
               <tbody id="tabelaNovos">
                 {% for linha in novos %}
@@ -126,7 +139,7 @@ $(document).ready(function(){
                     <form action="{{url_for('salvar_local_data')}}" method="POST" id="form_{{linha[0]}}">
                       <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
                       
-                      <td><a href="/cppgi/static/files/{{ linha[4] }}">{{linha[0]}}</a></td>
+                      <td><a href="/cppgi/static/files/{{linha[11]}}">{{linha[0]}}</a></td>
                       <td>
                         {{linha[1]}}
                       </td>
@@ -137,16 +150,44 @@ $(document).ready(function(){
                         {{linha[3]}}
                       </td>
                       <td>
-                        {{linha[6]}}
+                        <select class="form-select" id="categoria" name="categoria">
+                          {%if linha[6]==0 %}
+                            <option value="{{linha[6]}}">Apresentação Oral</option>
+                          {%else%}
+                            <option value="{{linha[6]}}">Poster</option>
+                          {%endif%}
+                          <option value="0">Apresentação Oral</option>
+                          <option value="1">Poster</option>
+                        </select>
                       </td>
                       <td>
-                        {{linha[7]}}
+                        <select class="form-select" id="modalidade" name="modalidade">
+                          {%if linha[7]==0 %}
+                            <option value="{{linha[7]}}">Resumo Simples</option>
+                          {%elif linha[7]==1%}
+                            <option value="{{linha[7]}}">Resumo Expandido</option>
+                          {%else%}
+                            <option value="{{linha[7]}}">Trabalho Completo</option>
+                          {%endif%}
+                          <option value="0">Resumo Simples</option>
+                          <option value="1">Resumo Expandido</option>
+                          <option value="2">Trabalho Completo</option>
+                        </select>
                       </td>
                       <td>
                         <input class="form-control" type="datetime-local" id="data_apresentacao" name="data_apresentacao" value="{{linha[4]}}">
                       </td>
                       <td>
                         <input class="form-control" type="text" id="local_apresentacao" name="local_apresentacao" value="{{linha[5]}}">
+                      </td>
+                      <td>
+                        {{'%0.2f'| format(linha[8]|float)}}
+                      </td>
+                      <td>
+                        {{'%0.2f'| format(linha[9]|float)}}
+                      </td>
+                      <td>
+                        <input class="form-control" type="text" id="obs" name="obs" value="{{linha[10]}}">
                       </td>
                     </form>
                   </tr>

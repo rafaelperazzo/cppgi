@@ -33,7 +33,16 @@ tr:nth-child(even) {
     <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
     <h2>{{nome_edital}}</h2>
     <hr><br>
-    
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>{{message}}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
     <h2>DURANTE O PERÍODO DE AVALIAÇÃO</h2>
     <table class="table">
       <tr>
@@ -74,20 +83,24 @@ tr:nth-child(even) {
               <td>Listar e cadastrar sessões</td>
             </tr>
             <tr>
+              <td><a href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalho aprovados</a></td>
+              <td>Listar e cadastrar sessões</td>
+            </tr>
+            <tr>
               <td>
-                <a href="{{url_for('premiacao',edital=edital)}}">Calcular médias</a>
-                <!--<a href="{{root}}premiacao?edital={{edital}}">Calcular médias</a>--></td>
+                <a href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">Calcular médias</a>
+                </td>
               <td>Calcula as médias e marca os candidatos a premiação.</td>
             </tr>
             <tr>
-              <td><!--<a href="{{root}}distribuirSalas?edital={{edital}}">Refazer distribuição de salas</a>-->
+              <td>
                 <a href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
                   Refazer distribuição de salas</a>
               </td>
               <td>Refazer distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
             </tr>
             <tr>
-              <td><!--<a href="/cppgi/programacao?edital={{edital}}">Programação Geral</a>-->
+              <td>
                   <a href="{{url_for('programacao',edital=edital)}}">Programação Geral</a>
               </td>
               <td>Programação após a distribuição automática</td>
