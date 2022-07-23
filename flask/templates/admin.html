@@ -27,7 +27,7 @@ tr:nth-child(even) {
     <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
     <center><b>Ministério da Educação<br>
             Universidade Federal do Cariri<br>
-            Pró-reitoria de Pesquisa, Pós-graduação e Inovação</b></center><br><hr>
+            Plataforma Yoko - Eventos</b></center><br><hr>
     <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
     <hr>
     <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
@@ -43,6 +43,9 @@ tr:nth-child(even) {
         {% endfor %}
     {% endif %}
     {% endwith %}
+    <div>
+      <a href="{{url_for('root')}}"><button type="button" class="btn btn-outline-primary">Voltar</button></a>
+    </div>
     <h2>DURANTE O PERÍODO DE AVALIAÇÃO</h2>
     <table class="table">
       <tr>
@@ -121,7 +124,7 @@ tr:nth-child(even) {
             
         </table>
       {%endif%}
-    <center><img src="{{ url_for('static', filename='rodape.png')}}" width="100%" height="140" alt="" align="left"></center>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>
