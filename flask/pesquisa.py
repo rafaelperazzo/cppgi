@@ -2734,6 +2734,7 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
+    #TODO: Captcha no formulário de envio
     #TODO: Formulário de avaliação, verificar visual. Melhorar
     #TODO: Sala_link
 
@@ -2862,8 +2863,18 @@ def avaliador_sala_remover(id_avaliador_sala,edital):
 
 @app.route("/salvar_avaliador_sala", methods=['POST'])
 @auth.login_required(role=['admin'])
-def salvar_avaliador_sala(id_avaliador_sala):
-    return(u"Não implementado!")
+def salvar_avaliador_sala():
+    username = request.form['username']
+    sala_data = request.form['sala_data']
+    area = request.form['area']
+    data,sala=str(sala_data).split(';')
+    id_avaliador_sala = request.form['id_avaliador_sala']
+    consulta = """
+    UPDATE usuarios_salas SET username='%s',sala='%s',data='%s',area='%s' 
+    WHERE id=%s
+    """ %(username,sala,data,area,id_avaliador_sala)
+    atualizar(consulta)
+    return("OK")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

@@ -48,7 +48,6 @@
     <script>
         $(document).ready(function(){
             $('#btnSalvar').on('click',function(event){
-                console.log("Clicou!");
                 var username = $('#username').val(); 
                 if (validarCPF(username)) {
                     $('#form_cadastrar_usuario').submit();

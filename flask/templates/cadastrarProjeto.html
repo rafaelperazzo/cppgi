@@ -1,9 +1,64 @@
 {% extends "base.html" %}
 {% block title %}SUBMISSÃO DE TRABALHO CIENTÍFICO{% endblock %}
+  {%block validacao%}
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script>
 
+    function validarCPF(cpf) {	
+        cpf = cpf.replace(/[^\d]+/g,'');	
+        if(cpf == '') return false;	
+        // Elimina CPFs invalidos conhecidos	
+        if (cpf.length != 11 || 
+            cpf == "00000000000" || 
+            cpf == "11111111111" || 
+            cpf == "22222222222" || 
+            cpf == "33333333333" || 
+            cpf == "44444444444" || 
+            cpf == "55555555555" || 
+            cpf == "66666666666" || 
+            cpf == "77777777777" || 
+            cpf == "88888888888" || 
+            cpf == "99999999999")
+                return false;		
+        // Valida 1o digito	
+        add = 0;	
+        for (i=0; i < 9; i ++)		
+            add += parseInt(cpf.charAt(i)) * (10 - i);	
+            rev = 11 - (add % 11);	
+            if (rev == 10 || rev == 11)		
+                rev = 0;	
+            if (rev != parseInt(cpf.charAt(9)))		
+                return false;		
+        // Valida 2o digito	
+        add = 0;	
+        for (i = 0; i < 10; i ++)		
+            add += parseInt(cpf.charAt(i)) * (11 - i);	
+        rev = 11 - (add % 11);	
+        if (rev == 10 || rev == 11)	
+            rev = 0;	
+        if (rev != parseInt(cpf.charAt(10)))
+            return false;		
+        return true;   
+    }
+    </script>
+    <script>
+        $(document).ready(function(){
+            $('#btnEnviar').on('click',function(event){
+                alert("teste");
+                var username = $('#identificacao').val(); 
+                if (validarCPF(username)) {
+                    $('#frmCadastroProjeto').submit();
+                }
+                else {
+                    alert('CPF inválido!');
+                }
+            });
+        });
+    </script>
+  {%endblock%}
   {% block content %}
   <br>
-    <form name="frmCadastroProjeto" action="/cppgi/cadastrarProjeto" onsubmit="return humano()" method="POST"
+    <form name="frmCadastroProjeto" id="frmCadastroProjeto" action="/cppgi/cadastrarProjeto" method="POST"
       enctype="multipart/form-data">
 
       <h1 style="text-align: center;"> SUBMISSÃO DE TRABALHO CIENTÍFICO</h1><br>
@@ -15,7 +70,7 @@
       <div class="row g-3">
         <div class="col">
             <label><b>Destino da Submissão</b>:
-              <select class="form-select" name="destino" required="required" onchange="tipo_projeto()">
+              <select class="form-select" name="destino" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
                 {% for linha in abertos %}
                 <option value="{{linha[0]}}">{{linha[1]}} - Até: {{linha[2]}}</option>
@@ -62,7 +117,7 @@
         <div class="col">
           <label>
             <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
-            <input name="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
+            <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
           </label>
         </div>
       </div>
@@ -145,8 +200,8 @@
         </div>
       </div>      
       <!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
-      <div style="text-align: center;"><label><input class="btn btn-secondary btn-lg" name="btnEnviar" value="Enviar"
-formenctype="multipart/form-data" type="submit"></label><br>
+      <div style="text-align: center;"><label><input class="btn btn-secondary btn-lg" name="btnEnviar" id="btnEnviar" value="Enviar"
+formenctype="multipart/form-data" type="button"></label><br>
       </div>
       <hr>
 </form>

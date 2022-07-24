@@ -18,8 +18,8 @@
             var formValues= $('#' + form_id).serialize();
             var str = form_id.split("_");
             var id_avaliacao = str[1]; 
-            $.post("{{url_for('cadastrar_usuario',operacao=1)}}", formValues, function(data){
-                //console.log(data);
+            $.post("{{url_for('salvar_avaliador_sala')}}", formValues, function(data){
+                console.log(data);
             },"text");
         });
         
@@ -29,8 +29,8 @@
             var formValues= $('#' + form_id).serialize();
             var str = form_id.split("_");
             var id_avaliacao = str[1]; 
-            $.post("{{url_for('cadastrar_usuario',operacao=1)}}", formValues, function(data){
-                //console.log(data);
+            $.post("{{url_for('salvar_avaliador_sala')}}", formValues, function(data){
+                console.log(data);
             },"text");
         });
     });
