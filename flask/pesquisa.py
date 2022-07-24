@@ -2734,9 +2734,59 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
-    #TODO: Na admin.html, ordenar as opções para ficarem na ordem de execução
+    #TODO: Gerenciamento de usuarios
     #TODO: Sala_link
     #TODO: usuarios_salas
+
+@app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def cadastrar_usuario(operacao):
+    if request.method=='GET':
+        if operacao==0: #Cadastrar novo usuário
+            return(render_template('cadastrar_usuario.html'))
+        else: #Listar usuários
+            consulta = """
+            SELECT id,username,password,permission,roles,
+            nome,email FROM users
+            ORDER BY nome
+            """
+            usuarios,total = executarSelect(consulta)
+            return(render_template('listar_usuarios.html',usuarios=usuarios))
+    else: #POST  
+        #Operação 0: Cadastrar; 1: Atualizar
+        username = request.form['username']
+        password = request.form['password']
+        permission = request.form['permission']
+        roles = request.form['roles']
+        nome = request.form['nome']
+        email = request.form['email']
+        id_usuario = request.form['id_usuario']
+        if operacao==0: #Cadastrar
+            consulta = """
+            INSERT INTO users (username,password,permission,roles,nome,email) 
+            VALUES ('%s','%s',%s,'%s','%s','%s)
+            """ %(username,password,permission,roles,nome,email)
+            atualizar(consulta)
+            flash(u"Usuário cadastrado com sucesso!")
+            return(redirect(url_for(cadastrar_usuario,operacao=1)))
+        else: #Atualizar
+            consulta = """
+            UPDATE users SET username='%s',password='%s',permission=%s,roles='%s',nome='%s',
+            email='%s'
+            WHERE id=%s
+            """ %(username,password,permission,roles,nome,email,id_usuario)
+            atualizar(consulta)
+            return("OK")
+
+@app.route("/remover_usuario/<id_usuario>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def remover_usuario(id_usuario):
+    consulta = """
+    DELETE FROM users WHERE id=%s
+    """ %(id_usuario)
+    atualizar(consulta)
+    flash(u"Usuário removido com sucesso!")
+    return(redirect(url_for(cadastrar_usuario,operacao=1)))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

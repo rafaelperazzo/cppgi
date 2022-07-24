@@ -79,21 +79,21 @@ tr:nth-child(even) {
           </tr>
             <tr>
               <td><a href="{{url_for('resultados',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">RESULTADO</a></td>
-              <td>Listagem geral dos trabalhos aprovados e não aprovados. (para gerar PDF de resultados)</td>
+              <td>Processar resultados.</td>
             </tr>  
-            <tr>
-              <td><a href="{{url_for('listar_salas',edital=edital)}}">Listar Sessões de apresentações</a></td>
-              <td>Listar e cadastrar sessões</td>
-            </tr>
-            <tr>
-              <td><a href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalho aprovados</a></td>
-              <td>Listar e cadastrar sessões</td>
-            </tr>
             <tr>
               <td>
                 <a href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">Calcular médias</a>
                 </td>
               <td>Calcula as médias e marca os candidatos a premiação.</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalho aprovados</a></td>
+              <td>Listar trabalhos aprovados</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('listar_salas',edital=edital)}}">Listar Sessões de apresentações</a></td>
+              <td>Listar e cadastrar sessões</td>
             </tr>
             <tr>
               <td>
