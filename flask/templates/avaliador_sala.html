@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ titulo }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    </head>
+  <body>
+    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
+    <center><b>Ministério da Educação<br>
+            Universidade Federal do Cariri<br>
+            Plataforma Yoko - Eventos</b></center><br><hr>
+    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
+    <hr>
+    <center><p><b><h1>ATRIBUIR AVALIADOR A UMA SALA</b></h1></p></center>
+        
+    <form name="form_avaliador_sala" id="form_avaliador_sala" action="{{url_for('avaliador_sala',edital=edital)}}" method="POST">
+        
+        <div class="alert alert-dark" role="alert">
+            <H3>AVALIADOR/SALA</H3>
+            <h4>{{edital}} - {{nome_longo}}</h4>
+        </div>
+        <div class="container text-center">
+            <div class="row align-items-start">
+                
+                <div class="col">
+                    <p><b>Avaliador</b></p>
+                    <select class="form-select" required="required" name="username" id="username">
+                        {%for usuario in usuarios%}
+                            <option value="{{usuario[0]}}">{{usuario[1]}}</option>
+                        {%endfor%}
+                    </select>
+                </div>
+                <div class="col">
+                    <p><b>Sala/Data</b></p>
+                    <select class="form-select" required="required" name="sala_data" id="sala_data">
+                    {%for data in datas%}
+                        {% set salas = data[4].split(',') %}
+                            {%for sala in salas%}
+                                <option value="{{data[1]}};{{sala}}">{{data[1].strftime('%d/%m/%Y')}} - {{sala}}</option>
+                            {%endfor%}
+                    {%endfor%}
+                    </select>
+                </div>
+                <div class="col">
+                    <p><b>Grande Área</b></p>
+                    <select class="form-select" name="area" id="area" required="required">
+                        <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                        <option value="Ciências da Vida">Ciências da Vida</option>
+                        <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
+                        <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <center><input class="btn btn-success" type="submit" value="Salvar"></center>
+    </form>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+  </body>
+</html>

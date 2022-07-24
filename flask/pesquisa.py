@@ -2734,9 +2734,8 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
-    #TODO: Gerenciamento de usuarios
+    #TODO: Formulário de avaliação, verificar visual. Melhorar
     #TODO: Sala_link
-    #TODO: usuarios_salas
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
@@ -2787,6 +2786,84 @@ def remover_usuario(id_usuario):
     atualizar(consulta)
     flash(u"Usuário removido com sucesso!")
     return(redirect(url_for(cadastrar_usuario,operacao=1)))
+
+@app.route("/avaliador_sala/<edital>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def avaliador_sala(edital):
+    if request.method=='GET':
+        consulta = """
+        SELECT tipo,dia,inicio,termino,salas FROM salas
+        WHERE edital=%s
+        """ %(edital)
+        datas,total = executarSelect(consulta)
+        
+        consulta_usuarios = """
+        SELECT username,nome FROM users 
+        WHERE roles like '%avaliador%'
+        ORDER BY nome
+        """
+        usuarios,total = executarSelect(consulta_usuarios)
+        nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+
+        return(render_template('avaliador_sala.html',edital=edital,usuarios=usuarios,datas=datas,nome_longo=nome_longo))
+
+    else:
+        username = request.form['username']
+        sala_data = request.form['sala_data']
+        area = request.form['area']
+        data,sala=str(sala_data).split(';')
+        consulta = """
+        INSERT INTO usuarios_salas(username,edital,sala,data,area) 
+        VALUES('%s',%s,'%s','%s','%s')
+        """ %(username,edital,sala,data,area)
+        atualizar(consulta)
+        return("SUCESSO")
+
+@app.route("/avaliador_sala_listar/<edital>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def avaliador_sala_listar(edital):
+    consulta = """
+    SELECT usuarios_salas.id,usuarios_salas.username,usuarios_salas.edital,
+    usuarios_salas.sala,usuarios_salas.data,usuarios_salas.area,users.nome
+    FROM usuarios_salas
+    INNER JOIN users ON users.username=usuarios_salas.username 
+    WHERE edital=%s 
+    ORDER BY area,data,sala
+    """ %(edital)
+    linhas,total = executarSelect(consulta)
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    
+    consulta_usuarios = """
+    SELECT username,nome FROM users 
+    WHERE roles like '%avaliador%'
+    ORDER BY nome
+    """
+    usuarios,total = executarSelect(consulta_usuarios)
+    
+    consulta_salas = """
+    SELECT dia,salas FROM salas 
+    WHERE edital=%s 
+    ORDER BY dia,salas
+    """ %(edital)
+
+    datas,total = executarSelect(consulta_salas)
+
+    return(render_template('avaliador_sala_listar.html',linhas=linhas,edital=edital,nome_longo=nome_longo,usuarios=usuarios,datas=datas))
+
+@app.route("/avaliador_sala_remover/<id_avaliador_sala>/<edital>", methods=['GET','POST'])
+@auth.login_required(role=['admin'])
+def avaliador_sala_remover(id_avaliador_sala,edital):
+    consulta = """
+    DELETE FROM usuarios_salas WHERE id=%s
+    """ %(id_avaliador_sala)
+    atualizar(consulta)
+    flash(u"Atribuição removida com sucesso!")
+    return(redirect(url_for('avaliador_sala_listar',edital=edital)))
+
+@app.route("/salvar_avaliador_sala", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_avaliador_sala(id_avaliador_sala):
+    return(u"Não implementado!")
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
