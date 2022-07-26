@@ -28,9 +28,8 @@ MarkupSafe==1.1.1
 matplotlib==2.2.5
 mpmath==1.2.1
 mysqlclient==1.4.6
-numpy==1.16.6
-opencv-python==4.2.0.32
-pandas==0.24.2
+numpy
+pandas
 pathlib2==2.3.5
 pdfkit==1.0.0
 Pillow==6.2.2

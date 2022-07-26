@@ -12,7 +12,6 @@ import zipfile
 import tempfile
 import string
 import random
-from email.MIMEImage import MIMEImage
 import logging
 import sys
 import numpy as np
@@ -167,11 +166,11 @@ def atualizar(consulta):
     try:
         cursor.execute(consulta)
         conn.commit()
-    except MySQLdb.Error, e:
-        #e = sys.exc_info()[0]
+    except MySQLdb.Error as e:
+        
         logging.error(e)
-	logging.error(consulta)
-        #conn.rollback()
+        logging.error(consulta)
+        
     finally:
         cursor.close()
         conn.close()
@@ -246,7 +245,7 @@ def verify_password(username, password):
             roles = str(linha[3])
             roles = roles.split(',')
             session['roles'] = roles
-            session['nome'] = unicode(linha[4])
+            session['nome'] = str(linha[4])
             #return (True)
             return username
     except:
@@ -280,7 +279,7 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
         cursor.execute(consulta)
         linhas = cursor.fetchall()
         for linha in linhas:
-            resultado = unicode(linha[0])
+            resultado = str(linha[0])
         return(resultado)
     except:
         e = sys.exc_info()[0]
@@ -369,19 +368,19 @@ def cadastrarProjeto():
     destino = int(request.form['destino'])
     tipo = int(request.form['tipo_apresentacao'])
     tipo_trabalho = int(request.form['tipo_trabalho'])
-    nome = unicode(request.form['autores'])
+    nome = str(request.form['autores'])
     nome = nome.upper()
-    identificacao = unicode(request.form['identificacao'])
+    identificacao = str(request.form['identificacao'])
     identificacao = identificacao.replace('.','')
     identificacao = identificacao.replace('-','')
-    email = unicode(request.form['email'])
-    grande_area = unicode(request.form['grande_area'])
-    titulo = unicode(request.form['titulo'])
+    email = str(request.form['email'])
+    grande_area = str(request.form['grande_area'])
+    titulo = str(request.form['titulo'])
     titulo = removerAspas(titulo)
     titulo = titulo.upper()
-    palavras = unicode(request.form['palavras'])
+    palavras = str(request.form['palavras'])
     palavras = removerAspas(palavras)
-    resumo = unicode(request.form['resumo'])
+    resumo = str(request.form['resumo'])
     resumo = removerAspas(resumo)
 
     nomeDoArquivoTrabalho = ""
@@ -428,8 +427,8 @@ def cadastrarProjeto():
         valores = (usuario,senha,nome,email)
         inserir(consulta,valores)
     else:
-        usuario = unicode(resultados[0][0])
-        senha = unicode(resultados[0][1])
+        usuario = str(resultados[0][0])
+        senha = str(resultados[0][1])
 
     getID = "SELECT MAX(id) FROM editalProjeto"
     ultimo_id,total = executarSelect(getID,1)
@@ -527,9 +526,9 @@ def getPaginaAvaliacao():
 @app.route("/avaliar", methods=['GET', 'POST'])
 def enviarAvaliacao():
     if request.method == "POST":
-        comentarios = unicode(request.form['txtComentarios'])
+        comentarios = str(request.form['txtComentarios'])
         recomendacao = str(request.form['txtRecomendacao'])
-        nome_avaliador = unicode(request.form['txtNome'])
+        nome_avaliador = str(request.form['txtNome'])
         token = str(request.form['token'])
         c1 = str(request.form['c1'])
         c2 = str(request.form['c2'])
@@ -593,7 +592,7 @@ def enviarAvaliacao():
         consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + token + "\""
         linhas = consultar(consulta)
         for linha in linhas:
-            descricaoEdital = unicode(linha[1])
+            descricaoEdital = str(linha[1])
         #Enviando e-mail para o avaliador com o link
         texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
         msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
@@ -613,7 +612,7 @@ def descricaoEdital(codigoEdital):
     linhas = cursor.fetchall()
     nomeEdital = "EDITAL NAO DEFINIDO"
     for linha in linhas:
-        nomeEdital = unicode(linha[1])
+        nomeEdital = str(linha[1])
     conn.close()
     return (nomeEdital)
 
@@ -626,13 +625,13 @@ def getDeclaracaoAvaliador():
         linhas = consultar(consulta)
         nome_avaliador = "NAO INFORMADO"
         for linha in linhas:
-            nome_avaliador = unicode(linha[0])
+            nome_avaliador = str(linha[0])
         data_agora = getData()
         #Recuperando descrição do edital
         consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + tokenAvaliacao + "\""
         linhas = consultar(consulta)
         for linha in linhas:
-            descricaoEdital = unicode(linha[1])
+            descricaoEdital = str(linha[1])
         #Gerando declaração e enviando ao navegador
         token=tokenAvaliacao
         ids,total = executarSelect(consulta)
@@ -812,7 +811,7 @@ def gerarGraficos(demandas,grafico1,grafico2,rotacao=0):
     unidades = []
     fatias = []
     for linha in demandas:
-        unidades.append(unicode(linha[0]))
+        unidades.append(str(linha[0]))
         fatias.append(float(linha[1]))
 
     fig1,ax1 = plt.subplots()
@@ -901,11 +900,11 @@ def editalProjeto(edital):
             pass
         if 'resultado' in request.args:
             if 'pdf' in request.args:
-                mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
                 gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
                 return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
             else:
-                mensagem = unicode(obterColunaUnica("editais","mensagem","id",codigoEdital))
+                mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
                 return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
         else:
             mensagem = ""
@@ -1036,7 +1035,7 @@ def meusPareceres():
         if 'id' in request.args:
             idProjeto = str(request.args.get('id'))
             if autenticado():
-                tituloProjeto = unicode(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
+                tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
                 if ('todos' in request.args) and (session['permissao']==0):
                     consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,c9,(c1+c2+c3+c4+c5+c6+c7+c8+c9) as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=""" + idProjeto + """ ORDER BY data_avaliacao"""
                 else:
@@ -1065,7 +1064,7 @@ def getNome(username):
     consulta = """SELECT nome FROM users WHERE username='""" + username + """'"""
     linhas,total = executarSelect(consulta)
     for linha in linhas:
-        return (unicode(linha[0]))
+        return (str(linha[0]))
     return("INDEFINIDO")
 
 @app.route("/avaliador", methods=['GET', 'POST'])
@@ -1076,9 +1075,9 @@ def avaliador():
         edital = str(request.args.get('edital'))
     session['edital'] = edital
     nome_edital = obterColunaUnica('editais','nome','id',edital)
-    consulta = """SELECT sala,data FROM usuarios_salas WHERE edital=""" + edital + """ and username='""" + unicode(session['username']) + """' ORDER BY data,sala"""
+    consulta = """SELECT sala,data FROM usuarios_salas WHERE edital=""" + edital + """ and username='""" + str(session['username']) + """' ORDER BY data,sala"""
     linhas,total = executarSelect(consulta)
-    nome_usuario = getNome(unicode(session['username']))
+    nome_usuario = getNome(str(session['username']))
     return(render_template('avaliador.html',linhas=linhas,nome_edital=nome_edital,root=CPPGI_SITE,edital=edital,usuario=session['username'],nome_usuario=nome_usuario,titulo=u'MÓDULO AVALIADOR'))
 
 '''
@@ -1088,8 +1087,8 @@ Método que ativa a sessão com os dados do usuário
 def login():
     if request.method == "POST":
         if (('siape' in request.form) and ('senha' in request.form)):
-            siape = unicode(request.form['siape'])
-            senha = unicode(request.form['senha'])
+            siape = str(request.form['siape'])
+            senha = str(request.form['senha'])
             if verify_password(siape,senha)!=False:
                 return(redirect(url_for('usuario')))
             else:
@@ -1107,14 +1106,14 @@ def esqueciMinhaSenha():
 def enviarMinhaSenha():
     if request.method == "POST":
         if ('email' in request.form):
-            email = unicode(request.form['email'])
+            email = str(request.form['email'])
             #ENVIAR E-MAIL
             consulta = """SELECT username,password FROM users WHERE email='""" + email + """' """
             linhas,total = executarSelect(consulta,1)
 
             if (total>0):
-                usuario = unicode(linhas[0])
-                senha = unicode(linhas[1])
+                usuario = str(linhas[0])
+                senha = str(linhas[1])
                 texto_mensagem = "Usuario: " + usuario + "\nSenha: " + senha + "\n" + USUARIO_SITE
                 msg = Message(subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
                 mail.send(msg)
@@ -1530,7 +1529,7 @@ def cadastrarLinkApresentacao():
         if (agora>deadline):
             return("Prazo expirado!")
         if 'link' in request.form:
-            link = unicode(request.form['link'])
+            link = str(request.form['link'])
             consulta = """UPDATE editalProjeto SET link_apresentacao='""" + link + """' WHERE id=""" + idTrabalho
             atualizar(consulta)
             return(redirect(url_for('meusProjetos')))
@@ -1650,16 +1649,16 @@ def solicitarVersaoFinal():
             cont = 0
             erros = 0
             for linha in linhas:
-                titulo = unicode(linha[1])
+                titulo = str(linha[1])
                 id_trabalho = str(linha[2])
-                cpf = unicode(linha[3])
-                email_autor = unicode(linha[4])
-                senha = unicode(linha[5])
-                arquivo = unicode(linha[6])
-                autores = unicode(linha[7])
+                cpf = str(linha[3])
+                email_autor = str(linha[4])
+                senha = str(linha[5])
+                arquivo = str(linha[6])
+                autores = str(linha[7])
                 if (arquivo=="0"):
                     texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[unicode(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
                         mail.send(msg)
                         cont = cont + 1
@@ -1681,7 +1680,7 @@ def getAvaliadoresSala(edital,sala,dia):
     linhas,total = executarSelect(consulta)
     avaliadores = []
     for linha in linhas:
-        avaliadores.append(unicode(linha[0]))
+        avaliadores.append(str(linha[0]))
     return (avaliadores)
 
 @app.route("/emailInformacoes", methods=['GET', 'POST'])
@@ -1699,14 +1698,14 @@ def emailInformacoes():
             cont = 0
             erros = 0
             for linha in linhas:
-                titulo = unicode(linha[1])
+                titulo = str(linha[1])
                 id_trabalho = str(linha[2])
-                email_autor = unicode(linha[0])
-                autores = unicode(linha[3])
-                local = unicode(linha[4])
-                data = unicode(linha[5])
+                email_autor = str(linha[0])
+                autores = str(linha[3])
+                local = str(linha[4])
+                data = str(linha[5])
                 link = getLinkSala(edital,local)
-                avaliadores = getAvaliadoresSala(edital,local,unicode(linha[6]))
+                avaliadores = getAvaliadoresSala(edital,local,str(linha[6]))
                 jaMandouOlink = obterColunaUnica('editalProjeto','link_apresentacao','id',edital)
                 jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',edital)
                 if (jaMandouVersaoFinal=='0') or (jaMandouOlink=='0'):    
@@ -1744,16 +1743,16 @@ def emailInstrucoes():
             cont = 0
             erros = 0
             for linha in linhas:
-                titulo = unicode(linha[1])
+                titulo = str(linha[1])
                 id_trabalho = str(linha[2])
-                email_autor = unicode(linha[0])
-                autores = unicode(linha[4])
-                cpf = unicode(linha[3])
-                senha = unicode(linha[5])
-                apresentacao = unicode(linha[6])
-                dataHora_apresentacao = unicode(linha[7])
-                local_apresentacao = unicode(linha[8])
-                data_apresentacao = unicode(linha[9])
+                email_autor = str(linha[0])
+                autores = str(linha[4])
+                cpf = str(linha[3])
+                senha = str(linha[5])
+                apresentacao = str(linha[6])
+                dataHora_apresentacao = str(linha[7])
+                local_apresentacao = str(linha[8])
+                data_apresentacao = str(linha[9])
                 link = getLinkSala(edital,local_apresentacao)
                 texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao,link=link)
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
@@ -1785,7 +1784,7 @@ def emailPosEvento():
             nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
             linhas,total=executarSelect(consulta)            
             for linha in linhas:
-                email_autor = unicode(linha[0])
+                email_autor = str(linha[0])
                 texto_email = render_template('email_pos_evento.html',evento=nome_edital,nome_longo=nome_longo)
                 subject = "AGRADECIMENTOS"
                 msg = Message(subject = subject,bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
@@ -1818,9 +1817,9 @@ def emailInstrucoesAvaliador():
             cont = 0
             erros = 0
             for linha in linhas:
-                cpf = unicode(linha[0])
-                senha = unicode(linha[1])
-                email_avaliador = unicode(linha[2])
+                cpf = str(linha[0])
+                senha = str(linha[1])
+                email_avaliador = str(linha[2])
                 texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
@@ -1840,7 +1839,7 @@ def getDatas(edital):
     linhas,total = executarSelect(consulta)
     datas = []
     for linha in linhas:
-        datas.append(unicode(linha[0]))
+        datas.append(str(linha[0]))
     return (datas)
 
 def getSalas(edital):
@@ -1848,7 +1847,7 @@ def getSalas(edital):
     linhas,total = executarSelect(consulta)
     salas = []
     for linha in linhas:
-        salas.append(unicode(linha[0]))
+        salas.append(str(linha[0]))
     return (salas)
 
 def getSalasPorData(edital,data):
@@ -1857,7 +1856,7 @@ def getSalasPorData(edital,data):
     linhas,total = executarSelect(consulta)
     salas = []
     for linha in linhas:
-        salas.append(unicode(linha[0]))
+        salas.append(str(linha[0]))
     return (salas)
 
 def getMapaApresentacoes(edital):
@@ -2075,8 +2074,8 @@ def baixarCertificado():
             for linha in linhas:
                 edital = str(linha[2])
                 template = obterColunaUnica('editais','certificado_apresentador','id',edital)
-                nome = unicode(linha[0])
-                titulo = unicode(linha[1])
+                nome = str(linha[0])
+                titulo = str(linha[1])
                 font = ImageFont.truetype(FONT_PATH,40)
                 wrapper = TextWrapper(nome, font, 1500)
                 nome = wrapper.wrapped_text()
@@ -2118,7 +2117,7 @@ def certificadoIndividual():
             linhas,total = executarSelect(consulta)
             for linha in linhas:
                 nome = linha[0]
-                tipo_participacao = unicode(linha[1])
+                tipo_participacao = str(linha[1])
                 template = obterColunaUnica('editais','certificado_demais','id',str(linha[2]))
                 output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
                 output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
@@ -2155,15 +2154,15 @@ def confirmar():
         c2 = int(request.form['c2'])
         c3 = int(request.form['c3'])
         c4 = int(request.form['c4'])
-        #avaliador = unicode(request.form['txtNome'])
+        #avaliador = str(request.form['txtNome'])
         #avaliador = obterColunaUnica('users','nome','username',session['username'])
         c = """SELECT nome FROM users WHERE username='""" + session['username'] + """'"""
         linhas,total = executarSelect(c)
         avaliador = "INDEFINIDO"
         for linha in linhas:
-            avaliador = unicode(linha[0])
+            avaliador = str(linha[0])
         
-        comentarios = unicode(request.form['txtComentarios'])
+        comentarios = str(request.form['txtComentarios'])
         id = str(request.form['idProjeto'])
         local = obterColunaUnica('editalProjeto','local_apresentacao','id',id)
         edital = obterColunaUnica('editalProjeto','tipo','id',id)
@@ -2246,7 +2245,7 @@ def gerarCertificadoApresentacao(autores,titulo,id,token=0):
     odt.save()
     a = zipfile.ZipFile('/home/perazzo/cppgi/documentos/07-certificado.apresentacao.odt')
     content = a.read('content.xml')
-    content = unicode(content.decode(encoding='utf8'))
+    content = str(content.decode(encoding='utf8'))
     content = unicode.replace(content,"[AUTORES]", autores)
     content = unicode.replace(content, '[TITULO]', titulo)
     content = unicode.replace(content, '[CODIGO]', token)
@@ -2262,10 +2261,10 @@ def certificadoApresentacoes():
             consulta = """SELECT nome,titulo,id,token FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + id
             linhas,total = executarSelect(consulta)
             for linha in linhas:
-                nome = unicode(linha[0])
-                titulo = unicode(linha[1])
+                nome = str(linha[0])
+                titulo = str(linha[1])
                 idTrabalho = str(linha[2])
-                token = unicode(linha[3])
+                token = str(linha[3])
                 gerarCertificadoApresentacao(nome,titulo,idTrabalho,token)
             return("Certificados gerados com sucesso!")
         else:
@@ -2296,10 +2295,10 @@ def enviarCertificados():
             consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + id
             linhas,total = executarSelect(consulta)
             for linha in linhas:
-                email = unicode(linha[2])
+                email = str(linha[2])
                 idTrabalho = str(linha[3])
-                nome = unicode(linha[0])
-                titulo = unicode(linha[1])
+                nome = str(linha[0])
+                titulo = str(linha[1])
                 nome_curto = obterColunaUnica('editais','nome_curto','id',str(id))
                 nome_longo = obterColunaUnica('editais','nome_longo','id',str(id))
                 link = "https://sci02-ter-jne.ufca.edu.br/cppgi/baixarCertificado?id=" + idTrabalho
@@ -2319,7 +2318,7 @@ def gerarCertificadoModerador(nome,tipo,id,token=0):
     odt.save()
     a = zipfile.ZipFile('/home/perazzo/cppgi/documentos/07-certificado.moderador.odt')
     content = a.read('content.xml')
-    content = unicode(content.decode(encoding='utf8'))
+    content = str(content.decode(encoding='utf8'))
     content = unicode.replace(content,"[MODERADOR]", nome)
     content = unicode.replace(content, '[TIPO]', tipo)
     content = unicode.replace(content, '[CODIGO]', token)
@@ -2335,10 +2334,10 @@ def certificadoModerador():
             consulta = """SELECT nome,tipo,id,token FROM certificados_moderador ORDER BY nome"""
             linhas,total = executarSelect(consulta)
             for linha in linhas:
-                nome = unicode(linha[0])
-                tipo = unicode(linha[1])
+                nome = str(linha[0])
+                tipo = str(linha[1])
                 id = str(linha[2])
-                token = unicode(linha[3])
+                token = str(linha[3])
                 gerarCertificadoModerador(nome,tipo,id,token)
             return("Certificados gerados com sucesso!")
         else:
@@ -2416,14 +2415,14 @@ def enviar_email_avaliadores():
     """
     linhas,total = executarSelect(consulta)
     for linha in linhas:
-        titulo = unicode(linha[1])
-        resumo = unicode(linha[2])
-        link = unicode(linha[4])
-        token = unicode(linha[7])
-        email_avaliador = unicode(linha[3])
+        titulo = str(linha[1])
+        resumo = str(linha[2])
+        link = str(linha[4])
+        token = str(linha[7])
+        email_avaliador = str(linha[3])
         link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
         deadline = str(linha[11])
-        nome_longo = unicode(linha[12])
+        nome_longo = str(linha[12])
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
@@ -2455,11 +2454,11 @@ def enviarPedidoAvaliacao(id):
     logging.debug("Enviado pedido de avaliacao para: " + str(total))
     
     for linha in linhas:
-        titulo = unicode(linha[1])
-        resumo = unicode(linha[2])
-        link = unicode(linha[4])
-        token = unicode(linha[7])
-        email_avaliador = unicode(linha[3])
+        titulo = str(linha[1])
+        resumo = str(linha[2])
+        link = str(linha[4])
+        token = str(linha[7])
+        email_avaliador = str(linha[3])
         app.logger.debug(email_avaliador)
         link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
         deadline = obterColunaUnica('editais',"DATE_FORMAT(deadline_avaliacao,'%d/%m/%Y')",'id',str(linha[9]))
@@ -2489,7 +2488,7 @@ def salvar_edital(operacao):
         UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
         deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s' 
         WHERE id=%s 
-        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),unicode(request.form['nome']),unicode(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),unicode(request.form['situacao']),str(request.form['isbn']),str(edital))
+        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['nome']),str(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),str(request.form['situacao']),str(request.form['isbn']),str(edital))
         atualizar(consulta)
         return("Alterações gravadas com sucesso!")
     else:
@@ -2564,7 +2563,7 @@ def cadastrar_edital():
             consulta = """INSERT INTO editais 
             (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,
             deadline_apresentacao,situacao,isbn,setor) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,1)"""
-            valores = (unicode(request.form['nome']),unicode(request.form['nome_curto']),unicode(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['situacao']),str(request.form['isbn']))
+            valores = (str(request.form['nome']),str(request.form['nome_curto']),str(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['situacao']),str(request.form['isbn']))
         except Exception as e:
             return(str(e))
     inserir(consulta,valores)
@@ -2579,11 +2578,11 @@ def ver_imagem(qual):
 @app.route("/salvar_projeto", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def salvar_projeto():
-    nome = unicode(request.form['nome'])
-    ga = unicode(request.form['grande_area'])
-    titulo = unicode(request.form['titulo'])
-    palavras = unicode(request.form['palavras'])
-    situacao = unicode(request.form['situacao'])
+    nome = str(request.form['nome'])
+    ga = str(request.form['grande_area'])
+    titulo = str(request.form['titulo'])
+    palavras = str(request.form['palavras'])
+    situacao = str(request.form['situacao'])
     id_projeto = str(request.form['id_projeto'])
     consulta = """
     UPDATE editalProjeto SET nome='%s',ua='%s',titulo='%s',palavras='%s',situacao=%s WHERE id=%s
@@ -2628,7 +2627,7 @@ def listar_consultores_edital(edital):
 def salvar_consultores():
     id_avaliacao = request.form['id_avaliacao']
     avaliador = request.form['avaliador']
-    nome = unicode(request.form['nome_avaliador'])
+    nome = str(request.form['nome_avaliador'])
     recomendacao = request.form['recomendacao']
     finalizado = request.form['finalizado']
     consulta = """
