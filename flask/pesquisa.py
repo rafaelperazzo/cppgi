@@ -321,7 +321,7 @@ FIM AUTENTICAÇÃO
 @app.route("/")
 def home():
     editaisAbertos = getEditaisAbertos()
-    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos))
+    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO))
 
 @app.route("/declaracao", methods=['GET', 'POST'])
 def declaracao():
