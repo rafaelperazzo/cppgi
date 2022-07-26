@@ -2085,11 +2085,10 @@ def baixarCertificado():
                 output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
                 output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
                 template = CERTIFICADOS_TEMPLATE_DIR + template
-                #try:
+                
                 gerarCertificadoComplexo(nome,template,FONT_PATH,550,output_png,output_pdf,40,titulo,34)
                 return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
-                #except:
-                #    return("Erro ao gerar o certificado!")
+                
         else:
             return("OK")
     else:
@@ -2734,9 +2733,10 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
-    #TODO: Captcha no formulário de envio
-    #TODO: Formulário de avaliação, verificar visual. Melhorar
     #TODO: Sala_link
+    #TODO: Links de sci02 para sci01
+    #TODO: baixarCertificado ---> corrigir (apresentador) 
+    #TODO: gerarCertificadoAvaliador --> corrigir (avaliador)
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
@@ -2875,6 +2875,11 @@ def salvar_avaliador_sala():
     """ %(username,sala,data,area,id_avaliador_sala)
     atualizar(consulta)
     return("OK")
+
+@app.route('/img_file/<path:filename>')
+def img_file(filename):
+    #https://stackoverflow.com/questions/26971491/how-do-i-link-to-images-not-in-static-folder-in-flask
+    return send_from_directory(CERTIFICADOS_TEMPLATE_DIR, filename, as_attachment=True)
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
