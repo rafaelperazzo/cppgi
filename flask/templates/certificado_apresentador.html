@@ -128,7 +128,7 @@
             /*configurações de exibição da pagina e conteudo*/
             .certificado_conteudo {
             -webkit-print-color-adjust: exact;
-            background-image: url({{url_for('static',filename='ufca2.jpg',_external=True)}});
+            background-image: url({{url_for('img_file',filename=arquivo)}});
             height: 1238px;
             width: 1754px;
             background-repeat: no-repeat;
@@ -182,13 +182,11 @@
                         <div class="col-xs-10">
                             <div class="box">
                                 <div class="caixa_informacoes serif">
-									
-                                    <p class="center">Certificamos que</p>
-                                    <p class="center negrito">{{conteudo[0]}}</p>
-									
+                                    <p class="center negrito">{{nome}}</p>
+                                    <br>
                                     <p>
-                                        apresentou(aram) o trabalho {{conteudo[1]}} no {{conteudo[2]}}, realizado no período de 
-                                        {{conteudo[3]}}, na Universidade Federal do Cariri/UFCA em Juazeiro do Norte, Ceará.
+                                        {{verbo}} o trabalho <b>{{titulo}}</b> no <b>{{evento}}</b>, realizado no período de 
+                                        {{periodo}}, no(a) {{local}}.
                                     </p>
                                 </div>
                             </div>
@@ -207,36 +205,13 @@
                         </div>
                     </div>
 		    <br><br><br><br>
-   		    <div class="row between-xs">
-                               <div class="col-sm">
-                                          <div class="caixa_assinatura1">
-						  <p class="center font-11"><img class="imagem" src="{{raiz}}{{ url_for('static', filename=coordenador[2])}}" width="284" height="80" alt=""></p>
-						    <p class="center font-11">_____________________________________</p>
-						    <p class="center font-11"><b>{{coordenador[1]}}</b></p>
-                                                    <p class="center font-11"><b>Coordenador de Pesquisa</b></p>
-						    <p class="center font-11"><b>SIAPE: {{coordenador[3]}}</b></p>
-                                          </div>
-                               </div>
-                               
-
-
-                                <div class="col-sm">
-                                          <div class="caixa_assinatura2">
-                                                    <p class="center font-11 entre_linhas"><img class="imagem" src="{{raiz}}{{ url_for('static', filename=proreitor[2])}}" width="284" height="80" alt=""></p>
-						    <p class="center font-11 entre_linhas">_____________________________________</p>
-						    <p class="center font-11"><b>{{proreitor[1]}}</b></p>
-                                                    <p class="center font-11"><b>Pró-reitor de Pesquisa, <br>Pós-Graduação e Inovação</b></p>
-						    <p class="center font-11"><b>SIAPE: {{proreitor[3]}}</b></p>
-                                          </div>
-                               </div>
-                   </div>
  
                     <div class="row end-xs">
                         <div class="col-xs-10">
                             <div class="box">
                                 <div class="token serif">
                                     <p class="esquerda">Verifique a autenticidade deste documento em: </p>
-                                    <p class="esquerda"><a href="{{url_for('meuCertificado',id=identificador,_external=True)}}" target="_blank">{{url_for('meuCertificado',id=identificador,_external=True)}}</a></p>
+                                    <p class="esquerda"><a href="{{url_for('baixarCertificado',id_projeto=identificador,_external=True)}}" target="_blank">{{url_for('baixarCertificado',id_projeto=identificador,_external=True)}}</a></p>
                                 </div>
                             </div>
                         </div>

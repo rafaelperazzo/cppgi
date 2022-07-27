@@ -2053,45 +2053,50 @@ def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, outp
     im1 = image1.convert('RGB')
     im1.save(output_pdf)
 
-@app.route("/baixarCertificado", methods=['GET', 'POST'])
+'''
+CERTIFICADO DE APRESENTADOR
+'''
+@app.route("/baixarCertificado/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['user','admin'])
-def baixarCertificado():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'id' in request.args:
-            id = str(request.args.get('id'))
-            apresentou = obterColunaUnica('editalProjeto','apresentou','id',id)
-            consulta = """SELECT id FROM editalProjeto WHERE siape='""" + session['username'] +"""'"""
-            linhas,total = executarSelect(consulta)
-            if (total==0)and('admin' not in session['roles']):
-                return ("Acesso não permitido.")
-            if (apresentou=='0')and('admin' not in session['roles']):
-                return("Trabalho não apresentado.")
-            consulta = """SELECT nome,titulo,tipo FROM editalProjeto where id=""" + id
-            linhas,total = executarSelect(consulta)
-            nome = "INDEFINIDO"
-            titulo = "INDEFINIDO"
-            for linha in linhas:
-                edital = str(linha[2])
-                template = obterColunaUnica('editais','certificado_apresentador','id',edital)
-                nome = str(linha[0])
-                titulo = str(linha[1])
-                font = ImageFont.truetype(FONT_PATH,40)
-                wrapper = TextWrapper(nome, font, 1500)
-                nome = wrapper.wrapped_text()
-                wrapper = TextWrapper(titulo, font, 1500)
-                titulo = wrapper.wrapped_text()
-                output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
-                output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
-                template = CERTIFICADOS_TEMPLATE_DIR + template
-                
-                gerarCertificadoComplexo(nome,template,FONT_PATH,550,output_png,output_pdf,40,titulo,34)
-                return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
-                
-        else:
-            return("OK")
-    else:
-        return("OK")
+def baixarCertificado(id_projeto):
+    id = id_projeto
+    apresentou = obterColunaUnica('editalProjeto','apresentou','id',id)
+    consulta = """SELECT id FROM editalProjeto WHERE siape='""" + session['username'] +"""'"""
+    linhas,total = executarSelect(consulta)
+    if (total==0)and('admin' not in session['roles']):
+        return ("Acesso não permitido.")
+    if (apresentou=='0')and('admin' not in session['roles']):
+        return("Trabalho não apresentado.")
+    consulta = """SELECT nome,titulo,tipo FROM editalProjeto where id=""" + id
+    linhas,total = executarSelect(consulta)
+    nome = "INDEFINIDO"
+    titulo = "INDEFINIDO"
+    for linha in linhas:
+        edital = str(linha[2])
+        template = obterColunaUnica('editais','certificado_apresentador','id',edital)
+        nome = str(linha[0])
+        titulo = str(linha[1])
+        evento = obterColunaUnica('editais','nome_longo','id',edital)
+        periodo = obterColunaUnica('editais','periodo','id',edital)
+        local = obterColunaUnica('editais','local','id',edital)
+        verbo = "apresentou"
+        if ',' in nome:
+            verbo = "apresentaram"
+        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
+        options = {
+            'page-size': 'A4',
+            'orientation': 'landscape',
+            'margin-top': '0cm',
+            'margin-right': '0cm',
+            'margin-bottom': '0cm',
+            'margin-left': '0cm',
+        }
+        try:
+            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo),arquivoCertificado,options=options)
+        except Exception as e:
+            app.logger.error('Erro gerando certificado apresentador')
+        finally:
+            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/demaisCertificados", methods=['GET', 'POST'])
 def demaisCertificados():

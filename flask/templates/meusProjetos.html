@@ -69,7 +69,8 @@
             <tbody>
             {% for linha in projetos2019 %}
             <tr>
-              <td><a href='{{SITE}}baixarCertificado?id={{linha[0]}}'><img src="{{ url_for('static', filename='certificado.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+              <td><a href="{{url_for('baixarCertificado',id_projeto=linha[0])}}"><img src="{{ url_for('static', filename='certificado.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+              
               <td>{{linha[0]}}</td>
               {% if permissao==1 %}
                   <td>{{linha[1]}}</td>

@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install iniconfig==1.1.1
 RUN pip install configparser
 RUN pip install flask-crontab
+RUN pip install PyQRCode
 #RUN pip uninstall backports.functools-lru-cache --yes
 #RUN apt-get -y install python-backports.functools-lru-cache
 RUN pip install babel
