@@ -22,6 +22,7 @@ from flask_uploads import *
 from PIL import Image, ImageDraw, ImageFont
 import threading
 import iniconfig
+import base64
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -2091,8 +2092,11 @@ def baixarCertificado(id_projeto):
             'margin-bottom': '0cm',
             'margin-left': '0cm',
         }
+        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        #return(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background))
         try:
-            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo),arquivoCertificado,options=options)
+            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
+            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
         finally:
@@ -2484,6 +2488,12 @@ def remover_arquivo(arquivo):
         except Exception as e:
             app.logger.debug(str(e))
 
+def redimensionar_imagem(certificado,novotamanho):
+    imagem = Image.open(CERTIFICADOS_TEMPLATE_DIR + certificado)
+    novaimagem = imagem.resize(novotamanho)
+    imagem.close()
+    novaimagem.save(CERTIFICADOS_TEMPLATE_DIR + certificado)
+
 @app.route("/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def salvar_edital(operacao):
@@ -2506,6 +2516,8 @@ def salvar_edital(operacao):
                 UPDATE editais set certificado_apresentador='%s' WHERE id=%s
                 """ % (certificado,str(edital))
                 atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
             else:
                 remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
         if 'convidado' in request.files:
@@ -2517,6 +2529,8 @@ def salvar_edital(operacao):
                 UPDATE editais set certificado_convidado='%s' WHERE id=%s
                 """ % (certificado,str(edital))
                 atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
             else:
                 remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
@@ -2529,6 +2543,8 @@ def salvar_edital(operacao):
                 UPDATE editais set certificado_moderador='%s' WHERE id=%s
                 """ % (certificado,str(edital))
                 atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
             else:
                 remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
@@ -2541,6 +2557,8 @@ def salvar_edital(operacao):
                 UPDATE editais set certificado_participante='%s' WHERE id=%s
                 """ % (certificado,str(edital))
                 atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
             else:
                 remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
@@ -2553,6 +2571,8 @@ def salvar_edital(operacao):
                 UPDATE editais set certificado_demais='%s' WHERE id=%s
                 """ % (certificado,str(edital))
                 atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
             else:
                 remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
@@ -2884,6 +2904,11 @@ def salvar_avaliador_sala():
 def img_file(filename):
     #https://stackoverflow.com/questions/26971491/how-do-i-link-to-images-not-in-static-folder-in-flask
     return send_from_directory(CERTIFICADOS_TEMPLATE_DIR, filename, as_attachment=True)
+
+def get_image_file_as_base64_data(image):
+    #https://stackoverflow.com/questions/38329909/pdfkit-not-converting-image-to-pdf
+    with open(image, 'rb') as image_file:
+        return base64.b64encode(image_file.read()).decode()
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

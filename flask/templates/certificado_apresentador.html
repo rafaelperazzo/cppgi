@@ -106,7 +106,7 @@
 	    color: #663300;
             }                       
             .enchimento {
-                padding: 225px;
+                padding: 170px;
             }
 	    .imagem{
 		position: absolute;
@@ -128,7 +128,7 @@
             /*configurações de exibição da pagina e conteudo*/
             .certificado_conteudo {
             -webkit-print-color-adjust: exact;
-            background-image: url({{url_for('img_file',filename=arquivo)}});
+            background-image: url("data:image/png;base64,{{ background }}");
             height: 1238px;
             width: 1754px;
             background-repeat: no-repeat;
@@ -204,7 +204,7 @@
                             </div>
                         </div>
                     </div>
-		    <br><br><br><br>
+		    <br>
  
                     <div class="row end-xs">
                         <div class="col-xs-10">
