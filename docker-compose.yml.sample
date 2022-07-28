@@ -18,7 +18,7 @@ services:
        - web  
 
   cppgi:
-    image: cppgi:latest
+    image: cppgi:py3
     build: .
     volumes:
       - ./flask:/home/perazzo/cppgi
