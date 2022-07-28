@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <style>
 body {font-family: Arial, Helvetica, sans-serif;}
 form {border: 3px solid #f1f1f1;}
@@ -88,11 +89,13 @@ function humano() {
   <div class="container">
     <label for="uname"><b>E-Mail do autor principal (quem fez a submissão)</b></label>
     <input type="text" placeholder="e-mail: " name="email" required>
-
+     {%if session['PRODUCAO']==1%}
+        <center><div class="g-recaptcha" data-sitekey="6Lfe8NgbAAAAAPYO9OZF4i34EpSKvNGQihaxr0Am"></div></center>
+     {%endif%}
     <button type="submit">Enviar</button>
   </div>
 
 </form>
-<!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
+
 </body>
 </html>

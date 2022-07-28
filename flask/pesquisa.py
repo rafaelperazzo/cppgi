@@ -320,6 +320,10 @@ FIM AUTENTICAÇÃO
 **************************************************************
 '''
 
+@app.before_first_request
+def iniciar_sessao():
+    session['PRODUCAO'] = PRODUCAO
+
 @app.route("/")
 def home():
     editaisAbertos = getEditaisAbertos()
