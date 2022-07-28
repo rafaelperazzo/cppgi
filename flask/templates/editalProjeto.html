@@ -110,14 +110,7 @@ $(document).ready(function(){
       <h1>Propostas submetidas ao Edital</h1>
     </div>
     
-    <h3>{{ descricao }} </h3>
-    {% if resultado==1 %}
-        <center><h2>{{mensagem}}</h2></center>
-
-    {% endif %}
-
     
-    {% if resultado==0 %}
     <div class="alert alert-dark" role="alert">
       <h1>Resumo da Demanda</h1>
     </div>
@@ -137,93 +130,7 @@ $(document).ready(function(){
           </table>
           <b>Total: {{total}}</b>
 
-    {% endif %}
 
-{% if todos!=0 %}
-
-    <h1>Submissões ordenadas por Grande Área</h1>
-    <input id="myInput" type="text" placeholder="Procurar.."><BR>
-    <table class="table table-striped">
-      <thead>
-        <th>Id</th>
-        {% if resultado==0 %}<th>Código do Edital</th>{% endif %}
-        <th>Tipo de trabalho</th>
-        <th>Tipo de apresentação</th>
-        <th>Autor(es)</th>
-        {% if resultado==0 %} <th>E-mail</th>{% endif %}
-        <th>Grande Área</th>
-        <th>Título</th>
-        {% if resultado==0 %} <th>TRABALHO</th><th>SUPLEMENTAR 1</th><th>SUPLEMENTAR 2</th> {% endif %}
-        {% if resultado==0 %}<th>Data</th>{% endif %}
-
-      </thead>
-    <tbody id="myTable">
-    {% for linha in listaProjetos %}
-    <tr>
-    <td>{{ linha[0] }}</td>
-    <td>{{ linha[1] }}</td>
-    <td>
-      {% if linha[2]==1 %}
-      POSTER
-      {% endif %}
-      {% if linha[2]==0 %}
-      APRESENTAÇÃO ORAL
-      {% endif %}
-    </td>
-    <td>
-      {% if linha[3]==1 %}
-      RESUMO EXPANDIDO
-      {% endif %}
-      {% if linha[3]==0 %}
-      RESUMO SIMPLES
-      {% endif %}
-      {% if linha[3]==2 %}
-      TRABALHO COMPLETO
-      {% endif %}
-    </td>
-
-    <td>{{ linha[4] }}</td>
-
-    {% if resultado==0 %} <td>{{ linha[5] }}</td> <!-- E-MAIL --> {% endif %}
-
-    <td>{{ linha[6] }}</td>
-    <td>{{ linha[7] }}</td>
-
-    {% if resultado==0 %}
-          <td>
-            {% if linha[8]!="0" %}
-            <a href="/cppgi/static/files/{{ linha[8] }}">TRABALHO</a>
-            {% else %}
-            -
-            {% endif %}
-          </td>
-          <td>
-            {% if linha[9]!='' %}
-            <a href="/cppgi/static/files/{{ linha[9] }}">SUP 1</a>
-            {% else %}
-            -
-            {% endif %}
-          </td>
-          <td>
-            {% if linha[10]!='' %}
-            <a href="/cppgi/static/files/{{ linha[10] }}">SUP 2</a>
-            {% else %}
-            -
-            {% endif %}
-          </td>
-    {% endif %}
-
-    <td>{{ linha[11] }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-    </table>
-    Total: {{total}} propostas submetidas.
-
-<!---------------------------------------------------------------- -->
-{% endif %}
-
-    {% if resultado==0 %}
               
               <div class="alert alert-dark" role="alert">
                 <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
@@ -244,38 +151,60 @@ $(document).ready(function(){
               <input id="txtNovos" type="text" placeholder="Procurar.."><br>
               <table class="table table-striped">
                 <thead>
-                <th>Finalizadas as Avaliações ?</th><th>ID</th><th style="width: 25%">Nome</th><th style="width: 15%">Grande Área</th><th style="width: 25%">Título</th><th style="width: 15%">Palavras-Chave</th><th>Qtde de avaliações finalizadas</th><th>Inserir Consultor<th>Consultores</th><th>Recomendações</th><th>Enviado?</th><th>Aceitou?</th><th>Finalizados</th>
-                <th>Aprovados</th><th>NÃO Aprovados</th><th>Indefinidos</th><th style="width: 10%">Situação</th>
+                <th>Finalizadas as Avaliações ?</th>
+                <th>ID</th>
+                <th style="width: 25%">Nome</th>
+                <th style="width: 15%">Grande Área</th>
+                <th style="width: 25%">Título</th>
+                <th style="width: 15%">Palavras-Chave</th>
+                <th>Qtde de avaliações finalizadas</th>
+                <th>Inserir Consultor
+                <th>Consultores</th>
+                <th>Recomendações</th>
+                <th>Enviado?</th>
+                <th>Aceitou?</th>
+                <th>Finalizados</th>
+                <th>Aprovados</th>
+                <th>NÃO Aprovados</th>
+                <th>Indefinidos</th>
+                <th style="width: 10%">Situação</th>
               </thead>
               <tbody id="tabelaNovos">
                 {% for linha in novos %}
                   <tr>
                     <form action="{{url_for('salvar_projeto')}}" method="POST" id="form_{{linha[0]}}">
                       <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
-                      <td>
-                        {% if (linha[9]==0) %}
-                        <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                          SEM AVALIAÇÕES!
-                        {% endif %}
-                        {% if (linha[9]==1) %}
-                        <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                          APENAS 1 AVALIAÇÃO!
-                        {% endif %}
-                        {% if (linha[9]>1) %}
-                          {% if linha[12]-linha[11]==0 %}
+                      {%if linha[9] is not none%}
+                        <td>
+                          {% if (linha[9]==0) %}
+                          <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                            SEM AVALIAÇÕES!
+                          {% endif %}
+                          {% if (linha[9]==1) %}
                           <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                            <br>EMPATADO
-                          {% else %}
-                            {% if linha[12]-linha[11]>0 %}
-                            <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                              APROVADO
+                            APENAS 1 AVALIAÇÃO!
+                          {% endif %}
+                          {% if (linha[9]>1) %}
+                            {% if linha[12]-linha[11]==0 %}
+                            <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                              <br>EMPATADO
                             {% else %}
-                            <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                              REPROVADO
+                              {% if linha[12]-linha[11]>0 %}
+                              <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                                APROVADO
+                              {% else %}
+                              <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                                REPROVADO
+                              {% endif %}
                             {% endif %}
                           {% endif %}
-                        {% endif %}
-                      </td>
+                        </td>
+                      {%else%}
+                        <td>
+                          <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                          SEM AVALIAÇÕES!
+                        </td>
+                      {%endif%}
                       <td><a href="/cppgi/static/files/{{ linha[4] }}">{{linha[0]}}</a></td>
                       <td><textarea type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="NOMES DOS AUTORES" required="required" rows="3">{{linha[1]}}</textarea>
                       </td>
@@ -293,7 +222,7 @@ $(document).ready(function(){
                       </td>
                       <td><input type="text" class="form-control form-control-sm" name="palavras" id="palavras" placeholder="PALAVRAS CHAVES" required="required" value="{{linha[13]}}">
                       </td>
-                      <td>{{linha[9]}}</td></td>
+                      <td>{{linha[9]}}</td>
                       <td><a href="/cppgi/avaliacoesNegadas?edital={{codigoEdital}}&id={{linha[0]}}"><img src="{{url_for('static',filename='avaliador.png')}}"></a></td>
                       <td><a href="{{url_for('listar_consultores',id_projeto=linha[0])}}">{{linha[5]|safe}}</a></td>
                       <td>{{linha[6]|safe}}</td>
@@ -324,7 +253,7 @@ $(document).ready(function(){
                 </tbody>
               </table>
               Total: {{total_novos}} submissões enviadas.
-      {% endif %}
+      
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>
