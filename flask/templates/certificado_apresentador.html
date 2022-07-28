@@ -121,7 +121,7 @@
             .token{
             line-height: 22px;
             font-size: 15px;
-            padding-top: 60px;
+            padding-top: 30px;
             padding-right: 80px;
             }
                         
@@ -204,14 +204,14 @@
                             </div>
                         </div>
                     </div>
-		    <br>
  
                     <div class="row end-xs">
                         <div class="col-xs-10">
                             <div class="box">
                                 <div class="token serif">
                                     <p class="esquerda">Verifique a autenticidade deste documento em: </p>
-                                    <p class="esquerda"><a href="{{url_for('baixarCertificado',id_projeto=identificador,_external=True)}}" target="_blank">{{url_for('baixarCertificado',id_projeto=identificador,_external=True)}}</a></p>
+                                    <img src="data:;base64,{{qrcode}}">
+                                    <p class="esquerda"><a href="{{url_for('autenticar_certificado',tipo=tipo,codigo=token,id_projeto=identificador,_external=True)}}" target="_blank">{{url_for('autenticar_certificado',tipo=tipo,codigo=token,id_projeto=identificador,_external=True)}}</a></p>
                                 </div>
                             </div>
                         </div>

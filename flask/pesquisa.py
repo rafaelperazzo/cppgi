@@ -23,6 +23,8 @@ from PIL import Image, ImageDraw, ImageFont
 import threading
 import iniconfig
 import base64
+import png
+import pyqrcode
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -896,9 +898,6 @@ def editalProjeto(edital):
         linhas_demanda = cursor.fetchall()
         cursor.close()
         conn.close()
-        if 'resultado' not in request.args:
-            #gerarGraficos(linhas_demanda,"grafico-demanda.png","grafico-demanda-2.png")
-            pass
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
@@ -909,7 +908,8 @@ def editalProjeto(edital):
                 return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
         else:
             mensagem = ""
-            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0))
+            app.logger.error(str(linhas_novos))
+            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0,mensagem=mensagem))
     
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -2092,11 +2092,29 @@ def baixarCertificado(id_projeto):
             'margin-bottom': '0cm',
             'margin-left': '0cm',
         }
+        
+        token = obterColunaUnica('editalProjeto','token','id',id_projeto)
+        if token=='0':
+            token = id_generator()
+            consulta = """
+            UPDATE editalProjeto SET token='%s' 
+            WHERE id=%s
+            """ %(token,id_projeto)
+            atualizar(consulta)
+
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=0,codigo=token,id_projeto=id_projeto,_external=True)
+        qrcode = pyqrcode.create(qrcode_url)
+        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
+        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+        #Recuperando template
         background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-        #return(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background))
+        
+        #Gerando certificado em PDF
         try:
             app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
-            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
         finally:
@@ -2758,8 +2776,7 @@ def salvar_local_data():
     atualizar(consulta)
     return("OK")
     #TODO: Sala_link
-    #TODO: Links de sci02 para sci01
-    #TODO: baixarCertificado ---> corrigir (apresentador) 
+    #TODO: baixarCertificado ---> corrigir (apresentador) --> Incluir QrCode
     #TODO: gerarCertificadoAvaliador --> corrigir (avaliador)
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
@@ -2899,6 +2916,21 @@ def salvar_avaliador_sala():
     """ %(username,sala,data,area,id_avaliador_sala)
     atualizar(consulta)
     return("OK")
+
+@app.route("/autenticar_certificado/<tipo>/<codigo>/<id_projeto>", methods=['GET'])
+def autenticar_certificado(tipo,codigo,id_projeto):
+    if tipo==0: #CERTIFICADO DE APRESENTADOR
+        token = obterColunaUnica('editalProjeto','token','id',id_projeto)
+        if token==codigo:
+            return(redirect(url_for('baixarCertificado',id_projeto=id_projeto)))
+        else:
+            return("Certificado inexistente!")
+    elif tipo==1: #Moderador
+        return("Não implementado!")
+    elif tipo==2: #Participantes
+        return("Não implementado!")
+    else: #Convidados
+        return("Não implementado!")
 
 @app.route('/img_file/<path:filename>')
 def img_file(filename):
