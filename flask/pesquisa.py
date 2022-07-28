@@ -440,7 +440,7 @@ def cadastrarProjeto():
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = "pesquisa.prpi@ufca.edu.br"
     texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos')
-    msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
+    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
     return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos'))
@@ -598,7 +598,7 @@ def enviarAvaliacao():
             descricaoEdital = str(linha[1])
         #Enviando e-mail para o avaliador com o link
         texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
-        msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
+        msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
         t = threading.Thread(target=enviar_email,args=(msg,))
         t.start()
         return(redirect(url_for('getDeclaracaoAvaliador',token=token)))
@@ -1116,7 +1116,7 @@ def enviarMinhaSenha():
                 usuario = str(linhas[0])
                 senha = str(linhas[1])
                 texto_mensagem = "Usuario: " + usuario + "\nSenha: " + senha + "\n" + USUARIO_SITE
-                msg = Message(subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
+                msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
                 mail.send(msg)
                 return(render_template('login.html',mensagem='Senha enviada para o email: ' + email))
             else:
@@ -2330,7 +2330,7 @@ def enviarCertificados():
                 nome_longo = obterColunaUnica('editais','nome_longo','id',str(id))
                 link = "https://sci02-ter-jne.ufca.edu.br/cppgi/baixarCertificado?id=" + idTrabalho
                 texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
-                msg = Message(subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
+                msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
                 mail.send(msg)
             return("Certificados ENVIADOS com sucesso!")
         else:
@@ -2775,8 +2775,8 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
+    #TODO: NOREPLY
     #TODO: Sala_link
-    #TODO: baixarCertificado ---> corrigir (apresentador) --> Incluir QrCode
     #TODO: gerarCertificadoAvaliador --> corrigir (avaliador)
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
