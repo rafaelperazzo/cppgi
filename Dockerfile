@@ -14,6 +14,7 @@ RUN pip install babel
 RUN pip install PyQRCode
 RUN pip install PyQRCode
 RUN pip install pypng
+RUN pip install pytest
 #RUN pip install backports.functools-lru-cache
 #RUN apt-get -y install python-backports.functools-lru-cache
 EXPOSE 80

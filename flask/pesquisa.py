@@ -2775,9 +2775,9 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,id_projeto)
     atualizar(consulta)
     return("OK")
-    #TODO: NOREPLY
     #TODO: Sala_link
-    #TODO: gerarCertificadoAvaliador --> corrigir (avaliador)
+    #TODO: Declaração avaliador
+    #TODO: gerarCertificadoAvaliador --> corrigir (MODERADOR) --> incluir qrcode
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
