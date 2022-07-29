@@ -1,4 +1,4 @@
-from pesquisa import app,executarSelect,config,WORKING_DIR,id_generator,atualizar,ATTACHMENTS_DIR
+from pesquisa import app,executarSelect,config,WORKING_DIR,id_generator,atualizar,ATTACHMENTS_DIR,obterColunaUnica
 import pytest
 import base64
 import os
@@ -8,6 +8,19 @@ client = aplicacao
 usuario = config['DEFAULT']['usuario']
 senha = config['DEFAULT']['senha']
 usuario_senha = str.encode("%s:%s" %(usuario,senha))
+
+def get_last_id(tabela):
+    consulta = """
+    SELECT max(id) FROM %s
+    """ %(tabela)
+    linhas,total=executarSelect(consulta)
+    last_id = linhas[0][0]
+    return(last_id)
+
+def post_res(res,data):
+    valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
+    response = client.post(res, data=data,follow_redirects=True,headers={"Authorization": "Basic " + valid_credentials})
+    assert response.status_code == 200
 
 def get_res(res):
     valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
@@ -64,10 +77,18 @@ def test_0_cadastrar_projeto():
     assert linhas[0][1]!="0"
     assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==True
     
-    
-
 def test_1_adicionar_avaliador():
-    pass
+    id_projeto = get_last_id('editalProjeto')
+    get_res('/listar_consultores/' + str(id_projeto))
+    edital = obterColunaUnica('editalProjeto','tipo','id',str(id_projeto))
+    get_res('/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto))
+    data={
+        "txtEmail": "test@ufca.edu.br",
+        "txtProjeto": str(id_projeto),
+        "avaliador_sugerido": "0",
+        "avaliador_area": "0",
+    }
+    post_res('/inserirAvaliador',data)
 
 def test_2_avaliar():
     pass
@@ -75,6 +96,7 @@ def test_2_avaliar():
 def test_3_verificar_avaliacao():
     pass
 
+'''
 def test_4_remover_submissao_teste():
     consulta = """
     SELECT max(id) FROM editalProjeto
@@ -99,6 +121,7 @@ def test_4_remover_submissao_teste():
     linhas,total = executarSelect(consulta)
     assert total==0
     assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==False
+'''
 
 def test_5_meusProjetos():
     pass

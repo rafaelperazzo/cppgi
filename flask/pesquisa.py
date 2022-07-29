@@ -680,6 +680,7 @@ def recusarConvite():
         return("OK")
 
 @app.route("/avaliacoesNegadas", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def avaliacoesNegadas():
     if request.method == "GET":
         conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -724,6 +725,7 @@ def avaliacoesNegadas():
         return("OK")
 
 @app.route("/inserirAvaliador", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def inserirAvaliador():
     if request.method == "POST":
         token = id_generator(40)
@@ -856,6 +858,7 @@ def gerarPDF(template):
     #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
 
 @app.route("/editalProjeto/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
