@@ -64,6 +64,28 @@ def test_0_cadastrar_projeto():
     assert linhas[0][1]!="0"
     assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==True
     
+    
+
+def test_1_adicionar_avaliador():
+    pass
+
+def test_2_avaliar():
+    pass
+
+def test_3_verificar_avaliacao():
+    pass
+
+def test_4_remover_submissao_teste():
+    consulta = """
+    SELECT max(id) FROM editalProjeto
+    """
+    linhas,total=executarSelect(consulta)
+    last_id = linhas[0][0]
+    consulta = """
+    SELECT nome,arquivo_projeto FROM editalProjeto WHERE id=%s
+    """ %(last_id)
+    linhas,total = executarSelect(consulta)
+    arquivo_projeto = linhas[0][1]
     consulta = """
     DELETE FROM editalProjeto where id=%s
     """ %(last_id)
@@ -77,17 +99,6 @@ def test_0_cadastrar_projeto():
     linhas,total = executarSelect(consulta)
     assert total==0
     assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==False
-
-def test_1_adicionar_avaliador():
-    pass
-def test_2_avaliar():
-    pass
-
-def test_3_verificar_avaliacao():
-    pass
-
-def test_4_remover_submissao_teste():
-    pass
 
 def test_5_meusProjetos():
     pass

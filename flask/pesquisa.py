@@ -159,7 +159,8 @@ def removerAspas(texto):
 
 def enviar_email(msg):
     with app.app_context():
-        mail.send(msg)
+        if PRODUCAO==1:
+            mail.send(msg)
 
 def atualizar(consulta):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
