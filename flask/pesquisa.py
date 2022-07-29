@@ -88,7 +88,7 @@ anexos = UploadSet('documents',ALL)
 
 certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
 configure_uploads(app, (anexos,certificados))
-patch_request_class(app)
+#patch_request_class(app)
 
 class TextWrapper(object):
     """ Helper class to wrap text in lines, based on given text, font

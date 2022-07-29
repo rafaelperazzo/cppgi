@@ -1,8 +1,10 @@
-from pesquisa import app,executarSelect,config
+from pesquisa import app,executarSelect,config,WORKING_DIR,id_generator,atualizar,ATTACHMENTS_DIR
 import pytest
 import base64
+import os
 
 aplicacao = app.test_client()
+client = aplicacao
 usuario = config['DEFAULT']['usuario']
 senha = config['DEFAULT']['senha']
 usuario_senha = str.encode("%s:%s" %(usuario,senha))
@@ -30,4 +32,63 @@ def test_edital_projeto():
     editais,total = executarSelect(consulta)
     for edital in editais:
         get_res('/editalProjeto/' + str(edital[0]))
+
+def test_0_cadastrar_projeto():
+    titulo = id_generator(40)
+    nome = str(id_generator(30)).upper()
+    response = client.post("/cadastrarProjeto", data={
+        "destino": "9",
+        "tipo_trabalho": "1",
+        "tipo_apresentacao": "1",
+        "autores": nome,
+        "identificacao": "00000000000",
+        "email": "email@email.com",
+        "grande_area": "Ciências da Vida",
+        "titulo": titulo,
+        "palavras": "android",
+        "resumo": "Resumo do trabalho",
+        "arquivo_trabalho": open(WORKING_DIR + "teste.pdf","rb"),
+    },follow_redirects=True)
+    assert response.status_code == 200
+    consulta = """
+    SELECT max(id) FROM editalProjeto
+    """
+    linhas,total=executarSelect(consulta)
+    last_id = linhas[0][0]
+    consulta = """
+    SELECT nome,arquivo_projeto FROM editalProjeto WHERE id=%s
+    """ %(last_id)
+    linhas,total = executarSelect(consulta)
+    arquivo_projeto = linhas[0][1]
+    assert linhas[0][0]==nome
+    assert linhas[0][1]!="0"
+    assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==True
+    
+    consulta = """
+    DELETE FROM editalProjeto where id=%s
+    """ %(last_id)
+    atualizar(consulta)
+    
+    if os.path.exists(ATTACHMENTS_DIR + arquivo_projeto):
+        os.remove(ATTACHMENTS_DIR + arquivo_projeto)
+    consulta = """
+    SELECT * FROM editalProjeto WHERE id=%s
+    """ %(last_id)
+    linhas,total = executarSelect(consulta)
+    assert total==0
+    assert os.path.exists(ATTACHMENTS_DIR + arquivo_projeto)==False
+
+def test_1_adicionar_avaliador():
+    pass
+def test_2_avaliar():
+    pass
+
+def test_3_verificar_avaliacao():
+    pass
+
+def test_4_remover_submissao_teste():
+    pass
+
+def test_5_meusProjetos():
+    pass
 
