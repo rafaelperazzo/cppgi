@@ -1125,7 +1125,8 @@ def enviarMinhaSenha():
                 senha = str(linhas[1])
                 texto_mensagem = "Usuario: " + usuario + "\nSenha: " + senha + "\n" + USUARIO_SITE
                 msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 return(render_template('login.html',mensagem='Senha enviada para o email: ' + email))
             else:
                 return(render_template('login.html',mensagem=u'E-mail não cadastrado. Envie e-mail para atendimento.prpi@ufca.edu.br para solicitar sua senha.'))
@@ -1669,7 +1670,8 @@ def solicitarVersaoFinal():
                     texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
-                        mail.send(msg)
+                        if PRODUCAO==1:
+                            mail.send(msg)
                         cont = cont + 1
                     except:
                         erros = erros + 1
@@ -1722,7 +1724,8 @@ def emailInformacoes():
                     msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     #msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
-                        mail.send(msg)
+                        if PRODUCAO==1:
+                            mail.send(msg)
                         cont = cont + 1
                     except:
                         erros = erros + 1
@@ -1767,7 +1770,8 @@ def emailInstrucoes():
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 #msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                     cont = cont + 1
                 except:
                     erros = erros + 1
@@ -1799,7 +1803,8 @@ def emailPosEvento():
                 msg = Message(subject = subject,bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 #msg = Message(subject = subject,bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                 except:
                     logging.error('Erro no /emailPosEvento') 
                      
@@ -1832,7 +1837,8 @@ def emailInstrucoesAvaliador():
                 texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                     cont = cont + 1
                 except:
                     erros = erros + 1
@@ -2462,7 +2468,8 @@ def enviar_email_avaliadores():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
                 atualizar(consulta)    
             except:
@@ -2502,7 +2509,8 @@ def enviarPedidoAvaliacao(id):
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)

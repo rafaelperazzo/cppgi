@@ -3,11 +3,19 @@ import pytest
 import base64
 import os
 
+import random
+import string
+
 aplicacao = app.test_client()
 client = aplicacao
 usuario = config['DEFAULT']['usuario']
 senha = config['DEFAULT']['senha']
 usuario_senha = str.encode("%s:%s" %(usuario,senha))
+
+def random_char(char_num):
+       prefixo =  ''.join(random.choice(string.ascii_letters) for _ in range(char_num))
+       prefixo = prefixo + "@gmail.com"
+       return(prefixo)
 
 def get_last_id(tabela):
     consulta = """
@@ -21,6 +29,7 @@ def post_res(res,data):
     valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
     response = client.post(res, data=data,follow_redirects=True,headers={"Authorization": "Basic " + valid_credentials})
     assert response.status_code == 200
+    return (response)
 
 def get_res(res):
     valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
@@ -82,13 +91,15 @@ def test_1_adicionar_avaliador():
     get_res('/listar_consultores/' + str(id_projeto))
     edital = obterColunaUnica('editalProjeto','tipo','id',str(id_projeto))
     get_res('/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto))
+    email = random_char(7)
     data={
-        "txtEmail": "test@ufca.edu.br",
+        "txtEmail": email,
         "txtProjeto": str(id_projeto),
         "avaliador_sugerido": "0",
         "avaliador_area": "0",
     }
-    post_res('/inserirAvaliador',data)
+    response = post_res('/inserirAvaliador',data)
+    assert str.encode(email) in response.data
 
 def test_2_avaliar():
     pass
