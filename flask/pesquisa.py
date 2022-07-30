@@ -730,38 +730,43 @@ def inserirAvaliador():
     if request.method == "POST":
         token = id_generator(40)
         idProjeto = int(request.form['txtProjeto'])
-        if (request.form['avaliador_sugerido']=='0'):
-            if (request.form['avaliador_area']=='0'):
+        avaliadores = []
+        if (request.form.getlist('avaliador_sugerido')==[]):
+            if (request.form.getlist('avaliador_area')==[]):
                 avaliador1_email = str(request.form['txtEmail'])
+                avaliadores.append(avaliador1_email)
             else:
-                avaliador1_email = str(request.form['avaliador_area'])
+                #avaliador1_email = str(request.form['avaliador_area'])
+                avaliadores = request.form.getlist('avaliador_area')
         else:
-            avaliador1_email = str(request.form['avaliador_sugerido']);
-        consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
-        #Verificando se existe avaliador para o ID
-        consulta2 = """
-        SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
-        idProjeto=""" + str(idProjeto)
-        linhas,total=executarSelect(consulta2)
-        edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
-        if total>0:
-            flash(u"Avaliador já cadastrado para o trabalho selecionado!")
-            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
-        atualizar(consulta)
+            #avaliador1_email = str(request.form['avaliador_sugerido']);
+            avaliadores = request.form.getlist('avaliador_sugerido')
         
-        deadline = obterColunaUnica('editais','deadline_avaliacao','id',str(edital))
-        agora = datetime.datetime.now().strftime('%Y-%m-%d')
-        if agora>deadline:
-            flash(u"Prazo de avaliação expirado!")
-            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
-        
+        for avaliador1_email in avaliadores:
+            token = id_generator(40)
+            edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
+            
+            deadline = obterColunaUnica('editais','deadline_avaliacao','id',str(edital))
+            agora = datetime.datetime.now().strftime('%Y-%m-%d')
+            if agora>deadline:
+                flash(u"Prazo de avaliação expirado!")
+                return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
+
+            consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
+            #Verificando se existe avaliador para o ID
+            consulta2 = """
+            SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
+            idProjeto=""" + str(idProjeto)
+            linhas,total=executarSelect(consulta2)
+            if total==0:
+                atualizar(consulta)
+            
+            update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
+            idProjeto=""" + str(idProjeto)
+            atualizar(update)
+            flash(u"Avaliador incluído com sucesso: " + avaliador1_email)
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
-        update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
-        idProjeto=""" + str(idProjeto)
-        atualizar(update)
-        flash(u"Avaliador incluído com sucesso!")
-        
         return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         
     else:
@@ -2490,7 +2495,7 @@ def enviarPedidoAvaliacao(id):
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,e.tipo 
     FROM editalProjeto as e, avaliacoes as a WHERE e.id=a.idProjeto AND e.valendo=1 
     AND a.finalizado=0 AND e.id=""" + str(id) + """ 
-    ORDER BY a.id DESC LIMIT 1
+    ORDER BY a.id DESC
     """
     linhas,total = executarSelect(consulta)
     logging.debug("Enviado pedido de avaliacao para: " + str(total))
