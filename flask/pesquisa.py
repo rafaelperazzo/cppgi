@@ -2963,5 +2963,15 @@ def get_image_file_as_base64_data(image):
     with open(image, 'rb') as image_file:
         return base64.b64encode(image_file.read()).decode()
 
+@app.route("/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def salvar(tabela,valor_id,coluna,novo_valor):
+    consulta = """
+    UPDATE %s SET %s='%s' 
+    WHERE id=%s
+    """ %(tabela,coluna,novo_valor,valor_id)
+    atualizar(consulta)
+    return("OK")
+
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
