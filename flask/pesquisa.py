@@ -625,7 +625,7 @@ def descricaoEdital(codigoEdital):
     return (nomeEdital)
 
 #Gerar declaração do avaliador
-@app.route("/declaracaoAvaliador", methods=['GET', 'POST'])
+@app.route("/declaracaoAvaliador", methods=['GET'])
 def getDeclaracaoAvaliador():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
@@ -640,25 +640,46 @@ def getDeclaracaoAvaliador():
         linhas = consultar(consulta)
         for linha in linhas:
             descricaoEdital = str(linha[1])
+            edital = str(linha[0])
+        
         #Gerando declaração e enviando ao navegador
         token=tokenAvaliacao
+        consulta = "SELECT id FROM avaliacoes WHERE token=\"" + tokenAvaliacao + "\""
         ids,total = executarSelect(consulta)
         id_avaliacao = str(ids[0][0])
         id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
         titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
-        arquivoDeclaracao = app.config['DECLARACOES_FOLDER'] + 'declaracao.pdf'
+        template = obterColunaUnica('editais','declaracao_avaliador','id',edital)
+        periodo = obterColunaUnica('editais','periodo','id',edital)
+        local = obterColunaUnica('editais','local','id',edital)
+        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
         options = {
             'page-size': 'A4',
-            'margin-top': '2cm',
-            'margin-right': '2cm',
-            'margin-bottom': '1cm',
-            'margin-left': '2cm',
+            'orientation': 'landscape',
+            'margin-top': '0cm',
+            'margin-right': '0cm',
+            'margin-bottom': '0cm',
+            'margin-left': '0cm',
         }
-        pdfkit.from_string(render_template('declaracao_avaliador.html',nome=nome_avaliador,local_data="Juazeiro do Norte, " + data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo,token=token),arquivoDeclaracao,options=options)
-        return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
         
-    else:
-        return("OK")
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
+        qrcode = pyqrcode.create(qrcode_url)
+        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
+        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+        #Recuperando template
+        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        
+        #Gerando certificado em PDF
+        try:
+            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
+            pdfkit.from_string(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+        except Exception as e:
+            app.logger.error('Erro gerando certificado avaliador')
+            app.logger.error(str(e))
+        finally:
+            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -1915,7 +1936,8 @@ def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
     consulta = """
     SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
-    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado 
+    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado,
+    declaracao_avaliador 
     FROM editais
     """
     linhas,total = executarSelect(consulta)
@@ -2545,6 +2567,18 @@ def salvar_edital(operacao):
         atualizar(consulta)
         return("Alterações gravadas com sucesso!")
     else:
+        if 'avaliador' in request.files:
+            certificado = "avaliador_" + str(edital) + ".png"
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['avaliador'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set declaracao_avaliador='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
+            
         if 'apresentador' in request.files:
             certificado = "apresentador_" + str(edital) + ".png"
             remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
@@ -2556,8 +2590,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
         if 'convidado' in request.files:
             certificado = "convidado_" + str(edital) + ".png"
             remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
@@ -2569,8 +2602,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'moderador' in request.files:
             certificado = "moderador_" + str(edital) + ".png"
@@ -2583,8 +2615,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'participante' in request.files:
             certificado = "participante_" + str(edital) + ".png"
@@ -2597,8 +2628,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'demais' in request.files:
             certificado = "demais_" + str(edital) + ".png"
@@ -2611,8 +2641,6 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
         return(redirect(url_for('root')))
 
@@ -2949,7 +2977,9 @@ def autenticar_certificado(tipo,codigo,id_projeto):
         return("Não implementado!")
     elif tipo==2: #Participantes
         return("Não implementado!")
-    else: #Convidados
+    elif tipo==3: #Convidados
+        return("Não implementado!")
+    else: #Avaliadores
         return("Não implementado!")
 
 @app.route('/img_file/<path:filename>')

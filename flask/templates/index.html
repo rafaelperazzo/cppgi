@@ -110,7 +110,7 @@ tr:nth-child(even) {
                 <th>Deadline versão final</th>
                 <th style="width: 25%">ISBN</th>
                 <th style="width: 25%">Situação</th>
-                <th>Mod,Apr,Part,De,Con</th>
+                <th>Aval,Mod,Apr,Part,De,Con</th>
             </thead>
             <tbody>
                 {% for linha in linhas %}
@@ -143,6 +143,7 @@ tr:nth-child(even) {
                             </td>
                             <td>
                                 <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">                                
+                                <p><a href="{{url_for('ver_imagem',qual=linha[14])}}">{{linha[14]}}</a></p>
                                 <p><a href="{{url_for('ver_imagem',qual=linha[10])}}">{{linha[10]}}</a></p>
                                 <p><a href="{{url_for('ver_imagem',qual=linha[9])}}">{{linha[9]}}</a></p>
                                 <p><a href="{{url_for('ver_imagem',qual=linha[11])}}">{{linha[11]}}</a></p>
@@ -152,6 +153,7 @@ tr:nth-child(even) {
                         </form>
                             <td>
                                 <form action="{{url_for('salvar_edital',operacao=1)}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data">
+                                    <input class="form-control form-control-sm" name="avaliador" type="file">
                                     <input class="form-control form-control-sm" name="moderador" type="file">
                                     <input class="form-control form-control-sm" name="apresentador" type="file">
                                     <input class="form-control form-control-sm" name="participante" type="file">
