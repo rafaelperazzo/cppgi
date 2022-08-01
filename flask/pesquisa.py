@@ -914,15 +914,14 @@ def editalProjeto(edital):
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
                 return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
             else:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
         else:
             mensagem = ""
-            app.logger.error(str(linhas_novos))
-            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0,mensagem=mensagem))
+            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0,mensagem=mensagem,tabela="editalProjeto"))
     
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -2972,6 +2971,12 @@ def salvar(tabela,valor_id,coluna,novo_valor):
     """ %(tabela,coluna,novo_valor,valor_id)
     atualizar(consulta)
     return("OK")
+
+@app.route("/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def detalhes(tabela,valor_id,coluna):
+    valor = obterColunaUnica(tabela,coluna,'id',valor_id)
+    return(valor)
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
