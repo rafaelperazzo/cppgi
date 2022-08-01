@@ -32,7 +32,15 @@ p.reprovado {
   display: table;
 }
 </style>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+<script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<link rel="stylesheet" href="{{url_for('static',filename='js/chosen/chosen.css')}}">
+<link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
+
 <script>
 $(document).ready(function(){
  $("#myInput").on("keyup", function() {
@@ -61,41 +69,7 @@ $(document).ready(function(){
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script>
-        $(document).ready(function(){
-            $("input").on("change", function(event){
-                event.preventDefault();
-                var form_id = $(this).get(0).form.id;
-                var formValues= $('#' + form_id).serialize();
-                var str = form_id.split("_");
-                var id_projeto = str[1]; 
-                $.post("{{url_for('salvar_projeto')}}", formValues, function(data){
-                    console.log(data);
-                },"text");
-            });
-            $("textarea").on("change", function(event){
-                event.preventDefault();
-                var form_id = $(this).get(0).form.id;
-                var formValues= $('#' + form_id).serialize();
-                var str = form_id.split("_");
-                var id_projeto = str[1]; 
-                $.post("{{url_for('salvar_projeto')}}", formValues, function(data){
-                    console.log(data);
-                },"text");
-            });
-            $("select").on("change", function(event){
-                event.preventDefault();
-                var form_id = $(this).get(0).form.id;
-                var formValues= $('#' + form_id).serialize();
-                var str = form_id.split("_");
-                var id_projeto = str[1]; 
-                $.post("{{url_for('salvar_projeto')}}", formValues, function(data){
-                    console.log(data);
-                },"text");
-            });
-        });
-    </script>
+    <script type="text/javascript" language="javascript" src="{{url_for('static',filename='js/comum.js')}}"></script>
   </head>
   <body>
     <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
@@ -130,14 +104,71 @@ $(document).ready(function(){
           </table>
           <b>Total: {{total}}</b>
 
-
+              
               
               <div class="alert alert-dark" role="alert">
                 <h1>SITUAÇÃO DAS AVALIAÇÕES</h1>
               </div>
               <div>
                 <a href="{{url_for('root')}}"><button type="button" class="btn btn-outline-primary">Voltar para lista de editais</button></a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                  Legenda
+                </button>
               </div>
+              
+              <!-- Modal -->
+              <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="exampleModalLabel">Legenda</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p>R(recomendação) 1 - recomendado; 0 - não recomendado; -1 - indisponível</p>
+                      <p>E(enviados) Quantidade de envios de e-mails</p>
+                      <p>A(aceitou) 1 - sim; 0 - não; 1 - não respondeu</p>
+                      <p>F(finalizados) quantidade de avaliações finalizadas</p>
+                      <p>(+) quantidade de avaliações finalizadas (recomendadas)</p>
+                      <p>(-) quantidade de avaliações finalizadas (não recomendadas)</p>
+                      <p>(?) quantidade de avaliações finalizadas (indefinidas)</p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <button id="botao_detalhes" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#detalhes" hidden>
+                Detalhes
+              </button>
+              <!-- Modal -->
+              <div class="modal fade" id="detalhes" tabindex="-1" aria-labelledby="detalhesLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="detalhesLabel">Detalhes</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p id="detalhes_id"></p>
+                      
+                      <p id="detalhes_alterar">
+                        <form id="form_detalhes_alterar">
+                          <input type="hidden" value="{{tabela}}" id="tabela">
+                          <input type="hidden" value="" id="coluna">
+                          <textarea type="text" class="form-control form-control-sm campo_modal" id="campo_detalhes" name="campo_detalhes" required="required" rows="5"></textarea>
+                        </form>
+                      </p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {% with messages = get_flashed_messages() %}
                 {% if messages %}
                   {% for message in messages %}
@@ -148,53 +179,53 @@ $(document).ready(function(){
                   {% endfor %}
                 {% endif %}
               {% endwith %}
-              <input id="txtNovos" type="text" placeholder="Procurar.."><br>
-              <table class="table table-striped">
+              
+              <table class="table table-striped" style="width:100%" id="tabela">
                 <thead>
-                <th>Finalizadas as Avaliações ?</th>
+                <th></th>
                 <th>ID</th>
-                <th style="width: 25%">Nome</th>
-                <th style="width: 15%">Grande Área</th>
-                <th style="width: 25%">Título</th>
-                <th style="width: 15%">Palavras-Chave</th>
-                <th>Qtde de avaliações finalizadas</th>
+                <th style="width: 40%">Nome</th>
+                <th style="width: 20%">Grande Área</th>
+                <th style="width: 40%">Título</th>
+                <th style="width: 20%">Palavras-Chave</th>
+                <th>Finalizadas</th>
                 <th>Inserir Consultor
                 <th>Consultores</th>
-                <th>Recomendações</th>
-                <th>Enviado?</th>
-                <th>Aceitou?</th>
-                <th>Finalizados</th>
-                <th>Aprovados</th>
-                <th>NÃO Aprovados</th>
-                <th>Indefinidos</th>
-                <th style="width: 10%">Situação</th>
+                <th>R</th>
+                <th>E</th>
+                <th>A</th>
+                <th>F</th>
+                <th>+</th>
+                <th>-</th>
+                <th>?</th>
+                <th style="width: 25%">Situação</th>
               </thead>
               <tbody id="tabelaNovos">
                 {% for linha in novos %}
-                  <tr>
-                    <form action="{{url_for('salvar_projeto')}}" method="POST" id="form_{{linha[0]}}">
+                  <tr id="editalProjeto_{{linha[0]}}">
+                    <form action="{{url_for('salvar_projeto')}}" method="POST" id="form_{{linha[0]}}_editalProjeto">
                       <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
                       {%if linha[9] is not none%}
                         <td>
                           {% if (linha[9]==0) %}
                           <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                            SEM AVALIAÇÕES!
+                            
                           {% endif %}
                           {% if (linha[9]==1) %}
                           <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                            APENAS 1 AVALIAÇÃO!
+                            
                           {% endif %}
                           {% if (linha[9]>1) %}
                             {% if linha[12]-linha[11]==0 %}
                             <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                              <br>EMPATADO
+                              
                             {% else %}
                               {% if linha[12]-linha[11]>0 %}
                               <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                                APROVADO
+                                
                               {% else %}
                               <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
-                                REPROVADO
+                                
                               {% endif %}
                             {% endif %}
                           {% endif %}
@@ -206,10 +237,10 @@ $(document).ready(function(){
                         </td>
                       {%endif%}
                       <td><a href="/cppgi/static/files/{{ linha[4] }}">{{linha[0]}}</a></td>
-                      <td><textarea type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="NOMES DOS AUTORES" required="required" rows="3">{{linha[1]}}</textarea>
+                      <td><textarea type="text" class="form-control form-control-sm campo" id="nome_{{linha[0]}}" name="nome_{{linha[0]}}" placeholder="NOMES DOS AUTORES" required="required" rows="5">{{linha[1]}}</textarea>
                       </td>
                       <td>
-                        <select class="form-select form-control form-control-sm" name="grande_area" required="required">
+                        <select class="chosen-select campo" name="ua_{{linha[0]}}" id="ua_{{linha[0]}}" required="required">
                           <option value="{{linha[2]}}" selected="selected">{{linha[2]}}</option>
                           <option value="Ciências da Vida">Ciências da Vida</option>
                           <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
@@ -218,9 +249,9 @@ $(document).ready(function(){
                         
                       </td>
                       <td>
-                        <input type="text" class="form-control form-control-sm" name="titulo" id="titulo" placeholder="TÍTULO" required="required" value="{{linha[3]}}">
+                        <input type="text" class="form-control form-control-sm campo" name="titulo_{{linha[0]}}" id="titulo_{{linha[0]}}" placeholder="TÍTULO" required="required" value="{{linha[3]}}">
                       </td>
-                      <td><input type="text" class="form-control form-control-sm" name="palavras" id="palavras" placeholder="PALAVRAS CHAVES" required="required" value="{{linha[13]}}">
+                      <td><input type="text" class="form-control form-control-sm campo" name="palavras_{{linha[0]}}" id="palavras_{{linha[0]}}" placeholder="PALAVRAS CHAVES" required="required" value="{{linha[13]}}">
                       </td>
                       <td>{{linha[9]}}</td>
                       <td><a href="/cppgi/avaliacoesNegadas?edital={{codigoEdital}}&id={{linha[0]}}"><img src="{{url_for('static',filename='avaliador.png')}}"></a></td>
@@ -233,14 +264,14 @@ $(document).ready(function(){
                       <td style="background:orange;">{{linha[11]}}</td>
                       <td style="background:yellow;">{{linha[10]}}</td>
                       <td>
-                        <select class="form-select form-control form-control-sm" name="situacao" id="situacao" required="required">
+                        <select class="chosen-select campo" name="situacao_{{linha[0]}}" id="situacao_{{linha[0]}}" required="required">
                           <option value="{{linha[14]}}" selected="selected">
                             {%if linha[14]==1 %}
                               APROVADO
                             {%elif linha[14]==-1 %}
                               INDEFINIDO
                             {%else%}
-                              REPROVADO
+                              NÃO RECOMENDADO
                             {%endif%}
                           </option>
                           <option value="1">APROVADO</option>
@@ -253,7 +284,15 @@ $(document).ready(function(){
                 </tbody>
               </table>
               Total: {{total_novos}} submissões enviadas.
-      
+      <script src="{{url_for('static',filename='js/chosen/chosen.jquery.js')}}" type="text/javascript"></script>
+      <script src="{{url_for('static',filename='js/chosen/docsupport/init.js')}}" type="text/javascript" charset="utf-8"></script>
+      <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+      <script src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
+      <script>
+        $(document).ready(function () {
+          //$('#tabela').DataTable();
+        });  
+      </script>
   </body>
 </html>

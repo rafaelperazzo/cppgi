@@ -7,15 +7,5 @@ COPY requirements.txt ./
 RUN pip install setuptools_scm==5.0.2 --upgrade
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install iniconfig==1.1.1
-RUN pip install configparser
-RUN pip install flask-crontab
-RUN pip install babel
-RUN pip install PyQRCode
-RUN pip install PyQRCode
-RUN pip install pypng
-RUN pip install pytest
-#RUN pip install backports.functools-lru-cache
-#RUN apt-get -y install python-backports.functools-lru-cache
 EXPOSE 80
 CMD python /home/perazzo/cppgi/pesquisa.py

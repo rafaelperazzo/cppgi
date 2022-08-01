@@ -88,7 +88,7 @@ anexos = UploadSet('documents',ALL)
 
 certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
 configure_uploads(app, (anexos,certificados))
-patch_request_class(app)
+#patch_request_class(app)
 
 class TextWrapper(object):
     """ Helper class to wrap text in lines, based on given text, font
@@ -159,7 +159,8 @@ def removerAspas(texto):
 
 def enviar_email(msg):
     with app.app_context():
-        mail.send(msg)
+        if PRODUCAO==1:
+            mail.send(msg)
 
 def atualizar(consulta):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -624,7 +625,7 @@ def descricaoEdital(codigoEdital):
     return (nomeEdital)
 
 #Gerar declaração do avaliador
-@app.route("/declaracaoAvaliador", methods=['GET', 'POST'])
+@app.route("/declaracaoAvaliador", methods=['GET'])
 def getDeclaracaoAvaliador():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
@@ -639,25 +640,46 @@ def getDeclaracaoAvaliador():
         linhas = consultar(consulta)
         for linha in linhas:
             descricaoEdital = str(linha[1])
+            edital = str(linha[0])
+        
         #Gerando declaração e enviando ao navegador
         token=tokenAvaliacao
+        consulta = "SELECT id FROM avaliacoes WHERE token=\"" + tokenAvaliacao + "\""
         ids,total = executarSelect(consulta)
         id_avaliacao = str(ids[0][0])
         id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
         titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
-        arquivoDeclaracao = app.config['DECLARACOES_FOLDER'] + 'declaracao.pdf'
+        template = obterColunaUnica('editais','declaracao_avaliador','id',edital)
+        periodo = obterColunaUnica('editais','periodo','id',edital)
+        local = obterColunaUnica('editais','local','id',edital)
+        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
         options = {
             'page-size': 'A4',
-            'margin-top': '2cm',
-            'margin-right': '2cm',
-            'margin-bottom': '1cm',
-            'margin-left': '2cm',
+            'orientation': 'landscape',
+            'margin-top': '0cm',
+            'margin-right': '0cm',
+            'margin-bottom': '0cm',
+            'margin-left': '0cm',
         }
-        pdfkit.from_string(render_template('declaracao_avaliador.html',nome=nome_avaliador,local_data="Juazeiro do Norte, " + data_agora,congresso=descricaoEdital,raiz=ROOT_SITE,titulo=titulo,token=token),arquivoDeclaracao,options=options)
-        return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
         
-    else:
-        return("OK")
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
+        qrcode = pyqrcode.create(qrcode_url)
+        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
+        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+        #Recuperando template
+        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        
+        #Gerando certificado em PDF
+        try:
+            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
+            pdfkit.from_string(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+        except Exception as e:
+            app.logger.error('Erro gerando certificado avaliador')
+            app.logger.error(str(e))
+        finally:
+            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
     conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -679,6 +701,7 @@ def recusarConvite():
         return("OK")
 
 @app.route("/avaliacoesNegadas", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def avaliacoesNegadas():
     if request.method == "GET":
         conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
@@ -723,42 +746,48 @@ def avaliacoesNegadas():
         return("OK")
 
 @app.route("/inserirAvaliador", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def inserirAvaliador():
     if request.method == "POST":
         token = id_generator(40)
         idProjeto = int(request.form['txtProjeto'])
-        if (request.form['avaliador_sugerido']=='0'):
-            if (request.form['avaliador_area']=='0'):
+        avaliadores = []
+        if (request.form.getlist('avaliador_sugerido')==[]):
+            if (request.form.getlist('avaliador_area')==[]):
                 avaliador1_email = str(request.form['txtEmail'])
+                avaliadores.append(avaliador1_email)
             else:
-                avaliador1_email = str(request.form['avaliador_area'])
+                #avaliador1_email = str(request.form['avaliador_area'])
+                avaliadores = request.form.getlist('avaliador_area')
         else:
-            avaliador1_email = str(request.form['avaliador_sugerido']);
-        consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
-        #Verificando se existe avaliador para o ID
-        consulta2 = """
-        SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
-        idProjeto=""" + str(idProjeto)
-        linhas,total=executarSelect(consulta2)
-        edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
-        if total>0:
-            flash(u"Avaliador já cadastrado para o trabalho selecionado!")
-            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
-        atualizar(consulta)
+            #avaliador1_email = str(request.form['avaliador_sugerido']);
+            avaliadores = request.form.getlist('avaliador_sugerido')
         
-        deadline = obterColunaUnica('editais','deadline_avaliacao','id',str(edital))
-        agora = datetime.datetime.now().strftime('%Y-%m-%d')
-        if agora>deadline:
-            flash(u"Prazo de avaliação expirado!")
-            return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
-        
+        for avaliador1_email in avaliadores:
+            token = id_generator(40)
+            edital = obterColunaUnica('editalProjeto','tipo','id',str(idProjeto))
+            
+            deadline = obterColunaUnica('editais','deadline_avaliacao','id',str(edital))
+            agora = datetime.datetime.now().strftime('%Y-%m-%d')
+            if agora>deadline:
+                flash(u"Prazo de avaliação expirado!")
+                return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
+
+            consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
+            #Verificando se existe avaliador para o ID
+            consulta2 = """
+            SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
+            idProjeto=""" + str(idProjeto)
+            linhas,total=executarSelect(consulta2)
+            if total==0:
+                atualizar(consulta)
+            
+            update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
+            idProjeto=""" + str(idProjeto)
+            atualizar(update)
+            flash(u"Avaliador incluído com sucesso: " + avaliador1_email)
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
-        update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
-        idProjeto=""" + str(idProjeto)
-        atualizar(update)
-        flash(u"Avaliador incluído com sucesso!")
-        
         return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
         
     else:
@@ -855,6 +884,7 @@ def gerarPDF(template):
     #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
 
 @app.route("/editalProjeto/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
 def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
@@ -905,15 +935,14 @@ def editalProjeto(edital):
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
                 return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
             else:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem))
+                return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
         else:
             mensagem = ""
-            app.logger.error(str(linhas_novos))
-            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0,mensagem=mensagem))
+            return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=0,todos=0,mensagem=mensagem,tabela="editalProjeto"))
     
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -1121,7 +1150,8 @@ def enviarMinhaSenha():
                 senha = str(linhas[1])
                 texto_mensagem = "Usuario: " + usuario + "\nSenha: " + senha + "\n" + USUARIO_SITE
                 msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 return(render_template('login.html',mensagem='Senha enviada para o email: ' + email))
             else:
                 return(render_template('login.html',mensagem=u'E-mail não cadastrado. Envie e-mail para atendimento.prpi@ufca.edu.br para solicitar sua senha.'))
@@ -1665,7 +1695,8 @@ def solicitarVersaoFinal():
                     texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
-                        mail.send(msg)
+                        if PRODUCAO==1:
+                            mail.send(msg)
                         cont = cont + 1
                     except:
                         erros = erros + 1
@@ -1718,7 +1749,8 @@ def emailInformacoes():
                     msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     #msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
-                        mail.send(msg)
+                        if PRODUCAO==1:
+                            mail.send(msg)
                         cont = cont + 1
                     except:
                         erros = erros + 1
@@ -1763,7 +1795,8 @@ def emailInstrucoes():
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 #msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                     cont = cont + 1
                 except:
                     erros = erros + 1
@@ -1795,7 +1828,8 @@ def emailPosEvento():
                 msg = Message(subject = subject,bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 #msg = Message(subject = subject,bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                 except:
                     logging.error('Erro no /emailPosEvento') 
                      
@@ -1828,7 +1862,8 @@ def emailInstrucoesAvaliador():
                 texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
-                    mail.send(msg)
+                    if PRODUCAO==1:
+                        mail.send(msg)
                     cont = cont + 1
                 except:
                     erros = erros + 1
@@ -1901,7 +1936,8 @@ def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
     consulta = """
     SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
-    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado 
+    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado,
+    declaracao_avaliador 
     FROM editais
     """
     linhas,total = executarSelect(consulta)
@@ -2458,7 +2494,8 @@ def enviar_email_avaliadores():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
                 atualizar(consulta)    
             except:
@@ -2479,7 +2516,7 @@ def enviarPedidoAvaliacao(id):
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,e.tipo 
     FROM editalProjeto as e, avaliacoes as a WHERE e.id=a.idProjeto AND e.valendo=1 
     AND a.finalizado=0 AND e.id=""" + str(id) + """ 
-    ORDER BY a.id DESC LIMIT 1
+    ORDER BY a.id DESC
     """
     linhas,total = executarSelect(consulta)
     logging.debug("Enviado pedido de avaliacao para: " + str(total))
@@ -2498,7 +2535,8 @@ def enviarPedidoAvaliacao(id):
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
-                mail.send(msg)
+                if PRODUCAO==1:
+                    mail.send(msg)
                 logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
             except:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
@@ -2529,6 +2567,18 @@ def salvar_edital(operacao):
         atualizar(consulta)
         return("Alterações gravadas com sucesso!")
     else:
+        if 'avaliador' in request.files:
+            certificado = "avaliador_" + str(edital) + ".png"
+            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            certificados.save(request.files['avaliador'],name=certificado)
+            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+                consulta = """
+                UPDATE editais set declaracao_avaliador='%s' WHERE id=%s
+                """ % (certificado,str(edital))
+                atualizar(consulta)
+                novotamanho = (1754,1238)
+                redimensionar_imagem(certificado,novotamanho)
+            
         if 'apresentador' in request.files:
             certificado = "apresentador_" + str(edital) + ".png"
             remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
@@ -2540,8 +2590,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
         if 'convidado' in request.files:
             certificado = "convidado_" + str(edital) + ".png"
             remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
@@ -2553,8 +2602,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'moderador' in request.files:
             certificado = "moderador_" + str(edital) + ".png"
@@ -2567,8 +2615,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'participante' in request.files:
             certificado = "participante_" + str(edital) + ".png"
@@ -2581,8 +2628,7 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+            
 
         if 'demais' in request.files:
             certificado = "demais_" + str(edital) + ".png"
@@ -2595,8 +2641,6 @@ def salvar_edital(operacao):
                 atualizar(consulta)
                 novotamanho = (1754,1238)
                 redimensionar_imagem(certificado,novotamanho)
-            else:
-                remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
         return(redirect(url_for('root')))
 
@@ -2933,7 +2977,9 @@ def autenticar_certificado(tipo,codigo,id_projeto):
         return("Não implementado!")
     elif tipo==2: #Participantes
         return("Não implementado!")
-    else: #Convidados
+    elif tipo==3: #Convidados
+        return("Não implementado!")
+    else: #Avaliadores
         return("Não implementado!")
 
 @app.route('/img_file/<path:filename>')
@@ -2945,6 +2991,22 @@ def get_image_file_as_base64_data(image):
     #https://stackoverflow.com/questions/38329909/pdfkit-not-converting-image-to-pdf
     with open(image, 'rb') as image_file:
         return base64.b64encode(image_file.read()).decode()
+
+@app.route("/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def salvar(tabela,valor_id,coluna,novo_valor):
+    consulta = """
+    UPDATE %s SET %s='%s' 
+    WHERE id=%s
+    """ %(tabela,coluna,novo_valor,valor_id)
+    atualizar(consulta)
+    return("OK")
+
+@app.route("/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def detalhes(tabela,valor_id,coluna):
+    valor = obterColunaUnica(tabela,coluna,'id',valor_id)
+    return(valor)
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
