@@ -40,6 +40,9 @@ def test_main():
     rv = aplicacao.get('/',follow_redirects=True)
     assert rv.status_code==200
 
+def test_home():
+    get_res('/')
+
 def test_admin():
     get_res('/admin')
 
