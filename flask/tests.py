@@ -40,6 +40,9 @@ def test_main():
     rv = aplicacao.get('/',follow_redirects=True)
     assert rv.status_code==200
 
+def test_home():
+    get_res('/')
+
 def test_admin():
     get_res('/admin')
 
@@ -95,8 +98,6 @@ def test_1_adicionar_avaliador():
     data={
         "txtEmail": email,
         "txtProjeto": str(id_projeto),
-        "avaliador_sugerido": "0",
-        "avaliador_area": "0",
     }
     response = post_res('/inserirAvaliador',data)
     assert str.encode(email) in response.data

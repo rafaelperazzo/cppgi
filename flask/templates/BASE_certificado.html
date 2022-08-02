@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+    <meta name="robots" content="noindex">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css" type="text/css" >
+    <head>
+        <style type='text/css'>
+            .serif{
+            font-family: serif;
+            }
+            .texto {
+            margin: 0;
+            }
+            .negrito {
+            font-weight: 700
+            }
+            .negrito-2 {
+            font-weight: 600
+            }
+            .sublinhar{
+            text-decoration: underline;
+            }
+            .center {
+            text-align: center
+            }
+            .esquerda {
+            text-align: right;
+            }
+            .overline {
+            text-decoration: overline;
+            }
+            .quebra_linha{
+            display: block;
+            }
+            /*configurações de fonts*/
+            .font-9 {
+            font-size: 20px;
+            }
+            .font-11 {
+            font-size: 25px;
+            }
+            .font-12 {
+            font-size: 28px;
+            }
+            .font-13 {
+            font-size: 29px;
+            }
+            .font-15 {
+            font-size: 33px;
+            }
+            .font-16 {
+            font-size: 35pt;
+            }
+            .font-17 {
+            font-size: 17px;
+            }
+            .font-24 {
+            font-size: 24px;
+            }
+            .font-36 {
+            font-size: 36px;
+            }
+            .font-40 {
+            font-size: 40px;
+            }
+            .cor_assinaturas {
+            color: #663300;
+            }
+            /*confifurações de margin*/
+            .padding_top_35{
+            padding-top:35px;
+            }
+            .margin_bottom_35{
+            margin-bottom: 35px;
+            }
+            .altura_linhas_19{
+            line-height: 19px;
+            }
+            .altura_linhas_35{
+            line-height: 35px;
+            }
+            .altura_linhas_25{
+            line-height: 25px;
+            }
+            .caixa_informacoes{
+            font-size: 28px;
+            text-align: justify;
+            padding-right: 20px;
+            }
+
+            .local_data{
+            font-size: 28px;
+            text-align: right;
+            padding-right: 145px;
+            padding-top: 15px;
+            }
+            .caixa_assinatura1{      
+            text-align: center;
+            padding-left: 5cm;
+            padding-bottom: 0px;       
+            line-height: 1.2;
+            color: #663300;
+            }
+
+            .caixa_assinatura2{      
+            text-align: center;
+            padding-right: 6cm;
+            padding-bottom: 0px;       
+            line-height: 1.2;
+            color: #663300;
+            }                       
+            .enchimento {
+                padding: 170px;
+            }
+            .imagem{
+            position: absolute;
+            margin-top: -50px;
+            margin-left: -150px;
+            }
+            .assinatura{
+            font-size: 20px;
+            padding-top: 120px;
+            }
+
+            .token{
+            line-height: 22px;
+            font-size: 15px;
+            padding-top: 30px;
+            padding-right: 80px;
+            }
+                        
+            /*configurações de exibição da pagina e conteudo*/
+            .certificado_conteudo {
+            -webkit-print-color-adjust: exact;
+            background-image: url("data:image/png;base64,{{ background }}");
+            height: 1238px;
+            width: 1754px;
+            background-repeat: no-repeat;
+            background-position: center;
+            }
+            .certificado_pagina {
+            padding: 5mm;
+            width: 1754px;
+            margin: 0mm auto;
+            box-shadow: .5px .5px 7px #000;
+            border-radius: 2px;
+            overflow: hidden;
+            }
+            /*area de configuraçõa da pagina*/
+            @page {
+            size: 297mm 210mm;
+            margin: 0mm;
+            size: landscape
+            }
+            body {
+            margin: 0;
+            padding: 0px !important;
+            font-family: 'Open Sans', sans-serif
+            }
+            p{
+            margin: 0px;
+            }
+            /*SEMPRE DEIXAR NO FIM DO CODIGO configuração de impressão*/
+            @media print {
+                .certificado_pagina {
+                    padding: 0;
+                    padding-top: 0px;
+                    background: transparent;
+                    margin: 0;
+                    border-radius: 2px;
+                    box-shadow: 1px;
+                    -webkit-box-shadow: none
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <div class="certificado_pagina">
+                <div class="certificado_conteudo">
+                    <div class="row center-xs">
+                        <p class="enchimento"></p>
+                    </div>
+                    <div class="row center-xs">
+                        <div class="col-xs-10">
+                            <div class="box">
+                                <div class="caixa_informacoes serif">
+                                    <p class="center negrito">{{nome}}</p>
+                                    <br>
+                                    <p>
+                                        {%block texto_certificado%}
+
+                                        {%endblock%}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+		    <div class="row end-xs">
+                        <div class="col-xs-10">
+                            <div class="box times font-12">
+                                <div class="caixa_informacoes">
+                                    <p class="local_data font-12">
+                                        {{data}}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+ 
+                    <div class="row end-xs">
+                        <div class="col-xs-10">
+                            <div class="box">
+                                <div class="token serif">
+                                    <p class="esquerda">Verifique a autenticidade deste documento em: </p>
+                                    <img src="data:;base64,{{qrcode}}">
+                                    <p class="esquerda"><a href="{{url_for('autenticar_certificado',tipo=tipo,codigo=token,id_projeto=identificador,_external=True)}}" target="_blank">{{url_for('autenticar_certificado',tipo=tipo,codigo=token,id_projeto=identificador,_external=True)}}</a></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+        </div>
+    </body>
+    
+</html>

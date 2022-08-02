@@ -1,0 +1,58 @@
+{% extends "BASE.html" %}
+
+{%block content%}
+<div class="alert alert-primary" role="alert">
+    <h2>Plataforma Yoko - Eventos</h2>
+  </div>
+<div class="row">
+    <div class="col-sm-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Autor</h5>
+          <p class="card-text">Submeta seu trabalho para um dos eventos abertos</p>
+          <a href="{{url_for('submissao')}}">Submeter trabalho</a>
+          {%for edital in editais%}
+            <div class="alert alert-success" role="alert">
+                <b>{{edital[1]}} (até: {{edital[2]}})</b>
+            </div>
+          {%endfor%}
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Autor</h5>
+          <p class="card-text">Consulte seus trabalhos enviados, certificados, avaliações, etc...</p>
+          <a href="{{url_for('meusProjetos')}}">Meus trabalhos submetidos</a>
+        </div>
+      </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-sm-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Moderador de Sessões</h5>
+          <p class="card-text">Consulte as salas, trabalhos e certificados de moderador de sessões</p>
+          {%for edital in editais%}
+            <a href="{{url_for('avaliador',edital=edital[0])}}">Moderador - {{edital[1]}}</a>
+          {%endfor%}
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestor do Sistema</h5>
+          <p class="card-text">Administre editais, avaliações, salas, datas, etc...</p>
+          <a href="{{url_for('root')}}">Módulo Gestor</a>
+        </div>
+      </div>
+    </div>
+</div>
+<div class="alert alert-secondary" role="alert">
+    <small>Desenvolvido por: <i>Prof. Rafael Perazzo B Mota, CCT, Computação</i></small>
+</div>
+{%endblock%}

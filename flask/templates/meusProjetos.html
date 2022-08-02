@@ -61,10 +61,21 @@
     {% if total2019!=0 %}
           <table class="table table-striped">
             <thead>
-              <th>CERTIFICADO</th><th>Id</th><th>Edital</th><th>Situação do Edital</th><th>Autor(es)</th><th>Grande Área</th>
-              <th>Tipo de trabalho</th><th>Tipo de apresentação</th><th>Titulo</th>
-              <th>Situação da submissão</th><th>Avaliações</th>
-              <th>Enviar versão final*</th><th>Link da apresentação</th><th>Mensagens</th>
+              <th>CERTIFICADO</th>
+              <th>Id</th>
+              <th>Edital</th>
+              <th>Situação do Edital</th>
+              <th>Autor(es)</th>
+              <th>Grande Área</th>
+              <th>Tipo de trabalho</th>
+              <th>Tipo de apresentação</th>
+              <th>Titulo</th>
+              <th>Situação da submissão</th>
+              <th>Avaliações</th>
+              <th>Enviar versão final*</th>
+              <th>Link da apresentação</th>
+              <th>Mensagens</th>
+              <th>Local e data de apresentação</th>
             </thead>
             <tbody>
             {% for linha in projetos2019 %}
@@ -143,6 +154,7 @@
                 {% endif %}
               </td>
               <td>{{linha[14]}}</td>
+              <td>{{linha[16]}} - {{linha[17]}}</td>
             </tr>
             {% endfor %}
             </tbody>

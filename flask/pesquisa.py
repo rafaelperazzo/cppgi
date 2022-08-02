@@ -328,6 +328,11 @@ def iniciar_sessao():
 @app.route("/")
 def home():
     editaisAbertos = getEditaisAbertos()
+    return (render_template('menu.html',editais=editaisAbertos))
+
+@app.route("/submissao")
+def submissao():
+    editaisAbertos = getEditaisAbertos()
     return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO))
 
 @app.route("/declaracao", methods=['GET', 'POST'])
@@ -991,7 +996,10 @@ def meusProjetos():
 
         consulta_outros = """SELECT editalProjeto.id,editais.nome,editalProjeto.nome,ua,titulo,modalidade,arquivo_projeto,
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=1 AND idProjeto=editalProjeto.id) as aprovados,
-        (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=0 AND idProjeto=editalProjeto.id) as reprovados,categoria,editais.situacao,editais.id, editalProjeto.arquivo_projeto_final, editalProjeto.situacao, editalProjeto.obs,editalProjeto.link_apresentacao 
+        (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=0 AND idProjeto=editalProjeto.id) as reprovados,
+        categoria,editais.situacao,editais.id, editalProjeto.arquivo_projeto_final,
+        editalProjeto.situacao, editalProjeto.obs,editalProjeto.link_apresentacao,
+        editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y %H:%i')  
          FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
 
@@ -1101,12 +1109,9 @@ def getNome(username):
         return (str(linha[0]))
     return("INDEFINIDO")
 
-@app.route("/avaliador", methods=['GET', 'POST'])
+@app.route("/avaliador/<edital>", methods=['GET'])
 @auth.login_required(role=['avaliador','admin'])
-def avaliador():
-    edital = "8"
-    if 'edital' in request.args:
-        edital = str(request.args.get('edital'))
+def avaliador(edital):
     session['edital'] = edital
     nome_edital = obterColunaUnica('editais','nome','id',edital)
     consulta = """SELECT sala,data FROM usuarios_salas WHERE edital=""" + edital + """ and username='""" + str(session['username']) + """' ORDER BY data,sala"""
@@ -1975,22 +1980,50 @@ def mapaavaliadores():
     else:
         return("OK")
 
-@app.route("/gerarCertificadoAvaliador", methods=['GET', 'POST'])
+@app.route("/gerarCertificadoAvaliador", methods=['GET'])
 @auth.login_required(role=['avaliador'])
 def gerarCertificadoAvaliador():
+    template = obterColunaUnica('editais','certificado_moderador','id',session['edital'])
+    nome = session['nome']
+    token = "hskaOPia"
+    periodo = obterColunaUnica('editais','periodo','id',session['edital'])
+    evento = obterColunaUnica('editais','nome_longo','id',session['edital'])
+    local = obterColunaUnica('editais','local','id',session['edital'])
+    arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
+    options = {
+        'page-size': 'A4',
+        'orientation': 'landscape',
+        'margin-top': '0cm',
+        'margin-right': '0cm',
+        'margin-bottom': '0cm',
+        'margin-left': '0cm',
+    }
+    #Gerando QrCode
+    qrcode_url = url_for('autenticar_certificado',tipo=1,codigo=token,id_projeto=0,_external=True)
+    qrcode = pyqrcode.create(qrcode_url)
+    qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
+    qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+    #Recuperando template
+    background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+    
+    #Gerando certificado em PDF
     try:
-        template = obterColunaUnica('editais','certificado_moderador','id',session['edital'])
-        template = CERTIFICADOS_TEMPLATE_DIR + template
-        nome = session['nome']
-        output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
-        output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
-        gerarCertificadoSimples(nome,template,FONT_PATH,600,output_png,output_pdf,50)
-        return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
-    except:
-        e = sys.exc_info()[0]
-        logging.error(e)
-        logging.error("Erro na geracao do certificado. Verificar!")
-        return("Erro!")
+        app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
+        pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+    except Exception as e:
+        app.logger.error('Erro gerando certificado apresentador')
+    finally:
+        consulta = """
+        SELECT id,username FROM usuarios_salas WHERE username='%s' AND edital=%s AND compareceu=1
+        """ %(session['username'],session['edital'])
+        linhas,total = executarSelect(consulta)
+        if total>0:
+            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
+        else:
+            flash("Nenhuma avaliação foi realizada até o momento!")
+            return(redirect(url_for('avaliador',edital=session['edital'])))
+
     
 def gerarCertificadoSimples(name, template, font_path,posicao, output_png, output_pdf,tamanho):
    #https://www.blog.pythonlibrary.org/2021/02/02/drawing-text-on-images-with-pillow-and-python/#:~:text=Pillow%20uses%20its%20own%20font,supported%20by%20the%20FreeType%20library.
@@ -2206,10 +2239,6 @@ def confirmar():
     if request.method == "GET":
         if 'id' in request.args:
             id = str(request.args.get('id'))
-            #consulta = "UPDATE editalProjeto SET apresentou=1 WHERE id=" + id
-            #atualizar(consulta)
-            #referrer = request.headers.get("Referer")
-            #return(redirect(referrer))
             titulo = obterColunaUnica('editalProjeto','titulo','id',id)
             arquivo = obterColunaUnica('editalProjeto','arquivo_projeto','id',id)
             final = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',id)
@@ -2221,8 +2250,6 @@ def confirmar():
         c2 = int(request.form['c2'])
         c3 = int(request.form['c3'])
         c4 = int(request.form['c4'])
-        #avaliador = str(request.form['txtNome'])
-        #avaliador = obterColunaUnica('users','nome','username',session['username'])
         c = """SELECT nome FROM users WHERE username='""" + session['username'] + """'"""
         linhas,total = executarSelect(c)
         avaliador = "INDEFINIDO"
@@ -2238,9 +2265,12 @@ def confirmar():
         consulta = """INSERT INTO avaliacoes_orais (idProjeto,c1,c2,c3,c4,comentarios,avaliador) VALUES (%s,%s,%s,%s,%s,%s,%s) """
         valores = (int(id),c1,c2,c3,c4,comentarios,avaliador)
         inserir(consulta,valores)
-        #return(redirect("https://sci02-ter-jne.ufca.edu.br/cppgi/apresentacoes?edital=" + edital + "&sala=" + local))
+        consulta = """
+        UPDATE usuarios_salas SET compareceu=1 
+        WHERE username='%s' AND edital=%s AND sala='%s' AND data='%s'
+        """ %(session['username'],edital,session['sala'],session['data'])
+        atualizar(consulta)
         return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
-        #return("Avaliação concluida com sucesso!!")
     else:
         return("ERRO")
 
@@ -2824,8 +2854,7 @@ def salvar_local_data():
     atualizar(consulta)
     return("OK")
     #TODO: Sala_link
-    #TODO: Declaração avaliador
-    #TODO: gerarCertificadoAvaliador --> corrigir (MODERADOR) --> incluir qrcode
+    #TODO: implementar o autenticar_certificado
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
