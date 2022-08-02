@@ -2,7 +2,7 @@
 import re
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,Markup,Response,session
+from flask import request,url_for,send_from_directory,redirect,flash,Markup,session
 from flask_httpauth import HTTPBasicAuth
 import datetime
 import MySQLdb
@@ -23,7 +23,6 @@ from PIL import Image, ImageDraw, ImageFont
 import threading
 import iniconfig
 import base64
-import png
 import pyqrcode
 
 WORKING_DIR='/home/perazzo/cppgi/'
@@ -495,12 +494,6 @@ def podeAvaliar(idProjeto):
     else: #Edital com avaliacoes em andamento
         return(True)
 
-#Gerar pagina de avaliacao (testes) para o avaliador
-@app.route("/testes", methods=['GET', 'POST'])
-def getPaginaAvaliacaoTeste():
-    a,b=getSessoesSalas("8","0")
-    return("OK")
-
 #Gerar pagina de avaliacao para o avaliador
 @app.route("/avaliacao", methods=['GET', 'POST'])
 def getPaginaAvaliacao():
@@ -845,31 +838,6 @@ def avaliacoesEncerradas(codigoEdital):
     else: #Edital com avaliacoes em andamento
         return(True)
 
-def gerarGraficos(demandas,grafico1,grafico2,rotacao=0):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    unidades = []
-    fatias = []
-    for linha in demandas:
-        unidades.append(str(linha[0]))
-        fatias.append(float(linha[1]))
-
-    fig1,ax1 = plt.subplots()
-    ax1.pie(fatias,labels=unidades,autopct='%1.1f%%',shadow=True,startangle=90)
-    ax1.axis('equal')
-    plt.savefig(PLOTS_DIR + grafico1)
-
-    plt.clf()
-    y_pos = np.arange(len(unidades))
-    bars = plt.bar(y_pos, fatias)
-    for bar in bars:
-        yval = bar.get_height()
-        plt.text(bar.get_x(), yval + .005, int(yval),fontweight='bold')
-    plt.xticks(y_pos, unidades,rotation=rotacao)
-    plt.savefig(PLOTS_DIR + grafico2, bbox_inches = "tight")
-    plt.close('all')
-
 def gerarPDF(template):
     
     try:
@@ -1095,9 +1063,9 @@ def meusPareceres():
 def usuario():
     if autenticado():
         if ('admin' in session['roles']):
-            return(redirect(url_for('admin')))
+            return(redirect(url_for('root')))
         if ('avaliador' in session['roles']):
-            return(redirect(url_for('admin')))
+            return(redirect(url_for('home')))
         return(redirect(url_for('meusProjetos')))
     else:
         return(render_template('login.html',mensagem=''))
@@ -2023,51 +1991,6 @@ def gerarCertificadoAvaliador():
         else:
             flash("Nenhuma avaliação foi realizada até o momento!")
             return(redirect(url_for('avaliador',edital=session['edital'])))
-
-    
-def gerarCertificadoSimples(name, template, font_path,posicao, output_png, output_pdf,tamanho):
-   #https://www.blog.pythonlibrary.org/2021/02/02/drawing-text-on-images-with-pillow-and-python/#:~:text=Pillow%20uses%20its%20own%20font,supported%20by%20the%20FreeType%20library.
-    text_y_position = posicao
-
-    # opens the image
-    img = Image.open(template, mode ='r')
-        
-    # gets the image width
-    image_width = img.width
-        
-    # gets the image height
-    image_height = img.height 
-
-    # creates a drawing canvas overlay 
-    # on top of the image
-    draw = ImageDraw.Draw(img)
-
-    # gets the font object from the 
-    # font file (TTF)
-    font = ImageFont.truetype(
-        font_path,
-        tamanho # change this according to your needs
-    )
-
-    # fetches the text width for 
-    # calculations later on
-    text_width, _ = draw.textsize(name, font = font)
-
-    draw.text(
-        (
-            # this calculation is done 
-            # to centre the image
-            (image_width - text_width) / 2,
-            text_y_position
-        ),
-        name,
-        font = font,fill=(0,0,0)        )
-
-    # saves the image in png format
-    img.save(output_png)
-    image1 = Image.open(output_png)
-    im1 = image1.convert('RGB')
-    im1.save(output_pdf)
 
 def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, output_pdf,tamanho,titulo="TITULO",tamanho2=30):
    
