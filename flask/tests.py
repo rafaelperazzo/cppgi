@@ -95,8 +95,6 @@ def test_1_adicionar_avaliador():
     data={
         "txtEmail": email,
         "txtProjeto": str(id_projeto),
-        "avaliador_sugerido": "0",
-        "avaliador_area": "0",
     }
     response = post_res('/inserirAvaliador',data)
     assert str.encode(email) in response.data
