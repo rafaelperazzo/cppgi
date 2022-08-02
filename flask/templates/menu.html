@@ -5,10 +5,10 @@
     <h2>Plataforma Yoko - Eventos</h2>
   </div>
 <div class="row">
-    <div class="col-sm-6">
+    <div class="col-sm-3">
       <div class="card">
         <div class="card-body">
-          <h5 class="card-title">Autor</h5>
+          <h5 class="card-title">Submissão de trabalho</h5>
           <p class="card-text">Submeta seu trabalho para um dos eventos abertos</p>
           <a href="{{url_for('submissao')}}">Submeter trabalho</a>
           {%for edital in editais%}
@@ -19,19 +19,28 @@
         </div>
       </div>
     </div>
-    <div class="col-sm-6">
+    <div class="col-sm-3">
       <div class="card">
         <div class="card-body">
-          <h5 class="card-title">Autor</h5>
+          <h5 class="card-title">Minhas Submissões</h5>
           <p class="card-text">Consulte seus trabalhos enviados, certificados, avaliações, etc...</p>
           <a href="{{url_for('meusProjetos')}}">Meus trabalhos submetidos</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Senha</h5>
+          <p class="card-text">Recupere sua senha de acesso.</p>
+          <a href="{{url_for('esqueciMinhaSenha')}}">Esqueci/Não sei minha senha</a>
         </div>
       </div>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-sm-6">
+    <div class="col-sm-3">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Moderador de Sessões</h5>
@@ -42,7 +51,7 @@
         </div>
       </div>
     </div>
-    <div class="col-sm-6">
+    <div class="col-sm-3">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Gestor do Sistema</h5>
