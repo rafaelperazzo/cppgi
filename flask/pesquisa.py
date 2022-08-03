@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from fileinput import filename
 import re
 from flask import Flask
 from flask import render_template
@@ -36,17 +37,17 @@ except:
     PRODUCAO = 1
 
 from waitress import serve
-UPLOAD_FOLDER = WORKING_DIR + 'static/files'
+UPLOAD_FOLDER = WORKING_DIR + 'uploads/'
 ALLOWED_EXTENSIONS = set(['pdf','xml'])
 PLOTS_DIR = WORKING_DIR + 'static/plots/'
 CURRICULOS_DIR=WORKING_DIR + 'static/files/'
-SITE = SERVER_URL + "/cppgi/static/files/"
+SITE = SERVER_URL + "/cppgi/uploads/"
 IMAGENS_URL = SERVER_URL + "/cppgi/static/"
 DECLARACOES_DIR = WORKING_DIR + 'pdfs/'
 ROOT_SITE = SERVER_URL
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
-ATTACHMENTS_DIR = WORKING_DIR + 'static/files/'
+ATTACHMENTS_DIR = WORKING_DIR + 'uploads/'
 CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'temp/'
 CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
@@ -503,11 +504,11 @@ def getPaginaAvaliacao():
             tokenAvaliacao = str(request.args.get('token'))
             arquivos = getFiles(idProjeto)
             if str(arquivos[0])!="0":
-                link_projeto = SITE + str(arquivos[0])
+                link_projeto = url_for('enviar_arquivo',filename=str(arquivos[0]))
             if str(arquivos[1])!="0":
-                link_plano1 = SITE + str(arquivos[1])
+                link_plano1 = url_for('enviar_arquivo',filename=str(arquivos[1]))
             if str(arquivos[2])!="0":
-                link_plano2 = SITE + str(arquivos[2])
+                link_plano2 = url_for('enviar_arquivo',filename=str(arquivos[2]))
             links = ""
             if 'link_projeto' in locals():
                 links = links + "<a href=\"" + link_projeto + "\">TRABALHO</a><BR>"
@@ -1464,52 +1465,56 @@ def mapa():
     else:
         return("OK")
 
-@app.route("/enviarVersaoFinal", methods=['GET', 'POST'])
-def enviarVersaoFinal():
-    if request.method == "GET":
-        if 'id' in request.args:
-            idTrabalho = str(request.args.get('id'))
-            titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+@app.route("/enviarVersaoFinal/<id_trabalho>", methods=['GET', 'POST'])
+def enviarVersaoFinal(id_trabalho):
+    
+    idTrabalho = id_trabalho
+    titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+    edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
+    deadline = obterColunaUnica('editais','DATE(deadline_versao_final)','id',edital)
+    agora = datetime.datetime.now()
+    agora = agora.strftime("%Y-%m-%d")
+    if (agora>deadline):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    
+    if autenticado():
+        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
+        linhas,total = executarSelect(consulta)
+        if total>0:
+            return(render_template('versaoFinal.html',idTrabalho=idTrabalho,titulo=titulo))
+        else:
+            flash("Acesso negado!")
+            return(redirect(url_for('meusProjetos')))
+    else:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+        
+
+@app.route("/enviarApresentacao/<id_trabalho>", methods=['GET'])
+def enviarApresentacao(id_trabalho):
+    
+    idTrabalho = id_trabalho
+    titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+    if autenticado():
+        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
+        linhas,total = executarSelect(consulta)
+        if total>0:
             edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
-            deadline = obterColunaUnica('editais','DATE(deadline_versao_final)','id',edital)
+            deadline = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
             agora = datetime.datetime.now()
             agora = agora.strftime("%Y-%m-%d")
             if (agora>deadline):
-                return("Prazo expirado!")
-            
-            if autenticado():
-                consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-                linhas,total = executarSelect(consulta)
-                if total>0:
-                    return(render_template('versaoFinal.html',idTrabalho=idTrabalho,titulo=titulo))
-                else:
-                    return("Acesso negado. Voce nao tem permissao.")
-            else:
-                return("Acesso negado")
+                flash("Prazo para envio expirado!")
+                return(redirect(url_for('meusProjetos')))
+            return(render_template('enviarApresentacao.html',idTrabalho=idTrabalho,titulo=titulo))
         else:
-            return("OK")
+            flash("Acesso negado. Voce nao tem permissao.")
+            return(redirect(url_for('meusProjetos')))
     else:
-        return("OK")
-
-@app.route("/enviarApresentacao", methods=['GET', 'POST'])
-def enviarApresentacao():
-    if request.method == "GET":
-        if 'id' in request.args:
-            idTrabalho = str(request.args.get('id'))
-            titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
-            if autenticado():
-                consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-                linhas,total = executarSelect(consulta)
-                if total>0:
-                    return(render_template('enviarApresentacao.html',idTrabalho=idTrabalho,titulo=titulo))
-                else:
-                    return("Acesso negado. Voce nao tem permissao.")
-            else:
-                return("Acesso negado")
-        else:
-            return("OK")
-    else:
-        return("OK")
+        flash("Acesso negado")
+        return(redirect(url_for('meusProjetos')))
+    
 
 @app.route("/uploadCR", methods=['GET', 'POST'])
 def uploadCR():
@@ -2959,6 +2964,10 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
+
+@app.route('/enviar_arquivo/<filename>')
+def enviar_arquivo(filename):
+    return(send_from_directory(ATTACHMENTS_DIR,filename))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

@@ -236,7 +236,7 @@ $(document).ready(function(){
                           SEM AVALIAÇÕES!
                         </td>
                       {%endif%}
-                      <td><a href="/cppgi/static/files/{{ linha[4] }}">{{linha[0]}}</a></td>
+                      <td><a href="{{url_for('enviar_arquivo',filename=linha[4])}}">{{linha[0]}}</a></td>
                       <td><textarea type="text" class="form-control form-control-sm campo" id="nome_{{linha[0]}}" name="nome_{{linha[0]}}" placeholder="NOMES DOS AUTORES" required="required" rows="5">{{linha[1]}}</textarea>
                       </td>
                       <td>

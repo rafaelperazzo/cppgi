@@ -51,13 +51,43 @@
     
   </head>
   <body>
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Informações sobre a versão final da submissão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>A versão final deve ser enviada com as seguintes alterações:</p>
+            <ul>
+              <li>Correções sugeridas pelos revisores;</li>
+              <li>Identificação dos autores.</li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="alert alert-secondary" role="alert">
       <h1>Minhas submissões</h1>
     </div>
     <div class="alert alert-warning" role="alert">
       *Caso sua submissão não esteja listada abaixo, favor entrar em contato com a PRPI no e-mail atendimento.prpi@ufca.edu.br.
     </div>
-        
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>{{message}}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
     {% if total2019!=0 %}
           <table class="table table-striped">
             <thead>
@@ -113,7 +143,7 @@
                 {% endif %}
 
               </td>  <!-- TIPO DE APRESENTAÇÃO -->
-              <td><a href="/cppgi/static/files/{{linha[6]}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
+              <td><a href="{{url_for('enviar_arquivo',filename=linha[6])}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
               <!-- SITUAÇÃO DO PROJETO -->
               <td>
 
@@ -130,12 +160,13 @@
               <td>
                 {% if linha[13]>0 %}
                     {% if linha[12]=='0' %}
+                        <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" data-bs-toggle="modal" data-bs-target="#exampleModal">
                         <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}"  alt="" align="center"><BR><BR>
-                        <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ENVIAR VERSÃO FINAL</a><BR><BR>
+                        <a href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ENVIAR VERSÃO FINAL</a><BR><BR>
                     {% else %}
-                        <img src="{{ url_for('static', filename='ok.png')}}" alt="" align="center"><BR><BR>
-                        <a href="/cppgi/static/files/{{linha[12]}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><BR><BR>
-                        <a href="/cppgi/enviarVersaoFinal?id={{linha[0]}}">ATUALIZAR VERSÃO FINAL</a><BR><BR>
+                    <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                        <a href="{{url_for('enviar_arquivo',filename=linha[12])}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><BR><BR>
+                        <a href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ATUALIZAR VERSÃO FINAL</a><BR><BR>
                     {% endif %}
 
                 {% endif %}
@@ -144,11 +175,11 @@
                 {% if linha[13]>0 %}
                     {% if linha[15]=='0' %}
                         <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" alt="" align="center"><BR><BR>
-                        <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ENVIAR LINK DE APRESENTAÇÃO</a><BR><BR>
+                        <a href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ENVIAR LINK DE APRESENTAÇÃO</a><BR><BR>
                     {% else %}
-                        <img src="{{ url_for('static', filename='ok.png')}}" alt="" align="center"><BR><BR>
-                        <a href="{{linha[15]|safe}}" target="_blank">APRESENTAÇÃO</a><BR><BR>
-                        <a href="/cppgi/enviarApresentacao?id={{linha[0]}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><BR><BR>
+                        
+                        <a href="{{linha[15]|safe}}" target="_blank"><img src="{{ url_for('static', filename='presentation.png')}}" alt="" align="center"></a><BR><BR>
+                          <a href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><BR><BR>
                     {% endif %}
 
                 {% endif %}
@@ -159,14 +190,13 @@
             {% endfor %}
             </tbody>
           </table>
-          <div class="alert alert-danger" role="alert">
-            <i>* A versão final deve ser enviada com as seguintes alterações: a) Correções sugeridas pelos revisores; b) Identificação dos autores. </i>
-          </div>          
+                  
           
     {% else %}
         <h3>Nenhuma submissão.</h3>
     {% endif %}
     <a class="fixed" href="/cppgi/logout">Sair</a>
+    <a href="{{url_for('home')}}"><button type="button" class="btn btn-outline-primary">INÍCIO</button></a>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>

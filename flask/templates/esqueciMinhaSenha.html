@@ -67,6 +67,7 @@ span.psw {
 }
 </style>
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
 <script>
 function humano() {
    if (grecaptcha.getResponse() == ""){
@@ -86,16 +87,19 @@ function humano() {
 
 <form action="/cppgi/enviarMinhaSenha" METHOD="POST" onsubmit="return humano()">
 
-  <div class="container">
+  <div class="container-sm">
+    <div class="alert alert-success" role="alert">
+      <center><h2>Recuperação de senha</h2></center>
+    </div>
     <label for="uname"><b>E-Mail do autor principal (quem fez a submissão)</b></label>
-    <input type="text" placeholder="e-mail: " name="email" required>
+    <input class="form-control" type="text" placeholder="e-mail: " name="email" required>
      {%if session['PRODUCAO']==1%}
         <center><div class="g-recaptcha" data-sitekey="6Lfe8NgbAAAAAPYO9OZF4i34EpSKvNGQihaxr0Am"></div></center>
      {%endif%}
-    <button type="submit">Enviar</button>
+    <button class="btn btn-primary" type="submit">Recuperar Senha</button>
   </div>
 
 </form>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -98,10 +98,10 @@ textarea {
     <form name="frmAvaliacao" action="/cppgi/confirmar" method="POST">
       <hr>
       <h3>Arquivos do projeto</h3>
-      <a href="/cppgi/static/files/{{arquivo}}">TEXTO DO TRABALHO</a><br><br>
+      <a href="{{url_for('enviar_arquivo',filename=arquivo)}}">TEXTO DO TRABALHO</a><br><br>
 
       {% if final!="0" %}
-      <a href="/cppgi/static/files/{{final}}">TEXTO FINAL DO TRABALHO</a><br><br>
+      <a href="{{url_for('enviar_arquivo',filename=final)}}">TEXTO FINAL DO TRABALHO</a><br><br>
       {% endif %}
       <br>
       <input type="hidden" id="idProjeto" name="idProjeto" value="{{id}}">
