@@ -2695,7 +2695,7 @@ def salvar_local_data():
 @auth.login_required(role=['admin'])
 def cadastrar_usuario(operacao):
     if request.method=='GET':
-        if operacao==0: #Cadastrar novo usuário
+        if int(operacao)==0: #Cadastrar novo usuário
             return(render_template('cadastrar_usuario.html'))
         else: #Listar usuários
             consulta = """
