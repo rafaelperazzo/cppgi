@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from fileinput import filename
 import re
+from urllib.parse import urlencode
 from flask import Flask
 from flask import render_template
 from flask import request,url_for,send_from_directory,redirect,flash,Markup,session
@@ -36,17 +38,17 @@ except:
     PRODUCAO = 1
 
 from waitress import serve
-UPLOAD_FOLDER = WORKING_DIR + 'static/files'
+UPLOAD_FOLDER = WORKING_DIR + 'uploads/'
 ALLOWED_EXTENSIONS = set(['pdf','xml'])
 PLOTS_DIR = WORKING_DIR + 'static/plots/'
 CURRICULOS_DIR=WORKING_DIR + 'static/files/'
-SITE = SERVER_URL + "/cppgi/static/files/"
+SITE = SERVER_URL + "/cppgi/uploads/"
 IMAGENS_URL = SERVER_URL + "/cppgi/static/"
 DECLARACOES_DIR = WORKING_DIR + 'pdfs/'
 ROOT_SITE = SERVER_URL
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
-ATTACHMENTS_DIR = WORKING_DIR + 'static/files/'
+ATTACHMENTS_DIR = WORKING_DIR + 'uploads/'
 CERTIFICADOS_TEMP_DIR = WORKING_DIR + 'temp/'
 CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
@@ -503,11 +505,11 @@ def getPaginaAvaliacao():
             tokenAvaliacao = str(request.args.get('token'))
             arquivos = getFiles(idProjeto)
             if str(arquivos[0])!="0":
-                link_projeto = SITE + str(arquivos[0])
+                link_projeto = url_for('enviar_arquivo',filename=str(arquivos[0]))
             if str(arquivos[1])!="0":
-                link_plano1 = SITE + str(arquivos[1])
+                link_plano1 = url_for('enviar_arquivo',filename=str(arquivos[1]))
             if str(arquivos[2])!="0":
-                link_plano2 = SITE + str(arquivos[2])
+                link_plano2 = url_for('enviar_arquivo',filename=str(arquivos[2]))
             links = ""
             if 'link_projeto' in locals():
                 links = links + "<a href=\"" + link_projeto + "\">TRABALHO</a><BR>"
@@ -975,69 +977,6 @@ def meusProjetos():
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
 
-@app.route("/minhaDeclaracaoOrientador", methods=['GET', 'POST'])
-def minhaDeclaracao():
-    if autenticado():
-        if request.method == "GET":
-            #Recuperando o token da declaração
-            if 'token' in request.args:
-                token = str(request.args.get('token'))
-                consulta = """SELECT nome_do_coordenador,siape,titulo_do_projeto,DATE_FORMAT(estudante_inicio,'%d/%m/%Y') as inicio,DATE_FORMAT(estudante_fim,'%d/%m/%Y') as fim,estudante_nome_completo,token,if(estudante_fim<NOW(),"exerceu","exerce") as verbo FROM cadastro_geral WHERE token='""" + token + """' ORDER BY inicio,titulo_do_projeto"""
-                projeto,total = executarSelect(consulta,1)
-                data_agora = getData()
-                if total==1:
-                    arquivoDeclaracao = app.config['DECLARACOES_FOLDER'] + 'declaracao.pdf'
-                    options = {
-                        'page-size': 'A4',
-                        'margin-top': '2cm',
-                        'margin-right': '2cm',
-                        'margin-bottom': '1cm',
-                        'margin-left': '2cm',
-                    }
-                    pdfkit.from_string(render_template('declaracao_orientador.html',texto=projeto,data=data_agora,identificador=token,raiz=ROOT_SITE),arquivoDeclaracao,options=options)
-                    return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
-                    #return send_file(arquivoDeclaracao, attachment_filename='arquivo.pdf')
-                    #return(render_template('declaracao_orientador.html',texto=projeto,data=data_agora,identificador=token))
-                else:
-                    return("declaração inexistente!")
-            else:
-                return("OK")
-        else:
-            return("OK")
-    else:
-        return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
-
-@app.route("/discente/minhaDeclaracao", methods=['GET', 'POST'])
-def minhaDeclaracaoDiscente():
-        if request.method == "GET":
-            #Recuperando o token da declaração
-            if 'token' in request.args:
-                token = str(request.args.get('token'))
-                consulta = """SELECT estudante_nome_completo,cpf,if(estudante_fim>NOW(),1,0) as verbo,estudante_modalidade,nome_do_coordenador,titulo_do_projeto,
-                            ch_semanal,DATE_FORMAT(estudante_inicio,'%d/%m/%Y') as inicio,DATE_FORMAT(estudante_fim,'%d/%m/%Y') as final FROM cadastro_geral WHERE token='""" + token + """'"""
-                projeto,total = executarSelect(consulta,1)
-                data_agora = getData()
-                if total==1:
-                    arquivoDeclaracao = app.config['DECLARACOES_FOLDER'] + 'declaracao.pdf'
-                    options = {
-                        'page-size': 'A4',
-                        'margin-top': '2cm',
-                        'margin-right': '2cm',
-                        'margin-bottom': '1cm',
-                        'margin-left': '2cm',
-                    }
-                    pdfkit.from_string(render_template('declaracao_discente.html',texto=projeto,data=data_agora,identificador=token,raiz=ROOT_SITE),arquivoDeclaracao,options=options)
-                    return send_from_directory(app.config['DECLARACOES_FOLDER'], 'declaracao.pdf')
-                    #return send_file(arquivoDeclaracao, attachment_filename='arquivo.pdf')
-                    #return(render_template('declaracao_orientador.html',texto=projeto,data=data_agora,identificador=token))
-                else:
-                    return("declaração inexistente!")
-            else:
-                return("OK")
-        else:
-            return("OK")
-
-
 @app.route("/meusPareceres", methods=['GET', 'POST'])
 def meusPareceres():
     if request.method == "GET":
@@ -1464,52 +1403,56 @@ def mapa():
     else:
         return("OK")
 
-@app.route("/enviarVersaoFinal", methods=['GET', 'POST'])
-def enviarVersaoFinal():
-    if request.method == "GET":
-        if 'id' in request.args:
-            idTrabalho = str(request.args.get('id'))
-            titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+@app.route("/enviarVersaoFinal/<id_trabalho>", methods=['GET', 'POST'])
+def enviarVersaoFinal(id_trabalho):
+    
+    idTrabalho = id_trabalho
+    titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+    edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
+    deadline = obterColunaUnica('editais','DATE(deadline_versao_final)','id',edital)
+    agora = datetime.datetime.now()
+    agora = agora.strftime("%Y-%m-%d")
+    if (agora>deadline):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    
+    if autenticado():
+        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
+        linhas,total = executarSelect(consulta)
+        if total>0:
+            return(render_template('versaoFinal.html',idTrabalho=idTrabalho,titulo=titulo))
+        else:
+            flash("Acesso negado!")
+            return(redirect(url_for('meusProjetos')))
+    else:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+        
+
+@app.route("/enviarApresentacao/<id_trabalho>", methods=['GET'])
+def enviarApresentacao(id_trabalho):
+    
+    idTrabalho = id_trabalho
+    titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
+    if autenticado():
+        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
+        linhas,total = executarSelect(consulta)
+        if total>0:
             edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
-            deadline = obterColunaUnica('editais','DATE(deadline_versao_final)','id',edital)
+            deadline = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
             agora = datetime.datetime.now()
             agora = agora.strftime("%Y-%m-%d")
             if (agora>deadline):
-                return("Prazo expirado!")
-            
-            if autenticado():
-                consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-                linhas,total = executarSelect(consulta)
-                if total>0:
-                    return(render_template('versaoFinal.html',idTrabalho=idTrabalho,titulo=titulo))
-                else:
-                    return("Acesso negado. Voce nao tem permissao.")
-            else:
-                return("Acesso negado")
+                flash("Prazo para envio expirado!")
+                return(redirect(url_for('meusProjetos')))
+            return(render_template('enviarApresentacao.html',idTrabalho=idTrabalho,titulo=titulo))
         else:
-            return("OK")
+            flash("Acesso negado. Voce nao tem permissao.")
+            return(redirect(url_for('meusProjetos')))
     else:
-        return("OK")
-
-@app.route("/enviarApresentacao", methods=['GET', 'POST'])
-def enviarApresentacao():
-    if request.method == "GET":
-        if 'id' in request.args:
-            idTrabalho = str(request.args.get('id'))
-            titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
-            if autenticado():
-                consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-                linhas,total = executarSelect(consulta)
-                if total>0:
-                    return(render_template('enviarApresentacao.html',idTrabalho=idTrabalho,titulo=titulo))
-                else:
-                    return("Acesso negado. Voce nao tem permissao.")
-            else:
-                return("Acesso negado")
-        else:
-            return("OK")
-    else:
-        return("OK")
+        flash("Acesso negado")
+        return(redirect(url_for('meusProjetos')))
+    
 
 @app.route("/uploadCR", methods=['GET', 'POST'])
 def uploadCR():
@@ -1642,43 +1585,41 @@ def apresentacoes():
     else:
         return ("OK")
 
-@app.route("/solicitarVersaoFinal", methods=['GET', 'POST'])
-def solicitarVersaoFinal():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
-            users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
-            WHERE editalProjeto.siape=users.username and situacao=1 and 
-            valendo=1 and arquivo_projeto_final='0' and tipo=""" + edital
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            linhas,total=executarSelect(consulta)            
-            cont = 0
-            erros = 0
-            for linha in linhas:
-                titulo = str(linha[1])
-                id_trabalho = str(linha[2])
-                cpf = str(linha[3])
-                email_autor = str(linha[4])
-                senha = str(linha[5])
-                arquivo = str(linha[6])
-                autores = str(linha[7])
-                if (arquivo=="0"):
-                    texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                    try:
-                        if PRODUCAO==1:
-                            mail.send(msg)
-                        cont = cont + 1
-                    except:
-                        erros = erros + 1
-                    
-            return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
-        else:
-            return("OK")
-    else:
-        return("OK")
+@app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
+def solicitarVersaoFinal(edital):
+    """
+    SOLICITA A VERSÃO FINAL PARA OS APRESENTADORES
+    """
+    consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
+    users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
+    WHERE editalProjeto.siape=users.username and situacao=1 and 
+    valendo=1 and arquivo_projeto_final='0' and tipo=""" + edital
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    linhas,total=executarSelect(consulta)            
+    cont = 0
+    erros = 0
+    for linha in linhas:
+        titulo = str(linha[1])
+        id_trabalho = str(linha[2])
+        cpf = str(linha[3])
+        email_autor = str(linha[4])
+        senha = str(linha[5])
+        arquivo = str(linha[6])
+        autores = str(linha[7])
+        if (arquivo=="0"):
+            texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
+            msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            try:
+                if PRODUCAO==1:
+                    t = threading.Thread(target=enviar_email,args=(msg,))
+                    t.start()
+                    #mail.send(msg)
+                cont = cont + 1
+            except:
+                erros = erros + 1
+    flash("Solicitações enviadas com sucesso!")
+    return(redirect(url_for('admin',edital=edital)))
+
 
 def getAvaliadoresSala(edital,sala,dia):
     consulta = """SELECT users.nome FROM users,usuarios_salas 
@@ -1734,51 +1675,49 @@ def emailInformacoes():
     else:
         return("OK")
 
-@app.route("/emailInstrucoes", methods=['GET', 'POST'])
+@app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
-def emailInstrucoes():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.nome,
-            users.password,IF(categoria=0,'APRESENTACAO ORAL','POSTER'),DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i'),local_apresentacao,DATE(data_apresentacao) FROM editalProjeto,users 
-            WHERE editalProjeto.siape=users.username and situacao=1 and 
-            valendo=1 and tipo=""" + edital
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            prazo_apresentacao = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
-            prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
-            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-            linhas,total=executarSelect(consulta)            
-            cont = 0
-            erros = 0
-            for linha in linhas:
-                titulo = str(linha[1])
-                id_trabalho = str(linha[2])
-                email_autor = str(linha[0])
-                autores = str(linha[4])
-                cpf = str(linha[3])
-                senha = str(linha[5])
-                apresentacao = str(linha[6])
-                dataHora_apresentacao = str(linha[7])
-                local_apresentacao = str(linha[8])
-                data_apresentacao = str(linha[9])
-                link = getLinkSala(edital,local_apresentacao)
-                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao,link=link)
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                #msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                try:
-                    if PRODUCAO==1:
-                        mail.send(msg)
-                    cont = cont + 1
-                except:
-                    erros = erros + 1
-                
-            return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
-        else:
-            return("OK")
-    else:
-        return("OK")
+def emailInstrucoes(edital):
+    """
+    ENVIO DAS INSTRUÇÕES PARA ENVIO DAS APRESENTAÇÕES
+    """
+    consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.nome,
+    users.password,IF(categoria=0,'APRESENTACAO ORAL','POSTER'),DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i'),local_apresentacao,DATE(data_apresentacao) FROM editalProjeto,users 
+    WHERE editalProjeto.siape=users.username and situacao=1 and 
+    valendo=1 and tipo=""" + edital
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    prazo_apresentacao = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
+    prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    linhas,total=executarSelect(consulta)            
+    cont = 0
+    erros = 0
+    for linha in linhas:
+        titulo = str(linha[1])
+        id_trabalho = str(linha[2])
+        email_autor = str(linha[0])
+        autores = str(linha[4])
+        cpf = str(linha[3])
+        senha = str(linha[5])
+        apresentacao = str(linha[6])
+        dataHora_apresentacao = str(linha[7])
+        local_apresentacao = str(linha[8])
+        data_apresentacao = str(linha[9])
+        link = getLinkSala(edital,local_apresentacao)
+        texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao,link=link)
+        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+        
+        try:
+            if PRODUCAO==1:
+                t = threading.Thread(target=enviar_email,args=(msg,))
+                t.start()
+                #mail.send(msg)
+            cont = cont + 1
+        except:
+            erros = erros + 1
+        
+    flash("Instruções enviadas com sucesso!")
+    return(redirect(url_for('admin',edital=edital)))
 
 
 @app.route("/emailPosEvento", methods=['GET', 'POST'])
@@ -1813,39 +1752,37 @@ def emailPosEvento():
         return("OK")
 
 
-@app.route("/emailInstrucoesAvaliador", methods=['GET', 'POST'])
+@app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
-def emailInstrucoesAvaliador():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta = """SELECT DISTINCT usuarios_salas.username,users.password,users.email FROM users,usuarios_salas 
-            WHERE usuarios_salas.edital=""" + edital + """ 
-            and users.username=usuarios_salas.username ORDER BY usuarios_salas.username"""
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-            linhas,total=executarSelect(consulta)            
-            cont = 0
-            erros = 0
-            for linha in linhas:
-                cpf = str(linha[0])
-                senha = str(linha[1])
-                email_avaliador = str(linha[2])
-                texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                try:
-                    if PRODUCAO==1:
-                        mail.send(msg)
-                    cont = cont + 1
-                except:
-                    erros = erros + 1
-                #break
-            return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
-        else:
-            return("OK")
-    else:
-        return("OK")
+def emailInstrucoesAvaliador(edital):
+    """
+    Envia os e-mails (todos) com as instruções para os moderadores de sessões
+    """
+    consulta = """SELECT DISTINCT usuarios_salas.username,users.password,users.email FROM users,usuarios_salas 
+    WHERE usuarios_salas.edital=""" + edital + """ 
+    and users.username=usuarios_salas.username ORDER BY usuarios_salas.username"""
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    linhas,total=executarSelect(consulta)            
+    cont = 0
+    erros = 0
+    for linha in linhas:
+        cpf = str(linha[0])
+        senha = str(linha[1])
+        email_avaliador = str(linha[2])
+        texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
+        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+        try:
+            if PRODUCAO==1:
+                t = threading.Thread(target=enviar_email,args=(msg,))
+                t.start()
+                #mail.send(msg)
+            cont = cont + 1
+        except:
+            erros = erros + 1
+        #break
+    return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
+        
 
 def getDatas(edital):
     consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY data_apresentacao"""
@@ -1951,6 +1888,9 @@ def mapaavaliadores():
 @app.route("/gerarCertificadoAvaliador", methods=['GET'])
 @auth.login_required(role=['avaliador'])
 def gerarCertificadoAvaliador():
+    """
+    Emite o certificado do moderador de sessões
+    """
     template = obterColunaUnica('editais','certificado_moderador','id',session['edital'])
     nome = session['nome']
     token = "hskaOPia"
@@ -2050,12 +1990,13 @@ def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, outp
     im1 = image1.convert('RGB')
     im1.save(output_pdf)
 
-'''
-CERTIFICADO DE APRESENTADOR
-'''
+
 @app.route("/baixarCertificado/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['user','admin'])
 def baixarCertificado(id_projeto):
+    """
+    Emite o CERTIFICADO DE APRESENTADOR
+    """
     id = id_projeto
     apresentou = obterColunaUnica('editalProjeto','apresentou','id',id)
     consulta = """SELECT id FROM editalProjeto WHERE siape='""" + session['username'] +"""'"""
@@ -2242,23 +2183,6 @@ def updateZip(zipname, filename, data):
         dados = data.encode('utf8')
         zf.writestr(filename, dados)
 
-'''
-@app.route("/executar", methods=['GET', 'POST'])
-def executar():
-def odt2Pdf():
-    command = "unoconv -f pdf /home/perazzo/cppgi/pdfs/certificado.odt"
-    #command = "/usr/bin/python3 /usr/local/bin/unoconv -f pdf -o /home/perazzo/cppgi/pdfs/certificado.pdf /home/perazzo/cppgi/pdfs/certificado.odt"
-    #command = "libreoffice --convert-to pdf:writer_pdf_Export /home/perazzo/cppgi/pdfs/certificado.odt --outdir /home/perazzo/cppgi/pdfs/"
-    os.chmod('/home/perazzo/cppgi/pdfs/certificado.odt',0777)
-    #p = subprocess.Popen(["libreoffice","--convert-to","pdf:writer_pdf_Export","/home/perazzo/cppgi/pdfs/certificado.odt","--outdir","/home/perazzo/cppgi/pdfs/"],stdout=subprocess.PIPE)
-    p = subprocess.Popen(["pwd"],stdout=subprocess.PIPE)
-    p.wait()
-    #s = p.communicate()
-    #s = os.popen(command).read()
-    #logging.debug(s)
-    return (s)
-'''
-
 def gerarCertificadoApresentacao(autores,titulo,id,token=0):
     namef = app.config['CERTIFICADOS_FOLDER'] + 'certificado-' + id + '.odt'
     odt = newdoc(doctype='odt', filename=namef, template='/home/perazzo/cppgi/documentos/07-certificado.apresentacao.odt')
@@ -2292,44 +2216,27 @@ def certificadoApresentacoes():
     else:
         return("OK")
 
-'''
-@app.route("/baixarCertificado", methods=['GET', 'POST'])
-def baixarCertificado():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'id' in request.args:
-            id = str(request.args.get('id'))
-            return (send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado-' + id + '.pdf'))
-        else:
-            return("OK")
-    else:
-        return("OK")
-'''
-
-@app.route("/enviarCertificados", methods=['GET', 'POST'])
-def enviarCertificados():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'id' in request.args:
-            id = str(request.args.get('id'))
-            consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + id
-            linhas,total = executarSelect(consulta)
-            for linha in linhas:
-                email = str(linha[2])
-                idTrabalho = str(linha[3])
-                nome = str(linha[0])
-                titulo = str(linha[1])
-                nome_curto = obterColunaUnica('editais','nome_curto','id',str(id))
-                nome_longo = obterColunaUnica('editais','nome_longo','id',str(id))
-                link = "https://sci02-ter-jne.ufca.edu.br/cppgi/baixarCertificado?id=" + idTrabalho
-                texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
-                msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
-                mail.send(msg)
-            return("Certificados ENVIADOS com sucesso!")
-        else:
-            return("OK")
-    else:
-        return("OK")
+@app.route("/enviarCertificados/<edital>", methods=['GET', 'POST'])
+def enviarCertificados(edital):
+    id = edital
+    consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + id
+    linhas,total = executarSelect(consulta)
+    for linha in linhas:
+        email = str(linha[2])
+        idTrabalho = str(linha[3])
+        nome = str(linha[0])
+        titulo = str(linha[1])
+        nome_curto = obterColunaUnica('editais','nome_curto','id',str(id))
+        nome_longo = obterColunaUnica('editais','nome_longo','id',str(id))
+        link = url_for('baixarCertificado',id_projeto=idTrabalho)
+        texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
+        msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
+        t = threading.Thread(target=enviar_email,args=(msg,))
+        t.start()
+        #mail.send(msg)
+    flash("Certificados ENVIADOS com sucesso!")
+    return(redirect(url_for('admin',edital=edital)))
+        
 
 
 def gerarCertificadoModerador(nome,tipo,id,token=0):
@@ -2455,6 +2362,9 @@ def enviar_email_avaliadores():
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
                 return("Erro! Verifique o log!")
 
+"""
+Envia solicitação para os avaliadores dos trabalhos escritos
+"""
 @app.route("/emailSolicitarAvaliacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def email_solicitar_avaliacao():
@@ -2959,6 +2869,10 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
+
+@app.route('/enviar_arquivo/<filename>')
+def enviar_arquivo(filename):
+    return(send_from_directory(ATTACHMENTS_DIR,filename))
 
 if __name__ == "__main__":
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')

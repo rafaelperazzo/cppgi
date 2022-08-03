@@ -139,7 +139,7 @@ $(document).ready(function(){
                     <form action="{{url_for('salvar_local_data')}}" method="POST" id="form_{{linha[0]}}">
                       <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
                       
-                      <td><a href="/cppgi/static/files/{{linha[11]}}">{{linha[0]}}</a></td>
+                      <td><a href="{{url_for('enviar_arquivo',filename=linha[11])}}">{{linha[0]}}</a></td>
                       <td>
                         {{linha[1]}}
                       </td>
