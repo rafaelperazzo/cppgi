@@ -1847,7 +1847,7 @@ def root():
     consulta = """
     SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
     isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado,
-    declaracao_avaliador 
+    declaracao_avaliador,periodo,local  
     FROM editais
     """
     linhas,total = executarSelect(consulta)
@@ -2424,9 +2424,10 @@ def salvar_edital(operacao):
     if int(operacao)==0:
         consulta = """
         UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
-        deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s' 
+        deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s',
+        periodo='%s', local='%s'  
         WHERE id=%s 
-        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['nome']),str(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),str(request.form['situacao']),str(request.form['isbn']),str(edital))
+        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['nome']),str(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),str(request.form['situacao']),str(request.form['isbn']),str(request.form['periodo']),str(request.form['local']),str(edital),)
         atualizar(consulta)
         return("Alterações gravadas com sucesso!")
     else:
@@ -2688,6 +2689,7 @@ def salvar_local_data():
     return("OK")
     #TODO: Sala_link
     #TODO: implementar o autenticar_certificado
+    #TODO: Demais certificados
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])

@@ -73,6 +73,8 @@ def test_0_cadastrar_projeto():
         "palavras": "android",
         "resumo": "Resumo do trabalho",
         "arquivo_trabalho": open(WORKING_DIR + "teste.pdf","rb"),
+        "arquivo_suplementar1": open(WORKING_DIR + "teste.pdf","rb"),
+        "arquivo_suplementar2": open(WORKING_DIR + "teste.pdf","rb"),
     },follow_redirects=True)
     assert response.status_code == 200
     consulta = """
