@@ -127,6 +127,22 @@ tr:nth-child(even) {
               <td><a href="{{url_for('mapaavaliadores',edital=edital)}}">MAPA DE AVALIADORES</a></td>
               <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
             </tr>
+            <tr>
+              <td><a href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
+              <td>Envia os e-mails para os moderadores de sessões, com as instruções para avaliação das apresentações</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('solicitarVersaoFinal',edital=edital)}}">SOLICITAR VERSÃO FINAL PARA OS APRESENTADORES</a></td>
+              <td>Envia os e-mails com a solicitação da versão final para os apresentadores</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL OS LINKS DOS CERTIFICADOS PARA OS APRESENTADORES</a></td>
+              <td>Envia os e-mails com os links dos certificados para os apresentadores</td>
+            </tr>
+            <tr>
+              <td><a href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
+              <td>Envia os e-mails com as instruções de apresentação para os apresentadores</td>
+            </tr>
             
             
         </table>
