@@ -95,12 +95,35 @@ tr:nth-child(even) {
         {% endfor %}
     {% endif %}
     {% endwith %}
-    <a href="{{url_for('cadastrar_edital')}}"><button type="button" class="btn btn-outline-primary">Cadastrar Novo Edital</button></a>
-    <a href="{{url_for('email_solicitar_avaliacao')}}"><button type="button" class="btn btn-outline-primary">Enviar E-mail para os avaliadores</button></a>
-    <a href="{{url_for('cadastrar_usuario',operacao=0)}}"><button type="button" class="btn btn-outline-primary">Cadastrar Novo Usuário</button></a>
-    <a href="{{url_for('cadastrar_usuario',operacao=1)}}"><button type="button" class="btn btn-outline-primary">Listar Usuários</button></a>
-    <a href="{{url_for('meusProjetos')}}"><button type="button" class="btn btn-outline-primary">Minhas Submissões</button></a>
-        <table class="table">
+    
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">Menu</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('cadastrar_edital')}}">Cadastrar Novo Edital</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('email_solicitar_avaliacao')}}">Enviar E-mail para os avaliadores</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('cadastrar_usuario',operacao=0)}}">Cadastrar Novo Usuário</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('cadastrar_usuario',operacao=1)}}">Listar Usuários</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{url_for('meusProjetos')}}">Minhas Submissões</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+    </nav>    
+    <table class="table">
             <thead>
                 <th>id</th>
                 <th style="width: 10%">Nome curto</th>
