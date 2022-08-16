@@ -180,14 +180,14 @@ $(document).ready(function(){
                 {% endif %}
               {% endwith %}
               
-              <table class="table table-striped" style="width:100%" id="tabela">
+              <table class="table table-striped" style="width:150%" id="tabela">
                 <thead>
                 <th></th>
                 <th>ID</th>
-                <th style="width: 40%">Nome</th>
-                <th style="width: 20%">Grande Área</th>
-                <th style="width: 40%">Título</th>
-                <th style="width: 20%">Palavras-Chave</th>
+                <th>Nome</th>
+                <th >Grande Área</th>
+                <th>Título</th>
+                <th>Palavras-Chave</th>
                 <th>Finalizadas</th>
                 <th>Inserir Consultor
                 <th>Consultores</th>
@@ -198,7 +198,7 @@ $(document).ready(function(){
                 <th>+</th>
                 <th>-</th>
                 <th>?</th>
-                <th style="width: 25%">Situação</th>
+                <th>Situação</th>
               </thead>
               <tbody id="tabelaNovos">
                 {% for linha in novos %}
