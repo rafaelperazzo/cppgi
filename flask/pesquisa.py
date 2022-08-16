@@ -26,6 +26,8 @@ import threading
 import iniconfig
 import base64
 import pyqrcode
+from flask_restful import Api
+
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -55,6 +57,8 @@ FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
 app = Flask(__name__)
+api = Api(app)
+
 auth = HTTPBasicAuth()
 mail = Mail(app)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -2876,5 +2880,9 @@ def detalhes(tabela,valor_id,coluna):
 def enviar_arquivo(filename):
     return(send_from_directory(ATTACHMENTS_DIR,filename))
 
+
 if __name__ == "__main__":
+    from app_api import Submissoes
+    api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>')
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
+
