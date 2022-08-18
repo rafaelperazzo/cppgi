@@ -24,7 +24,7 @@ class Submissoes(Resource):
         ORDER BY id
         """ %(id_edital)
         linhas,total = executarSelect(consulta)
-        return(total)
+        return({'total': total})
 
     def agrupar(self,id_edital):
         consulta = """

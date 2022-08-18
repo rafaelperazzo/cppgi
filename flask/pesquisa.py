@@ -27,6 +27,7 @@ import iniconfig
 import base64
 import pyqrcode
 from flask_restful import Api
+from flask_cors import CORS
 
 
 WORKING_DIR='/home/perazzo/cppgi/'
@@ -57,7 +58,9 @@ FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
 app = Flask(__name__)
+
 api = Api(app)
+CORS(app)
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
