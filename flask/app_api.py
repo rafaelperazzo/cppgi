@@ -24,7 +24,7 @@ class Submissoes(Resource):
         ORDER BY id
         """ %(id_edital)
         linhas,total = executarSelect(consulta)
-        return(total)
+        return({'total': total})
 
     def agrupar(self,id_edital):
         consulta = """
@@ -53,3 +53,16 @@ class Submissoes(Resource):
             return(self.agrupar(id_edital))
         else:
             return([])
+
+class Editais(Resource):
+    def get(self):
+        consulta = """
+        SELECT id,nome_longo FROM editais 
+        ORDER BY id
+        """
+        linhas,total = executarSelect(consulta)
+        dados = []
+        for linha in linhas:
+            dado = {'id': linha[0],'label': linha[1]}
+            dados.append(dado)
+        return(dados)

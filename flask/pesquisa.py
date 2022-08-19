@@ -27,6 +27,7 @@ import iniconfig
 import base64
 import pyqrcode
 from flask_restful import Api
+from flask_cors import CORS
 
 
 WORKING_DIR='/home/perazzo/cppgi/'
@@ -57,7 +58,9 @@ FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
 app = Flask(__name__)
+
 api = Api(app)
+CORS(app)
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
@@ -2882,7 +2885,8 @@ def enviar_arquivo(filename):
 
 
 if __name__ == "__main__":
-    from app_api import Submissoes
+    from app_api import Submissoes,Editais
     api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>')
+    api.add_resource(Editais,'/api/editais')
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
 
