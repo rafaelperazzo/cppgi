@@ -7,7 +7,7 @@ function salvar(elemento) {
     var str = form_id.split("_");
     var identificador = coluna_id[1];
     var tabela = str[2];
-    var action = "/salvar" + "/" + String(tabela) + "/" + identificador + "/" + coluna + "/" + valor;
+    var action = "/cppgi/salvar" + "/" + String(tabela) + "/" + identificador + "/" + coluna + "/" + valor;
     $.get(action,function(data) {
     });
 }
@@ -28,7 +28,7 @@ function salvar_detalhes(elemento) {
     var identificador = $("#detalhes_id").text();
     var coluna = $("#coluna").val();
     var valor = $("#campo_detalhes").val();
-    var action = "/salvar" + "/" + String(tabela) + "/" + identificador + "/" + coluna + "/" + valor;
+    var action = "/cppgi/salvar" + "/" + String(tabela) + "/" + identificador + "/" + coluna + "/" + valor;
     $.get(action,function(data) {        
     });
     var nome_campo = "#" + String(coluna) + "_" + String(identificador);

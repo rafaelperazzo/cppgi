@@ -63,6 +63,6 @@ class Editais(Resource):
         linhas,total = executarSelect(consulta)
         dados = []
         for linha in linhas:
-            dado = {'id': linha[0],'nome': linha[1]}
+            dado = {'id': linha[0],'label': linha[1]}
             dados.append(dado)
         return(dados)
