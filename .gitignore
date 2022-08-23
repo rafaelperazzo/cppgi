@@ -13,3 +13,4 @@ mysql/*
 *.pyc
 mysql.sh
 *.ini
+*.map
