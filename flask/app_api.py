@@ -32,9 +32,13 @@ class Submissoes(Resource):
         WHERE tipo=%s 
         GROUP BY categoria
         """ %(id_edital)
-        linhas,total = executarSelect(consulta)
-        dado = {'orais': linhas[0][1],'poster': linhas[1][1]}
-        return(dado)
+        try:
+            linhas,total = executarSelect(consulta)
+            dado = {'orais': linhas[0][1],'poster': linhas[1][1]}
+            return(dado)
+        except Exception as e:
+            dado = {'orais': 0,'poster': 0}
+            return(dado)
 
     def agrupar(self,id_edital):
         consulta = """
