@@ -26,12 +26,20 @@ class Submissoes(Resource):
         linhas,total = executarSelect(consulta)
         return({'total': total})
 
-    def totais(self,id_edital):
-        consulta = """
-        SELECT categoria,count(id) FROM editalProjeto 
-        WHERE tipo=%s 
-        GROUP BY categoria
-        """ %(id_edital)
+    def totais(self,id_edital,modalidade):
+        consulta = ""
+        if int(modalidade)!=4:
+            consulta = """
+            SELECT categoria,count(id) FROM editalProjeto 
+            WHERE tipo=%s AND valendo=1 AND modalidade=%s
+            GROUP BY categoria
+            """ %(id_edital,modalidade)
+        else:
+            consulta = """
+            SELECT categoria,count(id) FROM editalProjeto 
+            WHERE tipo=%s AND valendo=1 
+            GROUP BY categoria
+            """ %(id_edital)
         try:
             linhas,total = executarSelect(consulta)
             dado = {'orais': linhas[0][1],'poster': linhas[1][1]}
@@ -52,7 +60,7 @@ class Submissoes(Resource):
             dados.append(dado)
         return(dados)
 
-    def get(self,id_edital,tipo):
+    def get(self,id_edital,tipo,modalidade):
         consulta = """
         SELECT id,nome,titulo,ua FROM editalProjeto 
         WHERE valendo=1 
@@ -66,7 +74,7 @@ class Submissoes(Resource):
         elif int(tipo)==3:
             return(self.agrupar(id_edital))
         elif int(tipo)==4:
-            return(self.totais(id_edital))
+            return(self.totais(id_edital,modalidade))
         else:
             return([])
 
