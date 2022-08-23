@@ -2886,7 +2886,7 @@ def enviar_arquivo(filename):
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais
-    api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>/<modalidade>')
+    api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>/<modalidade>/<area>')
     api.add_resource(Editais,'/api/editais')
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
 
