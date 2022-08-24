@@ -888,9 +888,10 @@ def editalProjeto(edital):
         sum(if(recomendacao=-1,1,0)), 
         sum(if(recomendacao=0,1,0)),
         sum(if(recomendacao=1,1,0)),
-        palavras,editalProjeto.situacao"""
+        palavras,editalProjeto.situacao,
+        IF(editalProjeto.modalidade=0,'RESUMO SIMPLES',IF(editalProjeto.modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO'))"""
         consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=""" + codigoEdital + """ AND valendo=1
-        GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.id"""
+        GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.modalidade,editalProjeto.id"""
 
         demanda = """SELECT ua,count(id) FROM editalProjeto WHERE valendo=1 and tipo=""" + codigoEdital + """ GROUP BY ua ORDER BY ua"""
 
