@@ -54,10 +54,10 @@ $(document).ready(function(){
 
 <script>
   $(document).ready(function(){
-      $("#txtNovos").on("keyup", function() {
+      $(".busca").on("change", function() {
         var value = $(this).val().toLowerCase();
         $("#tabelaNovos tr").filter(function() {
-          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
         });
       });
       
@@ -179,13 +179,20 @@ $(document).ready(function(){
                   {% endfor %}
                 {% endif %}
               {% endwith %}
-              
+              <input id="txtNovos" type="text" placeholder="Procurar.." class="busca"><br>
+              <select id="txtNovos2" class="busca chosen-select">
+                <option value="" selected>Todas as áreas</option>
+                <option value="Ciências da Vida">Ciências da Vida</option>
+                <option value="Humanidades">Humanidades</option>
+                <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, Tecnológicas e Multidisciplinar</option>
+              </select>
               <table class="table table-striped" style="width:150%" id="tabela">
                 <thead>
                 <th></th>
                 <th>ID</th>
                 <th>Nome</th>
-                <th >Grande Área</th>
+                <th>Grande Área</th>
+                <th>Mod</th>
                 <th>Título</th>
                 <th>Palavras-Chave</th>
                 <th>Finalizadas</th>
@@ -246,8 +253,8 @@ $(document).ready(function(){
                           <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
                           <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
                         </select>
-                        
                       </td>
+                      <td>{{linha[15]}}</td>
                       <td>
                         <input type="text" class="form-control form-control-sm campo" name="titulo_{{linha[0]}}" id="titulo_{{linha[0]}}" placeholder="TÍTULO" required="required" value="{{linha[3]}}">
                       </td>
