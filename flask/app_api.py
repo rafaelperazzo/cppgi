@@ -2,13 +2,16 @@ from flask_restful import Resource
 from pesquisa import executarSelect
 
 class Submissoes(Resource):
-    def consultar(self,consulta,id_edital):
+    def consultar(self,consulta,id_edital,modalidade,area):
         consulta = """
         SELECT id,nome,titulo,ua FROM editalProjeto 
         WHERE valendo=1 
-        AND tipo=%s
-        ORDER BY id
-        """ %(id_edital)
+        AND tipo=%s""" %(id_edital)
+        if int(modalidade)!=4:
+            consulta = consulta + """ AND modalidade=%s """ %(modalidade)
+        if area!="TODAS":
+            consulta = consulta + """ AND ua='%s'""" %(area)
+        consulta = consulta + """ ORDER BY id""" 
         linhas,total = executarSelect(consulta)
         dados = []
         for linha in linhas:
@@ -76,7 +79,7 @@ class Submissoes(Resource):
         ORDER BY id
         """ %(id_edital)
         if int(tipo)==1:
-            return(self.consultar(consulta,id_edital))
+            return(self.consultar(consulta,id_edital,modalidade,area))
         elif int(tipo)==2:
             return(self.total(consulta,id_edital))
         elif int(tipo)==3:
