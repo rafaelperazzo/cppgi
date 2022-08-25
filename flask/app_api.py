@@ -36,13 +36,25 @@ class Submissoes(Resource):
         if area!="TODAS":
             consulta = consulta + """ AND ua='%s'""" %(area)
         consulta = consulta + " GROUP BY categoria"
-        try:
-            linhas,total = executarSelect(consulta)
+        
+        linhas,total = executarSelect(consulta)
+        if int(total)==1:
+            try:
+                if int(linhas[0][0])==0:
+                    dado = {'orais': linhas[0][1],'poster': 0}
+                else:
+                    dado = {'orais': 0,'poster': linhas[0][1]}
+                return(dado)
+            except Exception as e:
+                dado = {'orais': 0,'poster': 0}
+                return(dado)
+        try:    
             dado = {'orais': linhas[0][1],'poster': linhas[1][1]}
             return(dado)
         except Exception as e:
             dado = {'orais': 0,'poster': 0}
             return(dado)
+        
 
     def agrupar(self,id_edital):
         consulta = """
