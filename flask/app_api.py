@@ -71,6 +71,29 @@ class Submissoes(Resource):
             dados.append(dado)
         return(dados)
 
+    def agrupar_datas(self,id_edital,modalidade,area):
+        consulta = """
+        SELECT DATE_FORMAT(data,'%Y-%m-%d'),COUNT(id) 
+        FROM editalProjeto 
+        WHERE valendo=1 and tipo=""" + str(id_edital)
+
+        if int(modalidade)!=4:
+            consulta = consulta + """ AND modalidade=%s """ %(modalidade)
+        if area!="TODAS":
+            consulta = consulta + """ AND ua='%s'""" %(area)
+
+        consulta = consulta + """ 
+        GROUP BY DATE_FORMAT(data,'%Y-%m-%d');
+        """
+        linhas,total = executarSelect(consulta)
+        dados = []
+        for linha in linhas:
+            dado = {'data': linha[0],'total': linha[1]}
+            dados.append(dado)
+        
+        return(dados)
+
+
     def get(self,id_edital,tipo,modalidade,area):
         consulta = """
         SELECT id,nome,titulo,ua FROM editalProjeto 
@@ -86,6 +109,8 @@ class Submissoes(Resource):
             return(self.agrupar(id_edital))
         elif int(tipo)==4:
             return(self.totais(id_edital,modalidade,area))
+        elif int(tipo)==5:
+            return(self.agrupar_datas(id_edital,modalidade,area))
         else:
             return([])
 
