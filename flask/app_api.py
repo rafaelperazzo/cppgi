@@ -73,7 +73,7 @@ class Submissoes(Resource):
 
     def agrupar_datas(self,id_edital,modalidade,area):
         consulta = """
-        SELECT DATE_FORMAT(data,'%Y-%m-%d'),COUNT(id) 
+        SELECT DATE_FORMAT(data,'%d/%m/%Y'),COUNT(id) 
         FROM editalProjeto 
         WHERE valendo=1 and tipo=""" + str(id_edital)
 
