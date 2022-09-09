@@ -1925,7 +1925,6 @@ def gerarCertificadoAvaliador():
     
     #Gerando certificado em PDF
     try:
-        app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
         pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
     except Exception as e:
         app.logger.error('Erro gerando certificado apresentador')
