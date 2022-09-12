@@ -1226,11 +1226,15 @@ def resultados():
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)) FROM avaliacoes WHERE idProjeto=""" + id
+                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=""" + id
                 auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
                 pontuacao = int(auxiliar[0])
-                if (pontuacao<=0):
-                    situacao = str("0")
+                finalizado = int(auxiliar[1])
+                if (pontuacao<0):
+                    if (finalizado>1):
+                        situacao = str("0")
+                    else:
+                        situacao = str("1")
                 else:
                     situacao = str("1")
                 consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
@@ -1546,7 +1550,6 @@ def getLinkSala(edital,sala):
     for linha in linhas:
         return(str(linha[0]))
     
-
 @app.route("/apresentacoes", methods=['GET', 'POST'])
 @auth.login_required(role=['admin','avaliador','monitor'])
 def apresentacoes():
