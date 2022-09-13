@@ -1226,11 +1226,15 @@ def resultados():
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)) FROM avaliacoes WHERE idProjeto=""" + id
+                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=""" + id
                 auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
                 pontuacao = int(auxiliar[0])
-                if (pontuacao<=0):
-                    situacao = str("0")
+                finalizado = int(auxiliar[1])
+                if (pontuacao<0):
+                    if (finalizado>1):
+                        situacao = str("0")
+                    else:
+                        situacao = str("1")
                 else:
                     situacao = str("1")
                 consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
@@ -1546,7 +1550,6 @@ def getLinkSala(edital,sala):
     for linha in linhas:
         return(str(linha[0]))
     
-
 @app.route("/apresentacoes", methods=['GET', 'POST'])
 @auth.login_required(role=['admin','avaliador','monitor'])
 def apresentacoes():
@@ -1925,7 +1928,6 @@ def gerarCertificadoAvaliador():
     
     #Gerando certificado em PDF
     try:
-        app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
         pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
     except Exception as e:
         app.logger.error('Erro gerando certificado apresentador')
@@ -2886,8 +2888,9 @@ def enviar_arquivo(filename):
 
 
 if __name__ == "__main__":
-    from app_api import Submissoes,Editais
+    from app_api import Submissoes,Editais,Avaliacoes
     api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>/<modalidade>/<area>')
     api.add_resource(Editais,'/api/editais')
+    api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
 

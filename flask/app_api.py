@@ -73,7 +73,7 @@ class Submissoes(Resource):
 
     def agrupar_datas(self,id_edital,modalidade,area):
         consulta = """
-        SELECT DATE_FORMAT(data,'%Y-%m-%d'),COUNT(id) 
+        SELECT DATE_FORMAT(data,'%d/%m/%Y'),COUNT(id) 
         FROM editalProjeto 
         WHERE valendo=1 and tipo=""" + str(id_edital)
 
@@ -125,4 +125,33 @@ class Editais(Resource):
         for linha in linhas:
             dado = {'id': linha[0],'label': linha[1]}
             dados.append(dado)
+        return(dados)
+
+class Avaliacoes(Resource):
+    def get(self,id_edital,modalidade,area):
+        consulta = """
+        SELECT editalProjeto.id,nome,ua,titulo,
+        COALESCE(sum(avaliacoes.finalizado),0) as finalizados,
+        COALESCE(sum(if(recomendacao=-1,1,0)),0), 
+        COALESCE(sum(if(recomendacao=0,1,0)),0),
+        COALESCE(sum(if(recomendacao=1,1,0)),0),
+        editalProjeto.situacao
+        FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto 
+        WHERE tipo=%s AND valendo=1
+        """ % (id_edital)
+        
+        if int(modalidade)!=4:
+            consulta = consulta + """ AND modalidade=%s """ %(modalidade)
+        if area!="TODAS":
+            consulta = consulta + """ AND ua='%s' """ %(area)
+
+        consulta = consulta + """
+        GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.modalidade,editalProjeto.id
+        """
+        linhas,total = executarSelect(consulta)
+        dados = []
+        for linha in linhas:
+            dado = {'id': linha[0],'autores': linha[1], 'area': linha[2],'titulo': linha[3],'finalizados': int(linha[4]), 'esperando': int(linha[5]),'reprovados': int(linha[6]),'aprovados': int(linha[7]),'situacao': int(linha[8])}
+            dados.append(dado)
+        
         return(dados)
