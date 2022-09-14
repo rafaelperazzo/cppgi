@@ -1243,8 +1243,8 @@ def resultados():
                 consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
                 atualizar(consulta_update)
 
-            consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao,sala_link.link FROM editalProjeto,sala_link WHERE editalProjeto.local_apresentacao=sala_link.sala and valendo=1 AND categoria=1 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
-            consulta_oral = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao,sala_link.link FROM editalProjeto,sala_link WHERE editalProjeto.local_apresentacao=sala_link.sala and valendo=1 AND categoria=0 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
+            consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=1 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
+            consulta_oral = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=0 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
             poster,total_poster = executarSelect(consulta_poster)
             oral,total_oral = executarSelect(consulta_oral)
             data = getData()
