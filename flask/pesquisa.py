@@ -1231,10 +1231,13 @@ def resultados():
                 pontuacao = int(auxiliar[0])
                 finalizado = int(auxiliar[1])
                 if (pontuacao<0):
+                    '''
                     if (finalizado>1):
                         situacao = str("0")
                     else:
                         situacao = str("1")
+                    '''
+                    situacao = "0"
                 else:
                     situacao = str("1")
                 consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
