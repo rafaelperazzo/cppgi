@@ -41,8 +41,7 @@ p.reprovado {
     <h2>{{nome_edital}}</h2>
     <h3>
 
-      RESULTADO DA CHAMADA PARA TRABALHOS DO EDITAL Nº 01/2021/UFCA - II CONGRESSO DE PESQUISA, PÓS-GRADUAÇÃO E INOVAÇÃO - 
-      OS NOVOS RUMOS DA CIÊNCIA PÓS-PANDEMIA
+      RESULTADO DA CHAMADA PARA TRABALHOS DO {{nome_edital}}
 
     </h3>
     <hr><br>
@@ -51,11 +50,10 @@ p.reprovado {
     </h3>
 <p>    
   
-• Vocês irão receber nos seus e-mails instruções para envio das apresentações em formato de vídeo, fiquem atentos ao e-mail que foi cadastrado na plataforma;<br>
 • Os links para as salas de apresentação sairão na lista de divulgação final dos resultados dos trabalhos aprovados após recurso;<br>
-• Os autores com trabalhos reprovados podem submeter recurso no link disponibilizado no forms e/ou site do evento a partir do dia 31/03/2021 até o dia 01/04/2021;<br>
+• Os autores com trabalhos reprovados podem submeter recurso no link disponibilizado no forms e/ou site do evento a partir do dia 15/09/2022 até o dia 16/09/2022;<br>
 • Verifiquem as sugestões feitas pelos avaliadores, e façam as alterações que forem cabíveis para a versão final;<br>
-• Para os pesquisadores e bolsistas que não apresentarão o trabalho em nosso evento, mas que já submeteram os resultados da pesquisa em outro evento similar ao CONPESQ, enviar em um link do forms e/ou site do evento de 01/04/21 a 12/04/2021 a comprovação de apresentação.<br>
+• Para os pesquisadores e bolsistas que não apresentarão o trabalho em nosso evento, mas que já submeteram os resultados da pesquisa em outro evento similar ao CONPESQ, enviar em um link do forms e/ou site do evento.<br>
 
   </p>
     <hr>
@@ -64,7 +62,8 @@ p.reprovado {
     <table style="width:100%">
       <caption><h2>Apresentações Orais</h2></caption>
       <tr>
-      <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>--><th>Título</th><th>Situação</th><th>Local de Apresentação</th>
+      <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>-->
+      <th>Título</th><th>Situação</th>
       </tr>
       {% for linha in oral %}
       <tr>
@@ -79,16 +78,6 @@ p.reprovado {
                         <p class="reprovado">NÃO APROVADO</p>
                     {% endif %}
             </center></td>
-        <td> 
-          {% if linha[4]==1 %}
-          
-          {{ linha[7] }} - <a href="{{linha[9]}}" target="_blank">{{linha[8]}}</a>
-          
-          {% else %}
-          <center>-</center>
-          {% endif %}
-
-        </td>
       </tr>
       {% endfor %}
     </table>
@@ -98,7 +87,8 @@ p.reprovado {
     <table style="width:100%">
       <caption><h2>Apresentações em Poster</h2></caption>
       <tr>
-        <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>--><th>Título</th><th>Situação</th><th>Local de Apresentação</th>
+        <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>-->
+        <th>Título</th><th>Situação</th>
       </tr>
       {% for linha in poster %}
       <tr>
@@ -113,7 +103,7 @@ p.reprovado {
                         <p class="reprovado">NÃO APROVADO</p>
                     {% endif %}
             </center></td>
-        <td>{{ linha[6] }}</td>
+        
       </tr>
       {% endfor %}
     </table>
