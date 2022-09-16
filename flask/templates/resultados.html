@@ -68,7 +68,7 @@ evento em justificativa de ausência.<br>
       <caption><h2>Apresentações Orais</h2></caption>
       <tr>
       <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>-->
-      <th>Título</th><th>Situação</th>
+      <th>Título</th><th>Situação</th><th>Local</th><th>Data</th>
       </tr>
       {% for linha in oral %}
       <tr>
@@ -83,6 +83,8 @@ evento em justificativa de ausência.<br>
                         <p class="reprovado">NÃO APROVADO</p>
                     {% endif %}
             </center></td>
+        <td>{{linha[7]}}</td>
+        <td>{{linha[8]}}</td>
       </tr>
       {% endfor %}
     </table>
@@ -93,7 +95,7 @@ evento em justificativa de ausência.<br>
       <caption><h2>Apresentações em Poster</h2></caption>
       <tr>
         <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>-->
-        <th>Título</th><th>Situação</th>
+        <th>Título</th><th>Situação</th><th>Local</th><th>Data</th>
       </tr>
       {% for linha in poster %}
       <tr>
@@ -108,7 +110,8 @@ evento em justificativa de ausência.<br>
                         <p class="reprovado">NÃO APROVADO</p>
                     {% endif %}
             </center></td>
-        
+        <td>{{linha[7]}}</td>
+        <td>{{linha[8]}}</td>
       </tr>
       {% endfor %}
     </table>

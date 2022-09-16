@@ -2726,7 +2726,8 @@ def cadastrar_usuario(operacao):
         roles = request.form['roles']
         nome = request.form['nome']
         email = request.form['email']
-        id_usuario = request.form['id_usuario']
+        if id_usuario in request.form:
+            id_usuario = request.form['id_usuario']
         if operacao==0: #Cadastrar
             consulta = """
             INSERT INTO users (username,password,permission,roles,nome,email) 
