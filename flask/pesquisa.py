@@ -1304,7 +1304,7 @@ def distribuirSalas():
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
             #APRESENTAÇÕES ORAIS - PREMIACAO
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=1 ORDER BY premiacao DESC,ua,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=1 ORDER BY premiacao DESC,ua DESC,modalidade DESC,media1 DESC,nome,titulo"
             principal,total = executarSelect(consulta_principal)
             
             i = 0
@@ -1321,7 +1321,7 @@ def distribuirSalas():
                 i = i + 1
             
             #APRESENTAÇÕES ORAIS - DEMAIS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=0 ORDER BY ua,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=0 ORDER BY ua DESC,modalidade DESC,media1 DESC,nome,titulo"
             principal,total = executarSelect(consulta_principal)
             
             for linha in principal:
@@ -1376,7 +1376,7 @@ def programacao():
 
                         ORDER BY ua,local_apresentacao,data_apresentacao """
 
-            final_poster = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
+            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
 
                         FROM editalProjeto
 
@@ -1519,22 +1519,22 @@ def premiacao():
                 consulta_update = "UPDATE editalProjeto SET media1=" + media + " WHERE id=" + id
                 atualizar(consulta_update)
 
-            #VERIFICANDO QUEM CONCORRE A PREMIAÇÃO 8 - PRIMEIROS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências da Vida' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC LIMIT 8"""
+            #VERIFICANDO QUEM CONCORRE A PREMIAÇÃO - todos trabalhos completos
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências da Vida' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
                 consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
                 atualizar(consulta_update)
 
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Humanidades' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC LIMIT 8"""
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Humanidades' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
                 consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
                 atualizar(consulta_update)
 
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC LIMIT 8"""
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
