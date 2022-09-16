@@ -2728,14 +2728,14 @@ def cadastrar_usuario(operacao):
         email = request.form['email']
         if 'id_usuario' in request.form:
             id_usuario = request.form['id_usuario']
-        if operacao==0: #Cadastrar
+        if int(operacao)==0: #Cadastrar
             consulta = """
             INSERT INTO users (username,password,permission,roles,nome,email) 
-            VALUES ('%s','%s',%s,'%s','%s','%s)
+            VALUES ('%s','%s',%s,'%s','%s','%s')
             """ %(username,password,permission,roles,nome,email)
             atualizar(consulta)
             flash(u"Usuário cadastrado com sucesso!")
-            return(redirect(url_for(cadastrar_usuario,operacao=1)))
+            return(redirect(url_for('cadastrar_usuario',operacao=1)))
         else: #Atualizar
             consulta = """
             UPDATE users SET username='%s',password='%s',permission=%s,roles='%s',nome='%s',
@@ -2753,7 +2753,7 @@ def remover_usuario(id_usuario):
     """ %(id_usuario)
     atualizar(consulta)
     flash(u"Usuário removido com sucesso!")
-    return(redirect(url_for(cadastrar_usuario,operacao=1)))
+    return(redirect(url_for('cadastrar_usuario',operacao=1)))
 
 @app.route("/avaliador_sala/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
