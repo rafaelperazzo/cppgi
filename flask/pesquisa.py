@@ -2726,7 +2726,7 @@ def cadastrar_usuario(operacao):
         roles = request.form['roles']
         nome = request.form['nome']
         email = request.form['email']
-        if id_usuario in request.form:
+        if 'id_usuario' in request.form:
             id_usuario = request.form['id_usuario']
         if operacao==0: #Cadastrar
             consulta = """
