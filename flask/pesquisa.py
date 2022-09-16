@@ -2676,7 +2676,7 @@ def local_apresentacao(edital):
     categoria,modalidade,media1,media2,obs,arquivo_projeto
     FROM editalProjeto 
     WHERE valendo=1 and situacao=1 and tipo=%s 
-    ORDER BY data_apresentacao,local_apresentacao,categoria,ua
+    ORDER BY local_apresentacao,data_apresentacao,categoria,ua
     """ %(edital)
     linhas,total = executarSelect(consulta)
     consulta_salas = """
