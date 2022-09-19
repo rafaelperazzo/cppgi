@@ -1386,7 +1386,7 @@ def programacao():
 
             linhas,total = executarSelect(final_oral)
             poster,total_poster = executarSelect(final_poster)
-            return(render_template('programacao.html',nome_edital=nome_edital,titulo=u'Programação',oral=linhas,total=total,poster=poster,total_poster=total_poster))
+            return(render_template('programacao.html',nome_edital=nome_edital,titulo=u'Programação',oral=linhas,total=total,poster=poster,total_poster=total_poster,edital=edital))
         else:
             return("OK")
     else:
@@ -1398,14 +1398,6 @@ def mapa():
     if 'edital' in request.args:
         edital = str(request.args.get('edital'))
         nome_edital = obterColunaUnica('editais','nome','id',edital)
-        '''
-        consulta = """SELECT local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),count(id),
-        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,id SEPARATOR '<br><br>') FROM editalProjeto 
-        WHERE situacao=1 and valendo=1 and 
-        tipo=""" + edital + """ GROUP BY local_apresentacao,
-        date(data_apresentacao) 
-        ORDER BY local_apresentacao,date(data_apresentacao) """
-        '''
         consulta = """SELECT local_apresentacao,
         DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
         count(editalProjeto.id),
@@ -1416,6 +1408,18 @@ def mapa():
         tipo=""" + edital + """ GROUP BY local_apresentacao,
         date(data_apresentacao) 
         ORDER BY local_apresentacao,date(data_apresentacao)"""
+        consulta = """
+        SELECT local_apresentacao,
+        DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
+        count(editalProjeto.id),
+        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'), 
+        (SELECT GROUP_CONCAT(users.nome SEPARATOR ', ') FROM usuarios_salas,users WHERE users.username=usuarios_salas.username and usuarios_salas.edital=""" + edital + """
+        and usuarios_salas.sala=local_apresentacao and usuarios_salas.data=DATE(data_apresentacao)) as avaliadores 
+        FROM editalProjeto
+        WHERE situacao=1 and valendo=1 and tipo=""" + edital + """ GROUP BY local_apresentacao,
+        date(data_apresentacao) 
+        ORDER BY local_apresentacao,date(data_apresentacao)
+        """
         linhas,total = executarSelect(consulta)
         return(render_template('mapa.html',linhas=linhas,nome_edital=nome_edital))
     else:

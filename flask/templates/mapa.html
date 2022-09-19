@@ -32,11 +32,11 @@
     <tbody>
       {% for linha in linhas %}
         <tr>
-          <td><p style="background-color: #DBE0E3;"><b><a href="{{linha[4]}}" target="_blank">{{linha[0] }}</a> </b></p></td>
+          <td><p style="background-color: #DBE0E3;"><b>{{linha[0] }}</b></p></td>
           <td><p style="background-color: #33C4FF;"><b>{{ linha[1] }}</b></p></td>
           <td>{{ linha[2] }}</td>
           <td>
-            <h4>Avaliadores da sessão: {{linha[5]}}</h4>
+            <h4>Avaliadores da sessão: {{linha[4]}}</h4>
             {{ linha[3]|safe }}
 
           </td>
