@@ -22,23 +22,22 @@
     <h2>{{nome_edital}}</h2>
     <hr><br>
 
-    <table id="mapa" class="display" style="width:100%">
+    <table border="1" id="mapa" class="display" style="width:100%">
       <caption><h2>MAPA DE APRESENTAÇÕES</h2></caption>
       <thead>
         <tr>
-        <th>LOCAL</th><th>DATA</th><th>TOTAL</th><th>TRABALHOS</th>
+        <th colspan="3">LOCAL-DATA-TOTAL</th><th>TRABALHOS</th>
         </tr>
     </thead>
     <tbody>
       {% for linha in linhas %}
         <tr>
-          <td><p style="background-color: #DBE0E3;"><b>{{linha[0] }}</b></p></td>
-          <td><p style="background-color: #33C4FF;"><b>{{ linha[1] }}</b></p></td>
-          <td>{{ linha[2] }}</td>
+          <td colspan="3"><p style="background-color: #DBE0E3;"><b>{{linha[0] }}</b></p>
+          <p style="background-color: #33C4FF;"><b>{{ linha[1] }}</b></p>
+          {{ linha[2] }}</td>
           <td>
             <h4>Avaliadores da sessão: {{linha[4]}}</h4>
             {{ linha[3]|safe }}
-
           </td>
         </tr>
         {% endfor %}
@@ -47,7 +46,7 @@
     <script>
 
       $(document).ready(function() {
-          $('#mapa').DataTable( {
+          $('#mapa2').DataTable( {
             dom: 'Bfrtip',
             buttons: [
             'copy', 'csv', 'excel', 'pdf', 'print'
