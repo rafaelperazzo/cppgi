@@ -49,7 +49,7 @@ p.reprovado {
       </tr>
       {% for linha in oral %}
       <tr>
-        <td><a href='/cppgi/apresentacoes?edital=8&sala={{ linha[0] }}'>{{linha[0]}}</a></td>
+        <td><a href='/cppgi/apresentacoes?edital={{edital}}&sala={{ linha[0] }}'>{{linha[0]}}</a></td>
         <td>{{ linha[1]|safe }}</td>
       </tr>
       {% endfor %}
