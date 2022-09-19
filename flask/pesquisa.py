@@ -1406,8 +1406,11 @@ def mapa():
         date(data_apresentacao) 
         ORDER BY local_apresentacao,date(data_apresentacao) """
         '''
-        consulta = """SELECT local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),count(editalProjeto.id),
-        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'), sala_link.link,
+        consulta = """SELECT local_apresentacao,
+        DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
+        count(editalProjeto.id),
+        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'), 
+        sala_link.link,
         (SELECT GROUP_CONCAT(users.nome SEPARATOR ', ') FROM usuarios_salas,users WHERE users.username=usuarios_salas.username and usuarios_salas.edital=""" + edital + """ and usuarios_salas.sala=local_apresentacao and usuarios_salas.data=DATE(data_apresentacao)) as avaliadores FROM editalProjeto,sala_link
         WHERE situacao=1 and valendo=1 and sala_link.sala=local_apresentacao and sala_link.edital=tipo and
         tipo=""" + edital + """ GROUP BY local_apresentacao,
@@ -1890,8 +1893,13 @@ def mapaavaliadores():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             titulo = u"AVALIADORES"
-            consulta = """SELECT users.nome,DATE_FORMAT(usuarios_salas.data,'%d/%m/%Y'),usuarios_salas.sala,usuarios_salas.area,sala_link.link FROM users,usuarios_salas,sala_link 
-            WHERE usuarios_salas.edital=""" + edital + """ and users.username=usuarios_salas.username and sala_link.sala=usuarios_salas.sala and sala_link.edital=usuarios_salas.edital ORDER by usuarios_salas.data,usuarios_salas.sala"""
+            consulta = """SELECT users.nome,
+            DATE_FORMAT(usuarios_salas.data,'%d/%m/%Y'),
+            usuarios_salas.sala,
+            usuarios_salas.area
+            FROM users,usuarios_salas
+            WHERE usuarios_salas.edital=""" + edital + """ and users.username=usuarios_salas.username 
+            ORDER by usuarios_salas.area,usuarios_salas.data,usuarios_salas.sala"""
             linhas,total = executarSelect(consulta)
             return(render_template('mapa_avaliadores.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,linhas=linhas))
         else:
