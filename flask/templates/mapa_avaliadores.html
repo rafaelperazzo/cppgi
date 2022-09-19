@@ -33,14 +33,14 @@ tr:nth-child(even) {
     <table style="width:100%">
       <caption><h2>AVALIADORES POR DIA E SALA</h2></caption>
       <tr>
-      <th>AVALIADOR</th><th>DATA</th><th>SALA (google meet)</th><th>ÁREA</th>
+      <th>AVALIADOR</th><th>DATA</th><th>SALA</th><th>ÁREA</th>
       </tr>
       {% for linha in linhas %}
           
         <tr>
           <td>{{linha[0]}}</td>
           <td>{{linha[1]}}</td>
-          <td><a href="{{linha[4]|safe}}">{{linha[2]}}</a></td>
+          <td>{{linha[2]}}</td>
           <td>{{linha[3]}}</td>
         </tr>
           
