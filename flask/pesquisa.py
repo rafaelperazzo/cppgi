@@ -1794,9 +1794,9 @@ def emailInstrucoesAvaliador(edital):
         msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
         try:
             if PRODUCAO==1:
-                t = threading.Thread(target=enviar_email,args=(msg,))
-                t.start()
-                #mail.send(msg)
+                #t = threading.Thread(target=enviar_email,args=(msg,))
+                #t.start()
+                mail.send(msg)
             cont = cont + 1
         except:
             erros = erros + 1
