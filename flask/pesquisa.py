@@ -1724,15 +1724,14 @@ def emailInstrucoes(edital):
         dataHora_apresentacao = str(linha[7])
         local_apresentacao = str(linha[8])
         data_apresentacao = str(linha[9])
-        link = getLinkSala(edital,local_apresentacao)
-        texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao,link=link)
+        #link = getLinkSala(edital,local_apresentacao)
+        texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao)
         msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
         
         try:
             if PRODUCAO==1:
                 t = threading.Thread(target=enviar_email,args=(msg,))
                 t.start()
-                #mail.send(msg)
             cont = cont + 1
         except:
             erros = erros + 1
@@ -1802,8 +1801,9 @@ def emailInstrucoesAvaliador(edital):
         except:
             erros = erros + 1
         #break
-    return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
-        
+    flash(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
+    return(redirect(url_for('admin',edital=edital)))
+       
 
 def getDatas(edital):
     consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY data_apresentacao"""
