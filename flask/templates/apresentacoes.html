@@ -31,6 +31,7 @@ p.reprovado {
   color: red;
 }
 </style>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
   </head>
   <body>
     <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
@@ -41,11 +42,18 @@ p.reprovado {
     <h2>{{nome_edital}}</h2>
     <h3>Data: {{data}}</h3>
     <h3>Sala: {{sala}}</h3>
-    <h3>Link do google meet: <a href="{{link}}" target="_blank">{{link}}</a></h3>
     <hr><br>
-
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>{{message}}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
     <table style="width:100%">
-      <caption><h2>Apresentações</h2></caption>
       <tr>
       <th>ID</th><th>UA</th><th>Nome</th><th>Titulo</th><!--<th>Autores</th>--><th>Data/Hora</th><th>Apresentação</th><th>Avaliação</th>
       </tr>
@@ -74,7 +82,7 @@ p.reprovado {
               {% if linha[4]==0 %}
                 <a href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
               {% else %}
-                APRESENTADO <BR><BR>
+                <p style="background-color: green; color: white;"><b>APRESENTADO</b></p>
                 <a href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
               {% endif %}
           {% endif %}
@@ -84,6 +92,6 @@ p.reprovado {
       {% endfor %}
     </table>
     
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
   </body>
 </html>
