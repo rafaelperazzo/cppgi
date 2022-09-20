@@ -1696,6 +1696,7 @@ def emailInformacoes():
     else:
         return("OK")
 
+#TODO: Corrigir threads
 @app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def emailInstrucoes(edital):
@@ -1772,7 +1773,7 @@ def emailPosEvento():
     else:
         return("OK")
 
-
+#TODO: Corrigir threads
 @app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def emailInstrucoesAvaliador(edital):
