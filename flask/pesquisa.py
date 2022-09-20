@@ -1791,7 +1791,7 @@ def emailInstrucoesAvaliador(edital):
         senha = str(linha[1])
         email_avaliador = str(linha[2])
         texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
-        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
         try:
             if PRODUCAO==1:
                 t = threading.Thread(target=enviar_email,args=(msg,))
@@ -2151,14 +2151,23 @@ def confirmar():
         edital = obterColunaUnica('editalProjeto','tipo','id',id)
         consulta = "UPDATE editalProjeto SET apresentou=1 WHERE id=" + id
         atualizar(consulta)
-        consulta = """INSERT INTO avaliacoes_orais (idProjeto,c1,c2,c3,c4,comentarios,avaliador) VALUES (%s,%s,%s,%s,%s,%s,%s) """
-        valores = (int(id),c1,c2,c3,c4,comentarios,avaliador)
-        inserir(consulta,valores)
+        verificar = """
+        SELECT id FROM avaliacoes_orais WHERE idProjeto=%s AND avaliador='%s'
+        """ % (id,avaliador)
+        verificacao,total = executarSelect(verificar)
+        if total==0:
+            consulta = """INSERT INTO avaliacoes_orais (idProjeto,c1,c2,c3,c4,comentarios,avaliador) VALUES (%s,%s,%s,%s,%s,%s,%s) """
+            valores = (int(id),c1,c2,c3,c4,comentarios,avaliador)
+            inserir(consulta,valores)
+        else:
+            flash("Apresentação já avaliada anteriormente!")
+            return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
         consulta = """
         UPDATE usuarios_salas SET compareceu=1 
         WHERE username='%s' AND edital=%s AND sala='%s' AND data='%s'
         """ %(session['username'],edital,session['sala'],session['data'])
         atualizar(consulta)
+        flash("Avaliação registrada com sucesso!")
         return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
     else:
         return("ERRO")
