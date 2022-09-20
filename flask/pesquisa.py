@@ -1730,8 +1730,9 @@ def emailInstrucoes(edital):
         
         try:
             if PRODUCAO==1:
-                t = threading.Thread(target=enviar_email,args=(msg,))
-                t.start()
+                #t = threading.Thread(target=enviar_email,args=(msg,))
+                #t.start()
+                mail.send(msg)
             cont = cont + 1
         except:
             erros = erros + 1
