@@ -1791,7 +1791,7 @@ def emailInstrucoesAvaliador(edital):
         senha = str(linha[1])
         email_avaliador = str(linha[2])
         texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
-        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
         try:
             if PRODUCAO==1:
                 t = threading.Thread(target=enviar_email,args=(msg,))
