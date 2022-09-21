@@ -1656,20 +1656,10 @@ def getAvaliadoresSala(edital,sala,dia):
         avaliadores.append(str(linha[0]))
     return (avaliadores)
 
-@app.route("/emailInformacoes", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
-def emailInformacoes():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta = """SELECT email,titulo,id,
-            nome,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),DATE(data_apresentacao) FROM editalProjeto 
-            WHERE situacao=1 and valendo=1 and tipo=""" + edital
+def processar_emails_informacoes_apresentacao(linhas,edital):
+    with app.app_context():
+        if PRODUCAO==1:
             nome_edital = obterColunaUnica('editais','nome','id',edital)
-            linhas,total=executarSelect(consulta)            
-            cont = 0
-            erros = 0
             for linha in linhas:
                 titulo = str(linha[1])
                 id_trabalho = str(linha[2])
@@ -1684,17 +1674,25 @@ def emailInformacoes():
                 if (jaMandouVersaoFinal=='0') or (jaMandouOlink=='0'):    
                     texto_email = render_template('email_data_local.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,local=local,data=data,avaliadores=avaliadores,link=link,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal)
                     msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                    #msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                     try:
                         if PRODUCAO==1:
                             mail.send(msg)
-                        cont = cont + 1
-                    except:
-                        erros = erros + 1
-                    #break
-            return(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
-        else:
-            return("OK")
+                    except Exception as e:
+                        app.logger.error(str(e))
+
+@app.route("/emailInformacoes/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def emailInformacoes(edital):
+    if request.method == "GET":
+        edital = str(request.args.get('edital'))
+        consulta = """SELECT email,titulo,id,
+        nome,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),DATE(data_apresentacao) FROM editalProjeto 
+        WHERE situacao=1 and valendo=1 and tipo=""" + edital      
+        linhas,total = executarSelect(consulta)
+        t = threading.Thread(target=processar_emails_informacoes_apresentacao,args=(linhas,edital,))
+        t.start()
+        flash("E-mails enviados com sucesso!")
+        return(redirect(url_for('admin',edital=edital)))
     else:
         return("OK")
 
