@@ -1698,7 +1698,32 @@ def emailInformacoes():
     else:
         return("OK")
 
-#TODO: Corrigir threads
+def processar_emails_instrucoes_apresentacao(linhas,edital):
+    with app.app_context():
+        if PRODUCAO==1:
+            nome_edital = obterColunaUnica('editais','nome','id',edital)
+            prazo_apresentacao = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
+            prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
+            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+            for linha in linhas:
+                titulo = str(linha[1])
+                id_trabalho = str(linha[2])
+                email_autor = str(linha[0])
+                autores = str(linha[4])
+                cpf = str(linha[3])
+                senha = str(linha[5])
+                apresentacao = str(linha[6])
+                dataHora_apresentacao = str(linha[7])
+                local_apresentacao = str(linha[8])
+                data_apresentacao = str(linha[9])
+                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                try:
+                    if PRODUCAO==1:
+                        mail.send(msg)
+                except Exception as e:
+                    app.logger.error("Erro no processamento dos e-mails com instrucoes de avaliacao: " + str(e))
+
 @app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def emailInstrucoes(edital):
@@ -1709,37 +1734,9 @@ def emailInstrucoes(edital):
     users.password,IF(categoria=0,'APRESENTACAO ORAL','POSTER'),DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i'),local_apresentacao,DATE(data_apresentacao) FROM editalProjeto,users 
     WHERE editalProjeto.siape=users.username and situacao=1 and 
     valendo=1 and tipo=""" + edital
-    nome_edital = obterColunaUnica('editais','nome','id',edital)
-    prazo_apresentacao = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
-    prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
-    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
     linhas,total=executarSelect(consulta)            
-    cont = 0
-    erros = 0
-    for linha in linhas:
-        titulo = str(linha[1])
-        id_trabalho = str(linha[2])
-        email_autor = str(linha[0])
-        autores = str(linha[4])
-        cpf = str(linha[3])
-        senha = str(linha[5])
-        apresentacao = str(linha[6])
-        dataHora_apresentacao = str(linha[7])
-        local_apresentacao = str(linha[8])
-        data_apresentacao = str(linha[9])
-        #link = getLinkSala(edital,local_apresentacao)
-        texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao)
-        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-        
-        try:
-            if PRODUCAO==1:
-                #t = threading.Thread(target=enviar_email,args=(msg,))
-                #t.start()
-                mail.send(msg)
-            cont = cont + 1
-        except:
-            erros = erros + 1
-        
+    t = threading.Thread(target=processar_emails_instrucoes_apresentacao,args=(linhas,edital,))
+    t.start()
     flash("Instruções enviadas com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
@@ -1775,7 +1772,22 @@ def emailPosEvento():
     else:
         return("OK")
 
-#TODO: Corrigir threads
+def processar_emails_instrucoes_moderadores(linhas,edital):
+    with app.app_context():
+        if PRODUCAO==1:
+            nome_edital = obterColunaUnica('editais','nome','id',edital)
+            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+            for linha in linhas:
+                cpf = str(linha[0])
+                senha = str(linha[1])
+                email_avaliador = str(linha[2])
+                texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                try:
+                    mail.send(msg)
+                except Exception as e:
+                    app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
+
 @app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def emailInstrucoesAvaliador(edital):
@@ -1785,30 +1797,12 @@ def emailInstrucoesAvaliador(edital):
     consulta = """SELECT DISTINCT usuarios_salas.username,users.password,users.email FROM users,usuarios_salas 
     WHERE usuarios_salas.edital=""" + edital + """ 
     and users.username=usuarios_salas.username ORDER BY usuarios_salas.username"""
-    nome_edital = obterColunaUnica('editais','nome','id',edital)
-    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
     linhas,total=executarSelect(consulta)            
-    cont = 0
-    erros = 0
-    for linha in linhas:
-        cpf = str(linha[0])
-        senha = str(linha[1])
-        email_avaliador = str(linha[2])
-        texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
-        msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-        try:
-            if PRODUCAO==1:
-                #t = threading.Thread(target=enviar_email,args=(msg,))
-                #t.start()
-                mail.send(msg)
-            cont = cont + 1
-        except:
-            erros = erros + 1
-        #break
-    flash(str(cont) + " e-mails enviados com sucesso." + str(erros) + " erro(s).")
+    t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(linhas,edital,))
+    t.start()
+    flash("E-mails enviados com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
        
-
 def getDatas(edital):
     consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY data_apresentacao"""
     linhas,total = executarSelect(consulta)
