@@ -1633,9 +1633,9 @@ def solicitarVersaoFinal(edital):
             msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 if PRODUCAO==1:
-                    t = threading.Thread(target=enviar_email,args=(msg,))
-                    t.start()
-                    #mail.send(msg)
+                    #t = threading.Thread(target=enviar_email,args=(msg,))
+                    #t.start()
+                    mail.send(msg)
                 cont = cont + 1
             except:
                 erros = erros + 1
@@ -2175,25 +2175,21 @@ def confirmar():
     else:
         return("ERRO")
 
-@app.route("/notasApresentacoes", methods=['BGET', 'POST'])
-def notasApresentacoes():
+@app.route("/notasApresentacoes/<edital>", methods=['GET', 'POST'])
+def notasApresentacoes(edital):
     if request.method == "GET":
         #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND premiacao=1 AND tipo=""" + edital
-            principal,total = executarSelect(consulta_principal)
-            for linha in principal:
-                id = str(linha[0])
-                consulta_interna = """SELECT AVG(c1+c2+c3+c4) as soma FROM (SELECT * FROM avaliacoes_orais where idProjeto=""" + id + """  ORDER BY data LIMIT 2) av"""
-                auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
-                media = str(auxiliar[0])
-                consulta_update = "UPDATE editalProjeto SET media2=" + media + " WHERE id=" + id
-                atualizar(consulta_update)
-
-            return("Medias calculadas com sucesso!")
-        else:
-            return("OK")
+        consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND premiacao=1 AND tipo=""" + edital
+        principal,total = executarSelect(consulta_principal)
+        for linha in principal:
+            id = str(linha[0])
+            consulta_interna = """SELECT AVG(c1+c2+c3+c4) as soma FROM (SELECT * FROM avaliacoes_orais where idProjeto=""" + id + """  ORDER BY data LIMIT 2) av"""
+            auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
+            media = str(auxiliar[0])
+            consulta_update = "UPDATE editalProjeto SET media2=" + media + " WHERE id=" + id
+            atualizar(consulta_update)
+        flash("Medias calculadas com sucesso!")
+        return(redirect(url_for('admin',edital=edital)))
     else:
         return("OK")
 
@@ -2268,9 +2264,9 @@ def enviarCertificados(edital):
         link = url_for('baixarCertificado',id_projeto=idTrabalho)
         texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
         msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
-        t = threading.Thread(target=enviar_email,args=(msg,))
-        t.start()
-        #mail.send(msg)
+        #t = threading.Thread(target=enviar_email,args=(msg,))
+        #t.start()
+        mail.send(msg)
     flash("Certificados ENVIADOS com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
         
@@ -2914,6 +2910,47 @@ def detalhes(tabela,valor_id,coluna):
 def enviar_arquivo(filename):
     return(send_from_directory(ATTACHMENTS_DIR,filename))
 
+
+'''
+SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+FROM `editalProjeto` WHERE tipo=9 and valendo=1 and premiacao=1 
+ORDER BY ua,media DESC
+'''
+
+@app.route('/premiados/<edital>')
+@auth.login_required(role=['admin'])
+def premiados(edital):
+    ua = u"Ciências da Vida"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    ua='%s'
+    ORDER BY ua,media DESC LIMIT 3
+    """ % (edital,ua)
+    vida,total = executarSelect(consulta)
+    
+    ua = u"Humanidades"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    ua='%s'
+    ORDER BY ua,media DESC LIMIT 3
+    """ % (edital,ua)
+    humanidades,total = executarSelect(consulta)
+
+    ua = u"Ciências Exatas, Tecnológicas e Multidisciplinar"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    ua='%s'
+    ORDER BY ua,media DESC LIMIT 3
+    """ % (edital,ua)
+    exatas,total = executarSelect(consulta)
+    nome = obterColunaUnica('editais','nome_longo','id',str(edital))
+    return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,nome_edital=nome))
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes
