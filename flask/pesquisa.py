@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#CPPGI
 from fileinput import filename
 import re
 from urllib.parse import urlencode
