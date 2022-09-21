@@ -1607,6 +1607,27 @@ def apresentacoes():
     else:
         return ("OK")
 
+def processar_emails_versao_final(linhas,edital):
+    with app.app_context():
+        if PRODUCAO==1:
+            nome_edital = obterColunaUnica('editais','nome','id',edital)
+            for linha in linhas:
+                titulo = str(linha[1])
+                id_trabalho = str(linha[2])
+                cpf = str(linha[3])
+                email_autor = str(linha[4])
+                senha = str(linha[5])
+                arquivo = str(linha[6])
+                autores = str(linha[7])
+                if (arquivo=="0"):
+                    texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    try:
+                        if PRODUCAO==1:
+                            mail.send(msg)
+                    except:
+                        app.logger.error('Erro no processar e-mails')
+
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
 def solicitarVersaoFinal(edital):
     """
@@ -1616,29 +1637,9 @@ def solicitarVersaoFinal(edital):
     users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
     WHERE editalProjeto.siape=users.username and situacao=1 and 
     valendo=1 and arquivo_projeto_final='0' and tipo=""" + edital
-    nome_edital = obterColunaUnica('editais','nome','id',edital)
     linhas,total=executarSelect(consulta)            
-    cont = 0
-    erros = 0
-    for linha in linhas:
-        titulo = str(linha[1])
-        id_trabalho = str(linha[2])
-        cpf = str(linha[3])
-        email_autor = str(linha[4])
-        senha = str(linha[5])
-        arquivo = str(linha[6])
-        autores = str(linha[7])
-        if (arquivo=="0"):
-            texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
-            msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-            try:
-                if PRODUCAO==1:
-                    #t = threading.Thread(target=enviar_email,args=(msg,))
-                    #t.start()
-                    mail.send(msg)
-                cont = cont + 1
-            except:
-                erros = erros + 1
+    t = threading.Thread(target=processar_emails_versao_final,args=(linhas,edital,))
+    t.start()
     flash("Solicitações enviadas com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
