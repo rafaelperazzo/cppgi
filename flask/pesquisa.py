@@ -1875,15 +1875,20 @@ def root():
 def admin(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
     deadline_avaliacao = obterColunaUnica('editais','deadline_avaliacao','id',edital)
-    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    
+    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    deadline_apresentacao = obterColunaUnica('editais','deadline_apresentacao','id',edital)
+
     if agora>deadline_avaliacao:
         mostrar_pos_avaliacao = True
     else:
         mostrar_pos_avaliacao = False
-    
+
+    if agora>deadline_apresentacao:
+        mostrar_pos_evento = False
+    else:
+        mostrar_pos_evento = True
     titulo = u"PÁGINA ADMINISTRATIVA"
-    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao))
+    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento))
 
 @app.route("/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -1893,13 +1898,16 @@ def mapaavaliadores():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             titulo = u"AVALIADORES"
-            consulta = """SELECT users.nome,
-            DATE_FORMAT(usuarios_salas.data,'%d/%m/%Y'),
-            usuarios_salas.sala,
-            usuarios_salas.area
-            FROM users,usuarios_salas
-            WHERE usuarios_salas.edital=""" + edital + """ and users.username=usuarios_salas.username 
-            ORDER by usuarios_salas.area,usuarios_salas.data,usuarios_salas.sala"""
+            consulta = """
+            SELECT u.nome,
+            DATE_FORMAT(us.data,'%d/%m/%Y'),
+            us.sala,
+            us.area
+            FROM users as u
+            LEFT JOIN usuarios_salas as us on u.username=us.username
+            WHERE us.edital=""" + edital + """
+            ORDER by us.area,us.data,us.sala
+            """
             linhas,total = executarSelect(consulta)
             return(render_template('mapa_avaliadores.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,linhas=linhas))
         else:
@@ -2686,7 +2694,7 @@ def remover_salas(id_salas):
 def local_apresentacao(edital):
     consulta = u"""
     SELECT id,UPPER(nome),ua,UPPER(titulo),data_apresentacao,local_apresentacao,
-    categoria,modalidade,media1,media2,obs,arquivo_projeto
+    categoria,modalidade,media1,media2,obs,arquivo_projeto,apresentou
     FROM editalProjeto 
     WHERE valendo=1 and situacao=1 and tipo=%s 
     ORDER BY local_apresentacao,data_apresentacao,categoria,ua
@@ -2707,13 +2715,15 @@ def salvar_local_data():
     categoria = request.form['categoria']
     modalidade = request.form['modalidade']
     obs = request.form['obs']
+    apresentou = request.form['apresentou']
     consulta = """
-    UPDATE editalProjeto SET local_apresentacao='%s',data_apresentacao='%s',categoria=%s,modalidade=%s,obs='%s' 
+    UPDATE editalProjeto SET local_apresentacao='%s',
+    data_apresentacao='%s',categoria=%s,modalidade=%s,obs='%s',
+    apresentou=%s 
     WHERE id=%s
-    """ %(local,data,categoria,modalidade,obs,id_projeto)
+    """ %(local,data,categoria,modalidade,obs,id_projeto,apresentou)
     atualizar(consulta)
     return("OK")
-    #TODO: Sala_link
     #TODO: implementar o autenticar_certificado
     #TODO: Demais certificados
 

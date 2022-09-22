@@ -132,6 +132,7 @@ $(document).ready(function(){
                 <th>Média 1</th>
                 <th>Média 2</th>
                 <th style="width: 15%">Obs</th>
+                <th>Apresentou</th>
               </thead>
               <tbody id="tabelaNovos">
                 {% for linha in novos %}
@@ -188,6 +189,20 @@ $(document).ready(function(){
                       </td>
                       <td>
                         <input class="form-control" type="text" id="obs" name="obs" value="{{linha[10]}}">
+                      </td>
+                      <td>
+                        <select class="form-select" id="apresentou" name="apresentou">
+                          {%if linha[12]==0 %}
+                            <option value="{{linha[12]}}">Não</option>
+                          {%elif linha[12]==1%}
+                            <option value="{{linha[12]}}">Sim</option>
+                          {%else%}
+                            <option value="{{linha[12]}}">Justificou</option>
+                          {%endif%}
+                          <option value="0">Não</option>
+                          <option value="1">Sim</option>
+                          <option value="2">Justificou</option>
+                        </select>
                       </td>
                     </form>
                   </tr>
