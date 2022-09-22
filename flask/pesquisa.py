@@ -2721,7 +2721,7 @@ def salvar_local_data():
     data_apresentacao='%s',categoria=%s,modalidade=%s,obs='%s',
     apresentou=%s 
     WHERE id=%s
-    """ %(local,data,categoria,modalidade,obs,id_projeto,apresentou)
+    """ %(local,data,categoria,modalidade,obs,apresentou,id_projeto)
     atualizar(consulta)
     return("OK")
     #TODO: implementar o autenticar_certificado

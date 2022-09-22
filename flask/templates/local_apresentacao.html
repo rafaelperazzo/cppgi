@@ -71,7 +71,7 @@ $(document).ready(function(){
                 var str = form_id.split("_");
                 var id_projeto = str[1]; 
                 $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
-                    //console.log(data);
+                    console.log(data);
                 },"text");
             });
             $("select").on("change", function(event){
