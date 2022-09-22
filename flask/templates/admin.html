@@ -127,15 +127,16 @@ tr:nth-child(even) {
               <td><a href="{{url_for('mapaavaliadores',edital=edital)}}">MAPA DE AVALIADORES</a></td>
               <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
             </tr>
+            <tr>
+              <td><a href="{{url_for('premiados',edital=edital)}}">LISTA DE TRABALHOS PREMIADOS</a></td>
+              <td>VER LISTA DE TRABALHOS PREMIADOS</td>
+            </tr>
             {%if mostrar_pos_evento%}
               <tr>
                 <td><a href="{{url_for('notasApresentacoes',edital=edital)}}">CALCULAR NOTAS DAS APRESENTAÇÕES</a></td>
                 <td>PROCESSAR NOTAS DAS APRESENTAÇÕES</td>
               </tr>
-              <tr>
-                <td><a href="{{url_for('premiados',edital=edital)}}">LISTA DE TRABALHOS PREMIADOS</a></td>
-                <td>VER LISTA DE TRABALHOS PREMIADOS</td>
-              </tr>
+              
               <tr>
                 <td><a href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
                 <td>Envia os e-mails para os moderadores de sessões, com as instruções para avaliação das apresentações</td>
