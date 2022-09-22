@@ -2919,7 +2919,7 @@ def premiados(edital):
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND 
     ua='%s'
-    ORDER BY ua,media DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 6
     """ % (edital,ua)
     vida,total = executarSelect(consulta)
     
@@ -2929,7 +2929,7 @@ def premiados(edital):
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND 
     ua='%s'
-    ORDER BY ua,media DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 6
     """ % (edital,ua)
     humanidades,total = executarSelect(consulta)
 
@@ -2939,7 +2939,7 @@ def premiados(edital):
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND 
     ua='%s'
-    ORDER BY ua,media DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 6
     """ % (edital,ua)
     exatas,total = executarSelect(consulta)
     nome = obterColunaUnica('editais','nome_longo','id',str(edital))
