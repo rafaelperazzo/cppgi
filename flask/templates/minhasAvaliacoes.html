@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	  <style>
+    div {
+      background-color: lightgrey;
+      width: 500px;
+      border: 5px solid black;
+      padding: 50px;
+      margin: 20px;
+    }
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Meus Pareceres - APRESENTAÇÃO</title>
+  </head>
+  <body>
+    <h1><b>Meus Pareceres - APRESENTAÇÃO</b></h1>
+    <hr>
+    {% if total>0 %}
+    <H3>{{titulo}}</h3>
+    {% else %}
+    Acesso negado e/ou Não existem avaliações disponíveis.
+    {% endif %}
+    <hr>
+    {% for linha in linhas %}
+      <h3>Parecer: {{linha[0]}}</h3>
+      <table>
+        <th>Item de Avaliação</th><th>Nota</th>
+        <tr>
+          <td>(A)Apresentação clara e organizada;(0 a 20)</td><td>{{linha[1]}}</td>
+        </tr>
+        <tr>
+          <td>(B)Domínio do conteúdo na apresentação; (0 a 40)</td><td>{{linha[2]}}</td>
+        </tr>
+        <tr>
+          <td>(C)Utilização adequada do tempo; (0 a 20)</td><td>{{linha[3]}}</td>
+        </tr>
+        <tr>
+          <td>(D)Qualidade da revisão de literatura. (0 a 20)</td><td>{{linha[4]}}</td>
+        </tr>
+      </table>
+      <b>Total:</b> {{linha[5]}}<br>
+      <b>Comentários:</b> <br> <div>{{linha[6]}} </div><br>
+
+      <b>Data da avaliação:</b> {{linha[7]}}<br>
+      <hr>
+    {% endfor %}
+
+  </body>
+</html>

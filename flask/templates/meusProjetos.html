@@ -101,7 +101,8 @@
               <th>Tipo de apresentação</th>
               <th>Titulo</th>
               <th>Situação da submissão</th>
-              <th>Avaliações</th>
+              <th>Avaliações (escrita)</th>
+              <th>Avaliações (apresentação)</th>
               <th>Enviar versão final*</th>
               <th>Link da apresentação</th>
               <th>Mensagens</th>
@@ -157,6 +158,7 @@
               </td>
               <!-- PARECERES -->
               <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+              <td><a href="/cppgi/minhasAvaliacoes/{{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
               <td>
                 {% if linha[13]>0 %}
                     {% if linha[12]=='0' %}
