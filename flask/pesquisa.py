@@ -1007,6 +1007,33 @@ def meusPareceres():
     else:
         return("OK")
 
+
+@app.route("/minhasAvaliacoes/<id_projeto>", methods=['GET'])
+def minhasAvaliacoes(id_projeto):
+        idProjeto = id_projeto
+        if autenticado():
+            tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
+            if (session['permissao']==0):
+                consulta = """SELECT id,c1,c2,c3,c4,
+                (c1+c2+c3+c4) as pontuacaoTotal, 
+                comentarios,
+                DATE_FORMAT(data,'%d/%m/%Y') 
+                FROM avaliacoes_orais 
+                WHERE idProjeto=""" + idProjeto + """ ORDER BY data"""
+            else:
+                consulta = """SELECT id,c1,c2,c3,c4,
+                (c1+c2+c3+c4) as pontuacaoTotal, 
+                comentarios, 
+                DATE_FORMAT(data,'%d/%m/%Y') 
+                FROM avaliacoes_orais,editalProjeto 
+                WHERE editalProjeto.id=avaliacoes_orais.idProjeto 
+                AND idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY data"""
+            pareceres,total = executarSelect(consulta)
+            return(render_template('minhasAvaliacoes.html',linhas=pareceres,total=total,titulo=tituloProjeto))
+        else:
+            return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
+
+
 @app.route("/usuario", methods=['GET', 'POST'])
 def usuario():
     if autenticado():
