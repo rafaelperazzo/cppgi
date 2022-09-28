@@ -1014,14 +1014,14 @@ def minhasAvaliacoes(id_projeto):
         if autenticado():
             tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
             if (session['permissao']==0):
-                consulta = """SELECT id,c1,c2,c3,c4,
+                consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
                 (c1+c2+c3+c4) as pontuacaoTotal, 
                 comentarios,
                 DATE_FORMAT(data,'%d/%m/%Y') 
                 FROM avaliacoes_orais 
                 WHERE idProjeto=""" + idProjeto + """ ORDER BY data"""
             else:
-                consulta = """SELECT id,c1,c2,c3,c4,
+                consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
                 (c1+c2+c3+c4) as pontuacaoTotal, 
                 comentarios, 
                 DATE_FORMAT(data,'%d/%m/%Y') 
