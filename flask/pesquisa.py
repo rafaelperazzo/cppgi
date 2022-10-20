@@ -2162,7 +2162,7 @@ def certificadoIndividual(id_certificado):
         #Gerando certificado em PDF
         try:
             app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
-            pdfkit.from_string(render_template('certificado_demais.html',nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            pdfkit.from_string(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado demais')
         finally:
