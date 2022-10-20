@@ -2113,44 +2113,60 @@ def baixarCertificado(id_projeto):
         finally:
             return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
-@app.route("/demaisCertificados", methods=['GET', 'POST'])
-def demaisCertificados():
-    if request.method == "GET":
-        #Recuperando o edital
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            consulta = """SELECT nome,tipo,id FROM certificados_moderador WHERE edital=""" + edital + """ ORDER BY nome"""
-            linhas,total = executarSelect(consulta)
-            return(render_template('certificados_moderador.html',linhas=linhas))
-        else:
-            return("OK")
-    else:
-        return("OK")
+@app.route("/demaisCertificados/<edital>", methods=['GET'])
+def demaisCertificados(edital):
+    consulta = """SELECT nome,tipo,id FROM certificados_moderador WHERE edital=""" + edital + """ ORDER BY nome"""
+    linhas,total = executarSelect(consulta)
+    return(render_template('certificados_moderador.html',linhas=linhas))
 
-@app.route("/baixarCertificadoIndividual", methods=['GET', 'POST'])
-def certificadoIndividual():
-    if request.method == "GET":
-        #Recuperando o id do certificado
-        if 'id' in request.args:
-            id = str(request.args.get('id'))
-            consulta = """SELECT nome,tipo,edital FROM certificados_moderador WHERE id=""" + id
-            linhas,total = executarSelect(consulta)
-            for linha in linhas:
-                nome = linha[0]
-                tipo_participacao = str(linha[1])
-                template = obterColunaUnica('editais','certificado_demais','id',str(linha[2]))
-                output_png = CERTIFICADOS_TEMP_DIR + 'certificado.png'
-                output_pdf = CERTIFICADOS_TEMP_DIR + 'certificado.pdf'
-                template = CERTIFICADOS_TEMPLATE_DIR + template
-                font = ImageFont.truetype(FONT_PATH,40)
-                wrapper = TextWrapper(tipo_participacao, font, 1250)
-                tipo_participacao = wrapper.wrapped_text()
-                gerarCertificadoComplexo(nome,template,FONT_PATH,550,output_png,output_pdf,40,tipo_participacao,30)
-                return (send_from_directory(CERTIFICADOS_TEMP_DIR, 'certificado.pdf'))
-        else:
-            return("OK")
-    else:
-        return("OK")
+@app.route("/baixarCertificadoIndividual/<id_certificado>", methods=['GET', 'POST'])
+def certificadoIndividual(id_certificado):
+    consulta = """SELECT UPPER(nome),tipo,edital FROM certificados_moderador WHERE id=""" + id_certificado
+    linhas,total = executarSelect(consulta)
+    for linha in linhas:
+        edital = str(linha[2])
+        template = obterColunaUnica('editais','certificado_demais','id',edital)
+        nome = str(linha[0])
+        tipo = str(linha[1])
+        evento = obterColunaUnica('editais','nome_longo','id',edital)
+        periodo = obterColunaUnica('editais','periodo','id',edital)
+        local = obterColunaUnica('editais','local','id',edital)
+        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
+        options = {
+            'page-size': 'A4',
+            'orientation': 'landscape',
+            'margin-top': '0cm',
+            'margin-right': '0cm',
+            'margin-bottom': '0cm',
+            'margin-left': '0cm',
+        }
+        
+        token = obterColunaUnica('certificados_moderador','token','id',id_certificado)
+        if token=='0':
+            token = id_generator()
+            consulta = """
+            UPDATE editalProjeto SET token='%s' 
+            WHERE id=%s
+            """ %(token,id_certificado)
+            atualizar(consulta)
+
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=2,codigo=token,id_projeto=id_certificado,_external=True)
+        qrcode = pyqrcode.create(qrcode_url)
+        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
+        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+        #Recuperando template
+        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        
+        #Gerando certificado em PDF
+        try:
+            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
+            pdfkit.from_string(render_template('certificado_demais.html',nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+        except Exception as e:
+            app.logger.error('Erro gerando certificado demais')
+        finally:
+            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/confirmar", methods=['GET', 'POST'])
 @auth.login_required(role=['avaliador','admin'])

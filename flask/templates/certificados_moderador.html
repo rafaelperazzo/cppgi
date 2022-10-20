@@ -35,7 +35,7 @@ tr:nth-child(even) {
 
       {% for linha in linhas %}
         <tr>
-            <td>{{linha[0]}} </td><td>{{linha[1]}}</td> <td><a href='/cppgi/baixarCertificadoIndividual?id={{linha[2]}}'>BAIXAR CERTIFICADO</a></td>
+            <td>{{linha[0]}} </td><td>{{linha[1]}}</td> <td><a href='/cppgi/baixarCertificadoIndividual/{{linha[2]}}'>BAIXAR CERTIFICADO</a></td>
         </tr>
       {% endfor %}
 
