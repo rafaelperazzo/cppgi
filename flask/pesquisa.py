@@ -2376,7 +2376,7 @@ def anais():
         #Recuperando o edital
         if 'id' in request.args:
             id = str(request.args.get('id'))
-            consulta = """SELECT id,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),ua,nome,arquivo_projeto_final FROM `editalProjeto`
+            consulta = """SELECT id,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),ua,titulo,arquivo_projeto_final FROM `editalProjeto`
             WHERE valendo=1 AND situacao=1 and arquivo_projeto_final!='0' and tipo=""" + id + """ ORDER BY ua,modalidade,id """
             linhas,total = executarSelect(consulta)
             conferencia = obterColunaUnica('editais','nome_longo','id',id)
