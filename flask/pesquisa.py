@@ -34,6 +34,12 @@ from flask_cors import CORS
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
 SERVER_URL = config['DEFAULT']['server']
+
+try:
+    DATABASE_HOST = config['DEFAULT']['database']
+except:
+    DATABASE_HOST = "db_cppgi"
+    
 PRODUCAO = 1
 try:
     PRODUCAO = config['DEFAULT']['producao']
@@ -172,7 +178,7 @@ def enviar_email(msg):
             mail.send(msg)
 
 def atualizar(consulta):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.autocommit(True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
@@ -189,7 +195,7 @@ def atualizar(consulta):
         conn.close()
 
 def inserir(consulta,valores):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.autocommit(True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
@@ -223,7 +229,7 @@ def getData():
     return resultado
 
 def getEditaisAbertos():
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = """SELECT id,nome,DATE_FORMAT(deadline,'%d/%m/%Y - %H:%i') FROM editais WHERE now()<deadline ORDER BY id DESC"""
@@ -243,7 +249,7 @@ def verify_password(username, password):
     password combination is valid.
     """
     try:
-        conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
         conn.select_db('cppgi')
         cursor  = conn.cursor()
         consulta = """SELECT id,username,permission,roles,nome FROM users WHERE username='""" + username + """' AND password=('""" + password + """')"""
@@ -283,7 +289,7 @@ def logout():
 Retorna uma coluna de uma linha única dado uma chave primária
 '''
 def obterColunaUnica(tabela,coluna,colunaId,valorId):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT " + coluna + " FROM " + tabela + " WHERE " + colunaId + "=" + valorId
@@ -466,7 +472,7 @@ def cadastrarProjeto():
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT arquivo_projeto,arquivo_plano1,arquivo_plano2 FROM editalProjeto WHERE id=" + idProjeto
@@ -476,7 +482,7 @@ def getFiles(idProjeto):
     return(linha)
 
 def naoEstaFinalizado(token):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT finalizado FROM avaliacoes WHERE token=\"" + token + "\""
@@ -490,7 +496,7 @@ def naoEstaFinalizado(token):
         return (False)
 
 def podeAvaliar(idProjeto):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     #consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
@@ -620,7 +626,7 @@ def enviarAvaliacao():
         return("OK")
 
 def descricaoEdital(codigoEdital):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT id,nome FROM editais WHERE id=" + codigoEdital
@@ -690,7 +696,7 @@ def getDeclaracaoAvaliador():
             return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     cursor.execute(consulta)
@@ -712,7 +718,7 @@ def recusarConvite():
 @auth.login_required(role=['admin'])
 def avaliacoesNegadas():
     if request.method == "GET":
-        conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
         conn.select_db('cppgi')
         cursor  = conn.cursor()
         if 'edital' in request.args:
@@ -803,7 +809,7 @@ def inserirAvaliador():
 
 #Retorna a quantidade de linhas da consulta
 def quantidades(consulta):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     cursor.execute(consulta)
@@ -813,7 +819,7 @@ def quantidades(consulta):
 
 
 def executarSelect(consulta,tipo=0):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
@@ -836,7 +842,7 @@ def executarSelect(consulta,tipo=0):
 
 
 def avaliacoesEncerradas(codigoEdital):
-    conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
@@ -872,7 +878,7 @@ def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
         codigoEdital = str(edital)
-        conn = MySQLdb.connect(host="db_cppgi", user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
         conn.select_db('cppgi')
         cursor  = conn.cursor()
 
