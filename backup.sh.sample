@@ -1,0 +1,1 @@
+docker-compose exec db_cppgi bash -c "mysqldump -u root -p<SENHA> --add-drop-database --add-drop-table --databases cppgi > /share/db_cppgi.sql"
