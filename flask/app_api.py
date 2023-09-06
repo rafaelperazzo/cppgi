@@ -155,3 +155,27 @@ class Avaliacoes(Resource):
             dados.append(dado)
         
         return(dados)
+
+class Trabalhos(Resource):
+    def get(self,id_edital,apresentacao):
+        consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,
+        IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid
+        ,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),
+        local_apresentacao 
+        FROM editalProjeto 
+        WHERE valendo=1 AND categoria=1 
+        AND tipo=""" + id_edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
+        consulta_oral = """SELECT editalProjeto.id,ua,nome,titulo,situacao,
+        IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,
+        local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao 
+        FROM editalProjeto 
+        WHERE valendo=1 AND categoria=0 AND tipo=""" + id_edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
+        if apresentacao==1:
+            linhas,total = executarSelect(consulta_oral)
+        else:
+            linhas,total = executarSelect(consulta_poster)
+        dados = []
+        for linha in linhas:
+            dado = {'id': linha[0],'autores': linha[2], 'area': linha[1],'titulo': linha[3], 'situacao': int(linha[4]),'modalidade': linha[5],'local_apresentacao': linha[6],'data_apresentacao': linha[7]}
+            dados.append(dado)
+        return dados

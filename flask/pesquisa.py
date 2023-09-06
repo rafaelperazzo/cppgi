@@ -3005,9 +3005,10 @@ def premiados(edital):
     return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,nome_edital=nome))
 
 if __name__ == "__main__":
-    from app_api import Submissoes,Editais,Avaliacoes
+    from app_api import Submissoes,Editais,Avaliacoes,Trabalhos
     api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>/<modalidade>/<area>')
     api.add_resource(Editais,'/api/editais')
     api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
+    api.add_resource(Trabalhos,'/api/trabalhos/<id_edital>/<apresentacao>')
     serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
 
