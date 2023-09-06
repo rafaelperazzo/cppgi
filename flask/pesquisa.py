@@ -1658,8 +1658,9 @@ def processar_emails_versao_final(linhas,edital):
                     try:
                         if PRODUCAO==1:
                             mail.send(msg)
-                    except:
+                    except Exception as e:
                         app.logger.error('Erro no processar e-mails')
+                        app.logger.error(str(e))
 
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
 def solicitarVersaoFinal(edital):
@@ -1794,8 +1795,9 @@ def emailPosEvento():
                 try:
                     if PRODUCAO==1:
                         mail.send(msg)
-                except:
+                except Exception as e:
                     logging.error('Erro no /emailPosEvento') 
+                    logging.error(str(e))
                      
             return("E-mails enviados...")
         else:
@@ -2441,8 +2443,9 @@ def enviar_email_avaliadores():
                     mail.send(msg)
                 consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
                 atualizar(consulta)    
-            except:
+            except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
+                logging.error(str(e))
                 return("Erro! Verifique o log!")
 
 """
@@ -2484,8 +2487,9 @@ def enviarPedidoAvaliacao(id):
                 if PRODUCAO==1:
                     mail.send(msg)
                 logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
-            except:
+            except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
+                logging.error(str(e))
 
 def remover_arquivo(arquivo):
     if os.path.exists(arquivo):
