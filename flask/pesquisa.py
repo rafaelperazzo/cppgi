@@ -1658,8 +1658,9 @@ def processar_emails_versao_final(linhas,edital):
                     try:
                         if PRODUCAO==1:
                             mail.send(msg)
-                    except:
+                    except Exception as e:
                         app.logger.error('Erro no processar e-mails')
+                        app.logger.error(str(e))
 
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
 def solicitarVersaoFinal(edital):
@@ -1744,10 +1745,33 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
                 cpf = str(linha[3])
                 senha = str(linha[5])
                 apresentacao = str(linha[6])
-                dataHora_apresentacao = str(linha[7])
                 local_apresentacao = str(linha[8])
-                data_apresentacao = str(linha[9])
-                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=dataHora_apresentacao,local_apresentacao=local_apresentacao)
+                data_apresentacao = str(linha[11])
+                hora_sessao = str(linha[10])
+                avaliadores = 'INDEFINIDOS'
+                jaMandouOlink = '0'
+                jaMandouVersaoFinal = '0'
+                deadline_apresentacao = 'indefinido'
+                deadline_versao_final = 'indefinido'
+                avaliadores = ()
+                try:
+                    jaMandouOlink = obterColunaUnica('editalProjeto','link_apresentacao','id',id_trabalho)
+                    jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',id_trabalho)
+                    deadline_versao_final = obterColunaUnica('editais',"DATE_FORMAT(deadline_versao_final,'%d/%m/%Y - %H:%i')",'id',edital)
+                    deadline_apresentacao = obterColunaUnica('editais',"DATE_FORMAT(deadline_apresentacao,'%d/%m/%Y - %H:%i')",'id',edital)
+                except Exception as e:
+                    app.logger.error("[JAMANDOUOLINK] Erro ao buscar link de apresentacao: " + str(e))                
+                try:
+                    avaliadores = getAvaliadoresSala(edital,local_apresentacao,str(linha[9]))
+                except Exception as e:
+                    app.logger.error("[GET_AVALIADORES]Erro ao buscar avaliadores da sala: " + str(e))                
+                try:
+                    link = getLinkSala(edital,local_apresentacao)
+                except Exception as e:
+                    app.logger.error("[LINK_DA_SALA]Erro ao gerar o link da sala: " + str(e))
+                    link = "INDEFINIDO"
+                
+                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao)                
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
                     if PRODUCAO==1:
@@ -1761,8 +1785,20 @@ def emailInstrucoes(edital):
     """
     ENVIO DAS INSTRUÇÕES PARA ENVIO DAS APRESENTAÇÕES
     """
-    consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.nome,
-    users.password,IF(categoria=0,'APRESENTACAO ORAL','POSTER'),DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i'),local_apresentacao,DATE(data_apresentacao) FROM editalProjeto,users 
+    consulta = """SELECT 
+    editalProjeto.email,
+    titulo,
+    editalProjeto.id,
+    siape,
+    editalProjeto.nome,
+    users.password,
+    IF(categoria=0,'APRESENTACAO ORAL','POSTER'),
+    DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i'),
+    local_apresentacao,
+    DATE(data_apresentacao), 
+    TIME(data_apresentacao),
+    DATE_FORMAT(data_apresentacao,'%d/%m/%Y')  
+    FROM editalProjeto,users 
     WHERE editalProjeto.siape=users.username and situacao=1 and 
     valendo=1 and tipo=""" + edital
     linhas,total=executarSelect(consulta)            
@@ -1794,8 +1830,9 @@ def emailPosEvento():
                 try:
                     if PRODUCAO==1:
                         mail.send(msg)
-                except:
+                except Exception as e:
                     logging.error('Erro no /emailPosEvento') 
+                    logging.error(str(e))
                      
             return("E-mails enviados...")
         else:
@@ -2441,8 +2478,9 @@ def enviar_email_avaliadores():
                     mail.send(msg)
                 consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
                 atualizar(consulta)    
-            except:
+            except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
+                logging.error(str(e))
                 return("Erro! Verifique o log!")
 
 """
@@ -2484,8 +2522,9 @@ def enviarPedidoAvaliacao(id):
                 if PRODUCAO==1:
                     mail.send(msg)
                 logging.debug("E-MAIL ENVIADO COM SUCESSO.")    
-            except:
+            except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
+                logging.error(str(e))
 
 def remover_arquivo(arquivo):
     if os.path.exists(arquivo):
