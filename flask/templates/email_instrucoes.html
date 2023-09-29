@@ -10,28 +10,46 @@
     <hr>
       <p>
         O {{nome_longo}} está em fase final de preparação para receber 
-        você e demais participantes numa experiência acadêmica e social únicas, numa aprendizagem conjunta e 
-        coletiva neste primeiro evento totalmente virtual.   
+        você e demais participantes numa experiência acadêmica e social únicas, em uma 
+        aprendizagem conjunta e coletiva.   
       </p>
       <hr>
       <p>
-        <h2>Prazo para envio da apresentação: {{prazo_apresentacao}} (este envio é opcional)</h2>
+        <h2>Prazo para envio da apresentação: {{prazo_apresentacao}}</h2>
       </p>
       <hr>
       <p>
         <h3>Dados do trabalho</h3>
-        ID: {{id}}<br>
-        Título: {{titulo}}<br>
-        Autores: {{autores}}<br>
-        Tipo de apresentação: {{apresentacao}}<br>
-        E-mail: {{email}}<br>
-        
+        <ul>
+          <li>ID: {{id}}</li>
+          <li>Título: {{titulo}}</li>
+          <li>Autores: {{autores}}</li>
+          <li>Tipo de apresentação: {{apresentacao}}</li>
+          <li>E-mail: {{email}}</li>
+        </ul>
       </p>
       <hr>
       <p>
         <h3>Data e local de apresentação</h3>
-        Data da apresentação: {{data_apresentacao}}<br>
-        Local de apresentação: {{local_apresentacao}}<br>
+        <ul>
+          <li>Data da apresentação: {{data_apresentacao}}
+          <li>Horário do início da sessão: {{hora_sessao}}
+          <li>Local de apresentação: {{local_apresentacao}}
+          {% if (apresentacao!='POSTER') %}
+            <li>Link do google meet: <a href="{{link|safe}}" target='_blank'>{{link|safe}}</a>
+          {%endif%}
+          <li>Avaliadores: 
+            <ul>
+              {% for avaliador in avaliadores %}
+                <li>{{avaliador}}</li>
+              {%endfor%}
+            </ul>
+          </li>
+        </ul>
+      </p>
+      <p style="color:black;background-color:yellow;font-weight: bold;">O horário do início da sessão não representa
+        o horário exato da apresentação. Todos devem estar presentes no horário de início da sessão 
+        indicado acima.
       </p>
       <hr>
       <p>
@@ -46,14 +64,14 @@
       <p>
         <h3>Como preparar a apresentação (sugestão)</h3>
         <ul>
-            <li>1. FORMATO: Apresentação em SLIDES, preferencialmente do Google Docs, para ser utilizada no dia da apresentação.             
-            <li>2. DISPONIBILIZAÇÃO: Compartilhamento público da apresentação no Google Drive. </li>
+            <li>1. FORMATO: Apresentação em SLIDES, preferencialmente do Google Apresentações, para ser utilizada no dia da apresentação.             
+            <li>2. DISPONIBILIZAÇÃO: Compartilhamento público da apresentação no Google Drive (não esquecer). </li>
             <li>3. Para trabalhos em poster, não é necessário fazer o envio de apresentação.</li>
         </ul>
       </p>
       <hr>
       <p>
-        <h3>Como enviar o link da sua apresentação (o envio prévio é opcional)</h3>
+        <h3>Como enviar o link da sua apresentação (o envio prévio é opcional, mas fortemente recomendado)</h3>
         <ul>
           <li>1. Acesse o ambiente "Meus Projetos" em: <a href="https://sci01-ter-jne.ufca.edu.br/cppgi/meusProjetos">https://sci01-ter-jne.ufca.edu.br/cppgi/meusProjetos</a></li>
           <li>2. Entre com seus dados de acesso: CPF e senha (informados acima). Caso não lembre ou não tenha os dados de acesso, basta clicar em <a href="https://sci01-ter-jne.ufca.edu.br/cppgi/esqueciMinhaSenha">"Não sei/Esqueci Minha Senha"</a> e informar seu e-mail, este mesmo que você está acessando no momento.</li>
@@ -61,7 +79,21 @@
           <li>4. Cole o link da sua apresentação (link do google drive) e clique em enviar para finalizar o processo. </li>
       </ul>
       </p>
-
+      <hr>
+      {% if (jaMandouOlink=='0') %}
+          <p style="color:red"><h3>PENDÊNCIA: </h3></p>
+          <h3>NÃO ESQUEÇA DE ENVIAR SUA APRESENTAÇÃO (link do google drive) 
+            ATÉ {{prazo_apresentacao}}</h3>
+          <hr>
+      {% endif %}
+          
+      {% if (jaMandouVersaoFinal=='0') %}
+          <p style="color:red"><h3>PENDÊNCIA: </h3></p>
+          <h3>NÃO ESQUEÇA DE ENVIAR A VERSÃO FINAL DE SEU TRABALHO, PARA INCLUSÃO NOS ANAIS DO EVENTO
+            ATÉ {{deadline_versao_final}}
+          </h3>
+          <hr>
+      {% endif %}
       <hr>
       <CENTER><h3>ESTA MENSAGEM FOI ENVIADA AUTOMATICAMENTE. NÃO RESPONDA ESTE E-MAIL.</h3></CENTER>
       <hr>
