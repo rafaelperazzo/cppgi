@@ -10,7 +10,7 @@
     <hr>
       <p>
         O {{nome_longo}} está em fase final de preparação para receber 
-        você e demais participantes numa experiência acadêmica e social únicas, em uma 
+        você e demais participantes em uma experiência acadêmica e social únicas, em uma 
         aprendizagem conjunta e coletiva.   
       </p>
       <hr>
@@ -32,11 +32,11 @@
       <p>
         <h3>Data e local de apresentação</h3>
         <ul>
-          <li>Data da apresentação: {{data_apresentacao}}
-          <li>Horário do início da sessão: {{hora_sessao}}
-          <li>Local de apresentação: {{local_apresentacao}}
+          <li>Data da apresentação: <b>{{data_apresentacao}}</b>
+          <li>Horário do início da sessão: <b>{{hora_sessao}}</b>
+          <li>Local de apresentação: <b>{{local_apresentacao}}</b>
           {% if (apresentacao!='POSTER') %}
-            <li>Link do google meet: <a href="{{link|safe}}" target='_blank'>{{link|safe}}</a>
+            <li>Link do google meet: <b><a href="{{link|safe}}" target='_blank'>{{link|safe}}</a></b>
           {%endif%}
           <li>Avaliadores: 
             <ul>
@@ -80,20 +80,29 @@
       </ul>
       </p>
       <hr>
-      {% if (jaMandouOlink=='0') %}
-          <p style="color:red"><h3>PENDÊNCIA: </h3></p>
-          <h3>NÃO ESQUEÇA DE ENVIAR SUA APRESENTAÇÃO (link do google drive) 
-            ATÉ {{prazo_apresentacao}}</h3>
-          <hr>
-      {% endif %}
-          
-      {% if (jaMandouVersaoFinal=='0') %}
-          <p style="color:red"><h3>PENDÊNCIA: </h3></p>
-          <h3>NÃO ESQUEÇA DE ENVIAR A VERSÃO FINAL DE SEU TRABALHO, PARA INCLUSÃO NOS ANAIS DO EVENTO
-            ATÉ {{deadline_versao_final}}
-          </h3>
-          <hr>
-      {% endif %}
+      <h2>PENDÊNCIA(S)</h2>
+      <ul>
+          {% if (jaMandouOlink=='0') %}
+              
+              <li>
+                <p style="color:black;background-color:yellow;font-weight: bold;">
+                  NÃO ESQUEÇA DE ENVIAR SUA APRESENTAÇÃO (link do google drive) 
+                ATÉ --> {{prazo_apresentacao}} <--
+                </p>
+              </li>
+          {% endif %}
+              
+          {% if (jaMandouVersaoFinal=='0') %}
+              <li>
+                <p style="color:black;background-color:yellow;font-weight: bold;">
+                  NÃO ESQUEÇA DE ENVIAR A VERSÃO FINAL DE SEU TRABALHO, PARA INCLUSÃO NOS 
+                  ANAIS DO EVENTO
+                  ATÉ --> {{deadline_versao_final}} <--
+                </p>
+              </li>
+          {% endif %}
+      </ul>
+      
       <hr>
       <CENTER><h3>ESTA MENSAGEM FOI ENVIADA AUTOMATICAMENTE. NÃO RESPONDA ESTE E-MAIL.</h3></CENTER>
       <hr>

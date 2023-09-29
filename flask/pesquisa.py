@@ -1732,52 +1732,59 @@ def emailInformacoes(edital):
 
 def processar_emails_instrucoes_apresentacao(linhas,edital):
     with app.app_context():
-        if PRODUCAO==1:
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            prazo_apresentacao = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
-            prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
-            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-            for linha in linhas:
-                titulo = str(linha[1])
-                id_trabalho = str(linha[2])
-                email_autor = str(linha[0])
-                autores = str(linha[4])
-                cpf = str(linha[3])
-                senha = str(linha[5])
-                apresentacao = str(linha[6])
-                local_apresentacao = str(linha[8])
-                data_apresentacao = str(linha[11])
-                hora_sessao = str(linha[10])
-                avaliadores = 'INDEFINIDOS'
-                jaMandouOlink = '0'
-                jaMandouVersaoFinal = '0'
-                deadline_apresentacao = 'indefinido'
-                deadline_versao_final = 'indefinido'
-                avaliadores = ()
-                try:
-                    jaMandouOlink = obterColunaUnica('editalProjeto','link_apresentacao','id',id_trabalho)
-                    jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',id_trabalho)
-                    deadline_versao_final = obterColunaUnica('editais',"DATE_FORMAT(deadline_versao_final,'%d/%m/%Y - %H:%i')",'id',edital)
-                    deadline_apresentacao = obterColunaUnica('editais',"DATE_FORMAT(deadline_apresentacao,'%d/%m/%Y - %H:%i')",'id',edital)
-                except Exception as e:
-                    app.logger.error("[JAMANDOUOLINK] Erro ao buscar link de apresentacao: " + str(e))                
-                try:
-                    avaliadores = getAvaliadoresSala(edital,local_apresentacao,str(linha[9]))
-                except Exception as e:
-                    app.logger.error("[GET_AVALIADORES]Erro ao buscar avaliadores da sala: " + str(e))                
-                try:
-                    link = getLinkSala(edital,local_apresentacao)
-                except Exception as e:
-                    app.logger.error("[LINK_DA_SALA]Erro ao gerar o link da sala: " + str(e))
-                    link = "INDEFINIDO"
-                
+        nome_edital = obterColunaUnica('editais','nome','id',edital)
+        prazo_apresentacao = obterColunaUnica('editais',"DATE_FORMAT(deadline_apresentacao,'%d/%m/%Y - %H:%i')",'id',edital)
+        #prazo_apresentacao = datetime.datetime.strptime(prazo_apresentacao,'%Y-%m-%d').strftime('%d/%m/%Y')
+        nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+        for linha in linhas:
+            titulo = str(linha[1])
+            id_trabalho = str(linha[2])
+            email_autor = str(linha[0])
+            autores = str(linha[4])
+            cpf = str(linha[3])
+            senha = str(linha[5])
+            apresentacao = str(linha[6])
+            local_apresentacao = str(linha[8])
+            data_apresentacao = str(linha[11])
+            hora_sessao = str(linha[10])
+            avaliadores = 'INDEFINIDOS'
+            jaMandouOlink = '0'
+            jaMandouVersaoFinal = '0'
+            deadline_apresentacao = 'indefinido'
+            deadline_versao_final = 'indefinido'
+            avaliadores = ()
+            try:
+                jaMandouOlink = obterColunaUnica('editalProjeto','link_apresentacao','id',id_trabalho)
+                jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',id_trabalho)
+                deadline_versao_final = obterColunaUnica('editais',"DATE_FORMAT(deadline_versao_final,'%d/%m/%Y - %H:%i')",'id',edital)
+                deadline_apresentacao = obterColunaUnica('editais',"DATE_FORMAT(deadline_apresentacao,'%d/%m/%Y - %H:%i')",'id',edital)
+            except Exception as e:
+                app.logger.error("[JAMANDOUOLINK] Erro ao buscar link de apresentacao: " + str(e))                
+            try:
+                avaliadores = getAvaliadoresSala(edital,local_apresentacao,str(linha[9]))
+            except Exception as e:
+                app.logger.error("[GET_AVALIADORES]Erro ao buscar avaliadores da sala: " + str(e))                
+            try:
+                link = getLinkSala(edital,local_apresentacao)
+            except Exception as e:
+                app.logger.error("[LINK_DA_SALA]Erro ao gerar o link da sala: " + str(e))
+                link = "INDEFINIDO"
+            try:
                 texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao)                
+            except Exception as e:
+                logging.error("[render_template]Erro ao gerar o link da sala: " + str(e))
+            if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                try:
-                    if PRODUCAO==1:
-                        mail.send(msg)
-                except Exception as e:
-                    app.logger.error("Erro no processamento dos e-mails com instrucoes de avaliacao: " + str(e))
+            else:
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            try:
+                if PRODUCAO==1:
+                    mail.send(msg)
+                else:
+                    mail.send(msg)
+                    break
+            except Exception as e:
+                app.logger.error("Erro no processamento dos e-mails com instrucoes de avaliacao: " + str(e))
 
 @app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -1842,19 +1849,25 @@ def emailPosEvento():
 
 def processar_emails_instrucoes_moderadores(linhas,edital):
     with app.app_context():
-        if PRODUCAO==1:
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-            for linha in linhas:
-                cpf = str(linha[0])
-                senha = str(linha[1])
-                email_avaliador = str(linha[2])
-                texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
+        nome_edital = obterColunaUnica('editais','nome','id',edital)
+        nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+        for linha in linhas:
+            cpf = str(linha[0])
+            senha = str(linha[1])
+            email_avaliador = str(linha[2])
+            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
+            if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                try:
+            else:
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            try:
+                if PRODUCAO==1:
                     mail.send(msg)
-                except Exception as e:
-                    app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
+                else:
+                    mail.send(msg)
+                    break
+            except Exception as e:
+                app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
 
 @app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
