@@ -50,12 +50,19 @@ tr:nth-child(even) {
     <table style="width:100%">
   
       <tr>
-      <th>LISTA DE SESSÕES</th>
+      <th>LISTA DE SESSÕES</th><th>LINK DA SALA</th>
       </tr>
       {% for linha in linhas %}
           
         <tr>
           <td><a href="/cppgi/apresentacoes?edital={{edital}}&data={{linha[1]}}&sala={{linha[0]}}">{{linha[0]}} - {{linha[1]}}</a></td>
+          <td>
+            {% if linha[2]!='N/A' %}
+              <a href='{{linha[2]|safe}}' target='_blank'>{{linha[2]}}</a>
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
         </tr>
           
       {% endfor %}
