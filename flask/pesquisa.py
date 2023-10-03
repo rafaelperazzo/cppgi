@@ -1855,7 +1855,9 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             cpf = str(linha[0])
             senha = str(linha[1])
             email_avaliador = str(linha[2])
-            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital)
+            sala = str(linha[3])
+            sala_link = str(linha[4])
+            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link)
             if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             else:
@@ -1875,9 +1877,19 @@ def emailInstrucoesAvaliador(edital):
     """
     Envia os e-mails (todos) com as instruções para os moderadores de sessões
     """
-    consulta = """SELECT DISTINCT usuarios_salas.username,users.password,users.email FROM users,usuarios_salas 
-    WHERE usuarios_salas.edital=""" + edital + """ 
-    and users.username=usuarios_salas.username ORDER BY usuarios_salas.username"""
+    consulta = """
+    SELECT DISTINCT 
+    usuarios_salas.username,
+    users.password,
+    users.email,
+    usuarios_salas.sala,
+    sala_link.link 
+    FROM users
+    INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
+    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    WHERE usuarios_salas.edital=%s
+    ORDER BY usuarios_salas.username
+    """ % (edital)
     linhas,total=executarSelect(consulta)            
     t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(linhas,edital,))
     t.start()
