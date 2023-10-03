@@ -1088,7 +1088,14 @@ def login():
             siape = str(request.form['siape'])
             senha = str(request.form['senha'])
             if verify_password(siape,senha)!=False:
-                app.logger.error(request.remote_addr)
+                try:
+                    consulta = """
+                    INSERT INTO acessos(ip,recurso,username) VALUES (%s,%s,%s)
+                    """ 
+                    valores = (str(request.remote_addr),str(siape),'/login')
+                    inserir(consulta,valores)
+                except Exception as e:
+                    app.logger.error("Erro ao registrar acesso: " + str(e))
                 return(redirect(url_for('usuario')))
             else:
                 return(render_template('login.html',mensagem='Problemas com o usuario/senha.'))
