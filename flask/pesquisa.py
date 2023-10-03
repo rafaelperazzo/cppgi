@@ -987,7 +987,7 @@ def meusProjetos():
         editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y %H:%i')  
          FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
-
+        registrar_acesso('/meusProjetos',request.remote_addr,str(session['username']))
         return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao'],SITE=CPPGI_SITE))
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -1076,7 +1076,18 @@ def avaliador(edital):
     """ % (edital,str(session['username']))
     linhas,total = executarSelect(consulta)
     nome_usuario = getNome(str(session['username']))
+    registrar_acesso('/avaliador',request.remote_addr,str(session['username']))
     return(render_template('avaliador.html',linhas=linhas,nome_edital=nome_edital,root=CPPGI_SITE,edital=edital,usuario=session['username'],nome_usuario=nome_usuario,titulo=u'MÓDULO AVALIADOR'))
+
+def registrar_acesso(recurso,ip,usuario):
+    try:
+        consulta = """
+        INSERT INTO acessos(ip,recurso,username) VALUES (%s,%s,%s)
+        """
+        valores = (str(ip),str(usuario),recurso)
+        inserir(consulta,valores)
+    except Exception as e:
+        logging.error("Erro ao registrar acesso: " + str(e))
 
 '''
 Método que ativa a sessão com os dados do usuário
@@ -1088,14 +1099,7 @@ def login():
             siape = str(request.form['siape'])
             senha = str(request.form['senha'])
             if verify_password(siape,senha)!=False:
-                try:
-                    consulta = """
-                    INSERT INTO acessos(ip,recurso,username) VALUES (%s,%s,%s)
-                    """ 
-                    valores = (str(request.remote_addr),str(siape),'/login')
-                    inserir(consulta,valores)
-                except Exception as e:
-                    app.logger.error("Erro ao registrar acesso: " + str(e))
+                registrar_acesso('/login',request.remote_addr,siape)
                 return(redirect(url_for('usuario')))
             else:
                 return(render_template('login.html',mensagem='Problemas com o usuario/senha.'))
