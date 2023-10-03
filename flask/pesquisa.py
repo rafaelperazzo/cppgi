@@ -1064,6 +1064,16 @@ def avaliador(edital):
     session['edital'] = edital
     nome_edital = obterColunaUnica('editais','nome','id',edital)
     consulta = """SELECT sala,data FROM usuarios_salas WHERE edital=""" + edital + """ and username='""" + str(session['username']) + """' ORDER BY data,sala"""
+    consulta = """
+    SELECT 
+    usuarios_salas.sala,
+    usuarios_salas.data, 
+    sala_link.link
+    FROM usuarios_salas
+    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    WHERE usuarios_salas.edital=%s and usuarios_salas.username='%s' 
+    ORDER BY usuarios_salas.data,usuarios_salas.sala
+    """ % (edital,str(session['username']))
     linhas,total = executarSelect(consulta)
     nome_usuario = getNome(str(session['username']))
     return(render_template('avaliador.html',linhas=linhas,nome_edital=nome_edital,root=CPPGI_SITE,edital=edital,usuario=session['username'],nome_usuario=nome_usuario,titulo=u'MÓDULO AVALIADOR'))
@@ -1895,7 +1905,7 @@ def emailInstrucoesAvaliador(edital):
     t.start()
     flash("E-mails enviados com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
-       
+
 def getDatas(edital):
     consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY data_apresentacao"""
     linhas,total = executarSelect(consulta)

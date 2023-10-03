@@ -42,6 +42,13 @@ p.reprovado {
     <h2>{{nome_edital}}</h2>
     <h3>Data: {{data}}</h3>
     <h3>Sala: {{sala}}</h3>
+    
+    {% if link!='N/A' %}
+        <h3>Link da sala: <a href='{{link|safe}}' target='_blank'>{{link}}</a></h3>
+    {% else %}
+        <h3>N/A</h3>
+    {% endif %}
+
     <hr><br>
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -53,6 +60,12 @@ p.reprovado {
         {% endfor %}
     {% endif %}
     {% endwith %}
+    
+    <p style="background-color: yellow;font-weight: bold;">
+        A presença do autor é confirmada após o preenchimento do formulário de avaliação.
+        Avaliar apenas os que finalizarem a apresentação. 
+    </p>
+    
     <table style="width:100%">
       <tr>
       <th>ID</th><th>UA</th><th>Nome</th><th>Titulo</th><!--<th>Autores</th>--><th>Data/Hora</th><th>Apresentação</th><th>Avaliação</th>
