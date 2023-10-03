@@ -1088,6 +1088,7 @@ def login():
             siape = str(request.form['siape'])
             senha = str(request.form['senha'])
             if verify_password(siape,senha)!=False:
+                app.logger.error(request.remote_addr)
                 return(redirect(url_for('usuario')))
             else:
                 return(render_template('login.html',mensagem='Problemas com o usuario/senha.'))
@@ -3084,5 +3085,5 @@ if __name__ == "__main__":
     api.add_resource(Editais,'/api/editais')
     api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
     api.add_resource(Trabalhos,'/api/trabalhos/<id_edital>/<apresentacao>')
-    serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi')
+    serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
 
