@@ -3090,6 +3090,31 @@ def premiados(edital):
     nome = obterColunaUnica('editais','nome_longo','id',str(edital))
     return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,nome_edital=nome))
 
+@app.route('/links_avaliadores/<edital>')
+@auth.login_required(role=['admin'])
+def links_avaliadores(edital):
+    """
+    Lista os links para os moderadores de sessões
+    """
+    consulta = """
+    SELECT DISTINCT 
+    usuarios_salas.username,
+    users.password,
+    users.email,
+    usuarios_salas.sala,
+    sala_link.link,
+    users.nome
+    FROM users
+    INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
+    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    WHERE usuarios_salas.edital=%s
+    ORDER BY usuarios_salas.username
+    """ % (edital)
+    linhas,total=executarSelect(consulta)
+    nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
+    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo))
+    
+
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos
     api.add_resource(Submissoes,'/api/submissoes/<tipo>/<id_edital>/<modalidade>/<area>')
