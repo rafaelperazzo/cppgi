@@ -29,7 +29,7 @@ import base64
 import pyqrcode
 from flask_restful import Api
 from flask_cors import CORS
-
+from werkzeug.utils import secure_filename
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -85,7 +85,7 @@ app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
-logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -1532,7 +1532,7 @@ def enviarApresentacao(id_trabalho):
         return(redirect(url_for('meusProjetos')))
     
 
-@app.route("/uploadCR", methods=['GET', 'POST'])
+@app.route("/uploadCR", methods=['POST'])
 def uploadCR():
     if request.method == "POST":
         idTrabalho = str(request.form['idTrabalho'])
@@ -1664,31 +1664,39 @@ def apresentacoes():
 
 def processar_emails_versao_final(linhas,edital):
     with app.app_context():
-        if PRODUCAO==1:
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            for linha in linhas:
-                titulo = str(linha[1])
-                id_trabalho = str(linha[2])
-                cpf = str(linha[3])
-                email_autor = str(linha[4])
-                senha = str(linha[5])
-                arquivo = str(linha[6])
-                autores = str(linha[7])
-                if (arquivo=="0"):
-                    texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
+        nome_edital = obterColunaUnica('editais','nome','id',edital)
+        for linha in linhas:
+            titulo = str(linha[1])
+            id_trabalho = str(linha[2])
+            cpf = str(linha[3])
+            email_autor = str(linha[4])
+            senha = str(linha[5])
+            arquivo = str(linha[6])
+            autores = str(linha[7])
+            if (arquivo=="0"):
+                texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
+                if PRODUCAO==1:
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                    try:
-                        if PRODUCAO==1:
-                            mail.send(msg)
-                    except Exception as e:
-                        app.logger.error('Erro no processar e-mails')
-                        app.logger.error(str(e))
+                else:
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                try:
+                    mail.send(msg)
+                except Exception as e:
+                    app.logger.error('Erro no processar e-mails')
+                    app.logger.error(str(e))
+                if PRODUCAO!=1:
+                    break
 
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
 def solicitarVersaoFinal(edital):
     """
     SOLICITA A VERSÃO FINAL PARA OS APRESENTADORES
     """
+    import datetime
+    agora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    deadline_versao_final = obterColunaUnica('editais','deadline_versao_final','id',edital)
+    if agora>deadline_versao_final:
+        return("Prazo da versão final expirado!")
     consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
     users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
     WHERE editalProjeto.siape=users.username and situacao=1 and 
@@ -2001,9 +2009,9 @@ def admin(edital):
         mostrar_pos_avaliacao = False
 
     if agora>deadline_apresentacao:
-        mostrar_pos_evento = False
-    else:
         mostrar_pos_evento = True
+    else:
+        mostrar_pos_evento = False
     titulo = u"PÁGINA ADMINISTRATIVA"
     return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento))
 
@@ -2383,29 +2391,44 @@ def certificadoApresentacoes():
     else:
         return("OK")
 
-@app.route("/enviarCertificados/<edital>", methods=['GET', 'POST'])
+def processar_emails_certificados(linhas,edital,app):
+    with app.app_context():
+        app.logger.debug("Iniciando processar_emails_certificados")
+        app.logger.debug(linhas)
+        try:
+            for linha in linhas:  
+                email = str(linha[2])
+                idTrabalho = str(linha[3])
+                nome = str(linha[0])
+                titulo = str(linha[1])
+                nome_curto = obterColunaUnica('editais','nome_curto','id',str(edital))
+                nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
+                app.logger.debug('antes de gerar o link')
+                link = url_for('baixarCertificado',id_projeto=idTrabalho)
+                app.logger.debug(link)
+                app.logger.debug(titulo)
+                texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
+                if PRODUCAO==1:
+                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
+                    mail.send(msg)
+                else:
+                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=['rafael.mota@ufca.edu.br'],html=texto_email)
+                    mail.send(msg)
+                    app.logger.debug('E-mail com certificado enviado!')
+                    break
+        except Exception as e:
+            app.logger.error(str(e))
+        
+
+@app.route("/enviarCertificados/<edital>", methods=['GET'])
 def enviarCertificados(edital):
-    id = edital
-    consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + id
+    consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + str(edital)
     linhas,total = executarSelect(consulta)
-    for linha in linhas:
-        email = str(linha[2])
-        idTrabalho = str(linha[3])
-        nome = str(linha[0])
-        titulo = str(linha[1])
-        nome_curto = obterColunaUnica('editais','nome_curto','id',str(id))
-        nome_longo = obterColunaUnica('editais','nome_longo','id',str(id))
-        link = url_for('baixarCertificado',id_projeto=idTrabalho)
-        texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
-        msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
-        #t = threading.Thread(target=enviar_email,args=(msg,))
-        #t.start()
-        mail.send(msg)
+    t1 = threading.Thread(target=processar_emails_certificados,args=(linhas,edital,app,))
+    t1.start()
     flash("Certificados ENVIADOS com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
         
-
-
 def gerarCertificadoModerador(nome,tipo,id,token=0):
     namef = app.config['CERTIFICADOS_FOLDER'] + 'MODERADOR-certificado-' + id + '.odt'
     odt = newdoc(doctype='odt', filename=namef, template='/home/perazzo/cppgi/documentos/07-certificado.moderador.odt')
@@ -3113,7 +3136,6 @@ def links_avaliadores(edital):
     linhas,total=executarSelect(consulta)
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
     return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo))
-    
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos
