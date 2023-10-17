@@ -1539,7 +1539,13 @@ def uploadCR():
         nomeDoArquivoTrabalho = ""
         if 'arquivo_trabalho' in request.files:
             token = id_generator()
-            nomeDoArquivoTrabalho = "FINAL" + "." + token + ".pdf"
+            arquivo = request.files['arquivo_trabalho'].filename
+            extensao = arquivo[arquivo.rfind('.'):]
+            permitidos = [".odt",".doc",".docx"]
+            if extensao not in permitidos:
+                flash("O arquivo deve ser do tipo odt, doc ou docx")
+                return(redirect(url_for('meusProjetos')))
+            nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
             filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
             consulta = """UPDATE editalProjeto SET arquivo_projeto_final='""" + nomeDoArquivoTrabalho + """' WHERE id=""" + idTrabalho
             atualizar(consulta)
