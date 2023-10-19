@@ -14,3 +14,4 @@ mysql/*
 mysql.sh
 *.ini
 backup.sh
+flask/documentos/*

@@ -85,7 +85,10 @@ app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 
-logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)
+if PRODUCAO==1:
+    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+else:
+    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)    
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -1671,6 +1674,7 @@ def apresentacoes():
 def processar_emails_versao_final(linhas,edital):
     with app.app_context():
         nome_edital = obterColunaUnica('editais','nome','id',edital)
+        prazo = obterColunaUnica('editais',"DATE_FORMAT(deadline_versao_final,'%d/%m/%Y')",'id',edital)
         for linha in linhas:
             titulo = str(linha[1])
             id_trabalho = str(linha[2])
@@ -1680,7 +1684,7 @@ def processar_emails_versao_final(linhas,edital):
             arquivo = str(linha[6])
             autores = str(linha[7])
             if (arquivo=="0"):
-                texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores)
+                texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores,prazo=prazo)
                 if PRODUCAO==1:
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 else:
@@ -2207,13 +2211,12 @@ def baixarCertificado(id_projeto):
 
         #Recuperando template
         background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-        
         #Gerando certificado em PDF
         try:
-            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
             pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
+            app.logger.error(str(e))
         finally:
             return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
@@ -2399,8 +2402,6 @@ def certificadoApresentacoes():
 
 def processar_emails_certificados(linhas,edital,app):
     with app.app_context():
-        app.logger.debug("Iniciando processar_emails_certificados")
-        app.logger.debug(linhas)
         try:
             for linha in linhas:  
                 email = str(linha[2])
@@ -2410,7 +2411,7 @@ def processar_emails_certificados(linhas,edital,app):
                 nome_curto = obterColunaUnica('editais','nome_curto','id',str(edital))
                 nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
                 app.logger.debug('antes de gerar o link')
-                link = url_for('baixarCertificado',id_projeto=idTrabalho)
+                link = ROOT_SITE + '/cppgi/baixarCertificado/' + str(idTrabalho)
                 app.logger.debug(link)
                 app.logger.debug(titulo)
                 texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
@@ -2888,8 +2889,6 @@ def salvar_local_data():
     """ %(local,data,categoria,modalidade,obs,apresentou,id_projeto)
     atualizar(consulta)
     return("OK")
-    #TODO: implementar o autenticar_certificado
-    #TODO: Demais certificados
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
