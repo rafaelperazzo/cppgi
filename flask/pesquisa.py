@@ -1710,7 +1710,7 @@ def solicitarVersaoFinal(edital):
     consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
     users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
     WHERE editalProjeto.siape=users.username and situacao=1 and 
-    valendo=1 and arquivo_projeto_final='0' and tipo=""" + edital
+    valendo=1 and (arquivo_projeto_final='0' or arquivo_projeto_final like '%.pdf') and tipo=""" + edital
     linhas,total=executarSelect(consulta)            
     t = threading.Thread(target=processar_emails_versao_final,args=(linhas,edital,))
     t.start()
