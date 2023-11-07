@@ -70,7 +70,12 @@ $(document).ready(function(){
       
       {% for linha in linhas %}
         <tr>
-            <td>{{linha[2]}}</td><td>{{linha[1]}}</td> <td>{{linha[3]}}</td><td><a href="{{url_for('enviar_arquivo',filename=linha[4])}}"><img src="{{ url_for('static', filename='pdf.png')}}" style="width:50%" alt="" align="center"></a></td>
+            {% if '.pdf' in linha[4] %}
+              <td>{{linha[2]}}</td><td>{{linha[1]}}</td> <td>{{linha[3]}}</td><td><a href="{{url_for('enviar_arquivo',filename=linha[4])}}"><img src="{{ url_for('static', filename='pdf.png')}}" style="width:50%" alt="" align="center"></a></td>
+            {%else%}
+            <td>{{linha[2]}}</td><td>{{linha[1]}}</td> <td>{{linha[3]}}</td><td><a href="{{url_for('enviar_arquivo',filename=linha[4])}}"><img src="{{ url_for('static', filename='docx.png')}}" style="width:50%" alt="" align="center"></a></td>
+            {% endif %}
+            
         </tr>
       {% endfor %}
       
