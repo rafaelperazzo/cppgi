@@ -1,6 +1,8 @@
+.idea/*
 cron.avaliacao.sh
 *.log
 *.gz
+*.sh
 *.tar.gz
 *.zip
 *.pass
