@@ -1,3 +1,4 @@
+	2023-11-29 10:29:01 -0300	chore: Scripts de cicd, atualizar_db e commit funcionando
 	2023-11-07 13:46:09 -0300	incluido icone de docx na rota anais
 	2023-10-23 13:51:50 -0300	solicitação de versão final corrigida!
 	2023-10-19 15:15:27 -0300	adicionados demais certificados

@@ -431,7 +431,7 @@ def cadastrarProjeto():
         token = id_generator()
         nomeDoArquivoSuplementar2 = "SUPLEMENTAR2" + "." + token + ".pdf"
         filename = anexos.save(request.files['arquivo_suplementar2'],name=nomeDoArquivoSuplementar2)
-
+    anais = int(str(request.form['anais']))
     #VERIFICANDO SE O TRABALHO JÁ FOI ENVIADO
     consulta = """
     SELECT tipo,nome,titulo FROM editalProjeto WHERE tipo=""" + str(destino) + """ 
@@ -441,10 +441,10 @@ def cadastrarProjeto():
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
 
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
-    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2)
+    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais)
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
