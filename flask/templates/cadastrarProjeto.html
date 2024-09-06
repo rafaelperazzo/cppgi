@@ -198,6 +198,18 @@
           <b>Documento Suplementar 2 (pdf)</b>: 
           <input class="form-control" name="arquivo_suplementar2"  onchange="ValidateSingleInput(this);" type="file"><br>
         </div>
+      </div>
+      <div class="alert alert-dark" role="alert">
+        <h2>PUBLICAÇÃO NOS ANAIS</h2>
+      </div>
+      <div>
+        <label><b>Você autoriza a publicação do seu trabalho nos anais do evento ?</b>
+          <select class="form-select" name="anais" required="required">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            <option value="1">Sim</option>
+            <option value="0">Não</option>
+          </select>
+        </label>
       </div>      
       {%if PRODUCAO==1%} 
         <center><div class="g-recaptcha" data-sitekey="6Lfe8NgbAAAAAPYO9OZF4i34EpSKvNGQihaxr0Am"></div></center>
