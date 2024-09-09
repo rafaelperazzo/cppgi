@@ -242,6 +242,17 @@ def getEditaisAbertos():
     conn.close()
     return(linhas)
 
+def getSubAreasCNPQ():
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn.select_db('cppgi')
+    cursor  = conn.cursor()
+    consulta = """SELECT id,descricao FROM subcnpq ORDER BY descricao"""
+    cursor.execute(consulta)
+    linhas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return(linhas)
+
 '''
 INÍCIO AUTENTICAÇÃO
 **************************************************************
@@ -351,7 +362,8 @@ def home():
 @app.route("/submissao")
 def submissao():
     editaisAbertos = getEditaisAbertos()
-    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO))
+    subareas_cnpq = getSubAreasCNPQ()
+    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO,subareas_cnpq=subareas_cnpq))
 
 @app.route("/declaracao", methods=['GET', 'POST'])
 def declaracao():
@@ -413,7 +425,18 @@ def cadastrarProjeto():
     palavras = removerAspas(palavras)
     resumo = str(request.form['resumo'])
     resumo = removerAspas(resumo)
-
+    vinculo = int(request.form['vinculo'])
+    tipo_vinculo = int(request.form['tipo_vinculo'])
+    fomento = "-1"
+    if 'fomento' in request.form:
+        fomento = int(request.form['fomento']) 
+    
+    matriculas = ""
+    if 'matriculas' in request.form:
+        matriculas = str(request.form['matriculas'])
+    area_cnpq = str(request.form['area_cnpq'])
+    subarea_cnpq = str(request.form['subarea_cnpq'])
+    anais_permissao = int(request.form['anais'])
     nomeDoArquivoTrabalho = ""
     if 'arquivo_trabalho' in request.files:
         token = id_generator()
@@ -421,17 +444,9 @@ def cadastrarProjeto():
         filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
 
     nomeDoArquivoSuplementar1 = ""
-    if 'arquivo_suplementar1' in request.files:
-        token = id_generator()
-        nomeDoArquivoSuplementar1 = "SUPLEMENTAR1" + "." + token + ".pdf"
-        filename = anexos.save(request.files['arquivo_suplementar1'],name=nomeDoArquivoSuplementar1)
-
+    
     nomeDoArquivoSuplementar2 = ""
-    if 'arquivo_suplementar2' in request.files:
-        token = id_generator()
-        nomeDoArquivoSuplementar2 = "SUPLEMENTAR2" + "." + token + ".pdf"
-        filename = anexos.save(request.files['arquivo_suplementar2'],name=nomeDoArquivoSuplementar2)
-    anais = int(str(request.form['anais']))
+    
     #VERIFICANDO SE O TRABALHO JÁ FOI ENVIADO
     consulta = """
     SELECT tipo,nome,titulo FROM editalProjeto WHERE tipo=""" + str(destino) + """ 
@@ -439,12 +454,11 @@ def cadastrarProjeto():
     linhas,total = executarSelect(consulta)
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
-
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
-    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais)
+    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas)
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO

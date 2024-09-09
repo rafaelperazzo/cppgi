@@ -63,10 +63,85 @@
 
       <h1 style="text-align: center;"> SUBMISSÃO DE TRABALHO CIENTÍFICO</h1><br>
       <center><h2>Plataforma Yoko</h2></center>
-      <hr>
+      <hr> 
+      
       <div class="alert alert-dark" role="alert">
-        <h2>INFORMAÇÕES INICIAIS</h2>
+        <h2>DADOS PESSOAIS</h2>
       </div>
+      <br>
+      <div class="row g-3">
+        <div class="col">
+          <label>
+            <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
+            <input name="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
+          </label>
+        </div>
+          
+        <div class="col">
+          <label>
+            <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
+            <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
+          </label>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col">
+          <label>
+            <b>E-Mail do autor principal</b>: 
+            <input name="email" required="required" type="email"><br>
+          </label>
+          <br>
+          <br>
+        </div>
+        <div class="col">
+          <label>
+            <b>Número de Matriculas dos demais autores (separados por vírgulas)</b>: 
+            <input name="matriculas" required="required" type="text"><br>
+          </label>
+          <br>
+          <br>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col">
+          <label><b>Vínculo</b>: 
+            <select class="form-select" name="vinculo" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="0">Graduação</option>
+              <option value="1">Pós-Graduação</option>
+              <option value="2">Ensino Médio</option>
+            </select>
+          </label>
+        </div>
+        <div class="col">
+          <label><b>Tipo de Vínculo</b>: 
+            <select class="form-select" name="tipo_vinculo" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="0">Não se aplica</option>
+              <option value="1">Bolsista</option>
+              <option value="2">Voluntário</option>
+            </select>
+          </label>
+        </div>
+        <div class="col">
+          <label><b>Agência de fomento</b>: 
+            <select class="form-select" name="fomento" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="-1">N/A</option>
+              <option value="0">UFCA</option>
+              <option value="1">CNPq</option>
+              <option value="2">FUNCAP</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="alert alert-dark" role="alert">
+        <h2>DADOS DO TRABALHO</h2>
+      </div>
+      <p id="texto_projeto"></p>
       <div class="row g-3">
         <div class="col">
             <label><b>Destino da Submissão</b>:
@@ -98,60 +173,47 @@
               </select>
             </label>
         </div>
+        <div class="col">
+          <label>
+            <b>Grande Área</b>:
+            <select class="form-select" name="grande_area" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="Ciências da Vida">Ciências da Vida</option>
+              <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
+              <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
+            </select>
+          </label>
+        </div>
       </div>
-      
-      
-      
-      <div class="alert alert-dark" role="alert">
-        <h2>DADOS PESSOAIS</h2>
-      </div>
-      <br>
       <div class="row g-3">
         <div class="col">
           <label>
-            <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
-            <input name="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
+            <b>Área CNPq</b>:
+            <select class="form-select" name="area_cnpq" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value=CIÊNCIAS EXATAS E DA TERRA">CIÊNCIAS EXATAS E DA TERRA</option>
+              <option value="ENGENHARIAS">ENGENHARIAS</option>
+              <option value="CIÊNCIAS DA SAÚDE">CIÊNCIAS DA SAÚDE</option>
+              <option value="CIÊNCIAS AGRÁRIAS">CIÊNCIAS AGRÁRIAS</option>
+              <option value="CIÊNCIAS SOCIAIS APLICADAS">CIÊNCIAS SOCIAIS APLICADAS</option>
+              <option value="CIÊNCIAS HUMANAS">CIÊNCIAS HUMANAS</option>
+              <option value="LINGÜÍSTICA, LETRAS E ARTES">LINGÜÍSTICA, LETRAS E ARTES</option>
+              <option value="MULTIDISCIPLINAR">MULTIDISCIPLINAR</option>
+            </select>
           </label>
         </div>
-          
         <div class="col">
           <label>
-            <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
-            <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
+            <b>Sub-Área CNPq</b>:
+            <select class="form-select" name="subarea_cnpq" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              {% for linha in subareas_cnpq %}
+                <option value="{{linha[1]}}">{{linha[1]}}</option>
+              {% endfor %}
+            </select>
           </label>
         </div>
       </div>
-
-      <div class="row g-3">
-        <div class="col">
-          <label>
-            <b>E-Mail do autor principal</b>: 
-            <input name="email" required="required" type="email"><br>
-          </label>
-          <br>
-          <br>
-        </div>
-        
-        <div class="col">
-            <label>
-              <b>Grande Área</b>:
-              <select class="form-select" name="grande_area" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                <option value="Ciências da Vida">Ciências da Vida</option>
-                <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
-                <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
-              </select>
-            </label>
-        </div>
-
-      </div>
-      
-     
-
-      <div class="alert alert-dark" role="alert">
-        <h2>DADOS DO TRABALHO</h2>
-      </div>
-      <p id="texto_projeto"></p>
         <div class="row g-3">
           <label>
             <b>Título</b>:
@@ -172,7 +234,7 @@
             <textarea style="height: 100px" class="form-control" name="resumo"  required="required" maxlength="15000"></textarea>
           </label>
         </div>
-
+        
         <div class="alert alert-dark" role="alert">
           <h2>ARQUIVOS</h2>
         </div>
@@ -183,22 +245,11 @@
       <div class="row g-3">
         <div class="col">
           <b>Arquivo do trabalho</b> <b>(pdf)</b>: 
-          <input class="form-control" name="arquivo_trabalho" required="required" onchange="ValidateSingleInput(this);"
+          <input class="form-control" name="arquivo_trabalho" required="required" onchange="ValidateSingleInputPDF(this);"
           type="file">
         </div>
       </div>
-      <h2> Arquivos suplementares (opcional)</h2>
-      <div class="row g-3">
-        <div class="col">
-          <b>Documento Suplementar 1 (pdf)</b>: 
-          <input class="form-control" name="arquivo_suplementar1" onchange="ValidateSingleInput(this);"
-            type="file">
-        </div>
-        <div class="col">
-          <b>Documento Suplementar 2 (pdf)</b>: 
-          <input class="form-control" name="arquivo_suplementar2"  onchange="ValidateSingleInput(this);" type="file"><br>
-        </div>
-      </div>
+      
       <div class="alert alert-dark" role="alert">
         <h2>PUBLICAÇÃO NOS ANAIS</h2>
       </div>
