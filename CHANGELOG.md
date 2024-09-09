@@ -1,3 +1,4 @@
+	2024-09-09 12:57:30 -0300	fix: Incluídos vinculo, tipo de vínculo e agencia de fomento no cadastrarProjeto
 	2024-09-09 12:46:41 -0300	fix: Corrigido Layout da submissão de trabalhos, trechos que não dependem de ajustes no pesquisa.py
 	2024-09-09 12:34:56 -0300	fix: submissão apenas em pdf
 	2024-09-06 11:03:55 -0300	fix: Adicionada permissão de anais no formulário de cadastro

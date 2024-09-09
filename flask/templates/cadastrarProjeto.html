@@ -63,10 +63,7 @@
 
       <h1 style="text-align: center;"> SUBMISSÃO DE TRABALHO CIENTÍFICO</h1><br>
       <center><h2>Plataforma Yoko</h2></center>
-      <hr>
-      <div class="alert alert-dark" role="alert">
-        <h2>INFORMAÇÕES INICIAIS</h2>
-      </div>   
+      <hr> 
       
       <div class="alert alert-dark" role="alert">
         <h2>DADOS PESSOAIS</h2>
@@ -93,6 +90,14 @@
           <label>
             <b>E-Mail do autor principal</b>: 
             <input name="email" required="required" type="email"><br>
+          </label>
+          <br>
+          <br>
+        </div>
+        <div class="col">
+          <label>
+            <b>Número de Matriculas dos demais autores (separados por vírgulas)</b>: 
+            <input name="matriculas" required="required" type="text"><br>
           </label>
           <br>
           <br>
@@ -124,7 +129,7 @@
           <label><b>Agência de fomento</b>: 
             <select class="form-select" name="fomento" required="required">
               <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-              <option value="-1">NÃO SE APLICA</option>
+              <option value="-1">N/A</option>
               <option value="0">UFCA</option>
               <option value="1">CNPq</option>
               <option value="2">FUNCAP</option>
@@ -178,7 +183,36 @@
               <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
             </select>
           </label>
+        </div>
       </div>
+      <div class="row g-3">
+        <div class="col">
+          <label>
+            <b>Área CNPq</b>:
+            <select class="form-select" name="area_cnpq" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value=CIÊNCIAS EXATAS E DA TERRA">CIÊNCIAS EXATAS E DA TERRA</option>
+              <option value="ENGENHARIAS">ENGENHARIAS</option>
+              <option value="CIÊNCIAS DA SAÚDE">CIÊNCIAS DA SAÚDE</option>
+              <option value="CIÊNCIAS AGRÁRIAS">CIÊNCIAS AGRÁRIAS</option>
+              <option value="CIÊNCIAS SOCIAIS APLICADAS">CIÊNCIAS SOCIAIS APLICADAS</option>
+              <option value="CIÊNCIAS HUMANAS">CIÊNCIAS HUMANAS</option>
+              <option value="LINGÜÍSTICA, LETRAS E ARTES">LINGÜÍSTICA, LETRAS E ARTES</option>
+              <option value="MULTIDISCIPLINAR">MULTIDISCIPLINAR</option>
+            </select>
+          </label>
+        </div>
+        <div class="col">
+          <label>
+            <b>Sub-Área CNPq</b>:
+            <select class="form-select" name="subarea_cnpq" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              {% for linha in subareas_cnpq %}
+                <option value="{{linha[1]}}">{{linha[1]}}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
       </div>
         <div class="row g-3">
           <label>
