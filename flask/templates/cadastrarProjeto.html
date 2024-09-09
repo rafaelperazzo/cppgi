@@ -97,7 +97,40 @@
           <br>
           <br>
         </div>
-        
+      </div>
+
+      <div class="row g-3">
+        <div class="col">
+          <label><b>Vínculo</b>: 
+            <select class="form-select" name="vinculo" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="0">Graduação</option>
+              <option value="1">Pós-Graduação</option>
+              <option value="2">Ensino Médio</option>
+            </select>
+          </label>
+        </div>
+        <div class="col">
+          <label><b>Tipo de Vínculo</b>: 
+            <select class="form-select" name="tipo_vinculo" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="0">Não se aplica</option>
+              <option value="1">Bolsista</option>
+              <option value="2">Voluntário</option>
+            </select>
+          </label>
+        </div>
+        <div class="col">
+          <label><b>Agência de fomento</b>: 
+            <select class="form-select" name="fomento" required="required">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="-1">NÃO SE APLICA</option>
+              <option value="0">UFCA</option>
+              <option value="1">CNPq</option>
+              <option value="2">FUNCAP</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="alert alert-dark" role="alert">

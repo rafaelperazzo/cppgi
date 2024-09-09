@@ -413,7 +413,9 @@ def cadastrarProjeto():
     palavras = removerAspas(palavras)
     resumo = str(request.form['resumo'])
     resumo = removerAspas(resumo)
-
+    #TODO: Recuperar vinculo, tipo de vinculo e agência de fomento. 
+    #TODO: Adicionar campos no BD para armazenar essas informações
+    #TODO: Adicionar campo de Matrículas dos demais autores. 
     nomeDoArquivoTrabalho = ""
     if 'arquivo_trabalho' in request.files:
         token = id_generator()
