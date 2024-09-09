@@ -1,3 +1,5 @@
+	2024-09-09 12:34:56 -0300	fix: submissão apenas em pdf
+	2024-09-06 11:03:55 -0300	fix: Adicionada permissão de anais no formulário de cadastro
 	2023-11-29 10:29:01 -0300	chore: Scripts de cicd, atualizar_db e commit funcionando
 	2023-11-07 13:46:09 -0300	incluido icone de docx na rota anais
 	2023-10-23 13:51:50 -0300	solicitação de versão final corrigida!
