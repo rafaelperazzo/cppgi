@@ -1,6 +1,5 @@
 from flask_restful import Resource
 from pesquisa import executarSelect
-
 class Submissoes(Resource):
     def consultar(self,consulta,id_edital,modalidade,area):
         consulta = """
