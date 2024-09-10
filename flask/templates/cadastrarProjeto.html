@@ -41,6 +41,32 @@
             return false;		
         return true;   
     }
+
+    function seGraduacao() {
+      if (document.getElementById('vinculo').value == 0) { //Se o vinculo for graduação
+        document.getElementById('tipo_vinculo').setAttribute('required', "");
+        document.getElementById('div_tipo_vinculo').style.visibility = "visible";
+      }
+      else {
+        document.getElementById('tipo_vinculo').removeAttribute('required');
+        document.getElementById('tipo_vinculo').value = 0;
+        document.getElementById('fomento').value = -1;
+        document.getElementById('div_tipo_vinculo').style.visibility = "hidden";
+        document.getElementById('div_fomento').style.visibility = "hidden";
+      }
+    }
+
+    function seBolsista() {
+      if (document.getElementById('tipo_vinculo').value == 1) { //Se o vinculo for bolsista
+        document.getElementById('fomento').setAttribute('required', "");
+        document.getElementById('div_fomento').style.visibility = "visible";
+      }
+      else {
+        document.getElementById('fomento').removeAttribute('required');
+        document.getElementById('fomento').value = -1;
+        document.getElementById('div_fomento').style.visibility = "hidden";
+      }
+    }
     </script>
     <script>
         $(document).ready(function(){
@@ -107,7 +133,7 @@
       <div class="row g-3">
         <div class="col">
           <label><b>Vínculo</b>: 
-            <select class="form-select" name="vinculo" required="required">
+            <select class="form-select" name="vinculo" id="vinculo" required="required" onchange="seGraduacao()">
               <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
               <option value="0">Graduação</option>
               <option value="1">Pós-Graduação</option>
@@ -115,9 +141,9 @@
             </select>
           </label>
         </div>
-        <div class="col">
+        <div class="col" id="div_tipo_vinculo">
           <label><b>Tipo de Vínculo</b>: 
-            <select class="form-select" name="tipo_vinculo" required="required">
+            <select class="form-select" name="tipo_vinculo" id="tipo_vinculo" disabled="disabled" required="required" onchange="seBolsista()">
               <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
               <option value="0">Não se aplica</option>
               <option value="1">Bolsista</option>
@@ -125,9 +151,9 @@
             </select>
           </label>
         </div>
-        <div class="col">
+        <div class="col" id="div_fomento">
           <label><b>Agência de fomento</b>: 
-            <select class="form-select" name="fomento" required="required">
+            <select class="form-select" name="fomento" id="fomento" disabled="disabled" required="required">
               <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
               <option value="-1">N/A</option>
               <option value="0">UFCA</option>
@@ -269,7 +295,7 @@
         <label>
         <input class="btn btn-secondary btn-lg" 
         name="btnEnviar" id="btnEnviar" value="Enviar"
-        formenctype="multipart/form-data" type="button">
+        formenctype="multipart/form-data" type="submit">
       </label><br>
       </div>
       <hr>
