@@ -49,7 +49,7 @@
       }
       else {
         document.getElementById('tipo_vinculo').removeAttribute('required');
-        document.getElementById('tipo_vinculo').value = 0;
+        document.getElementById('tipo_vinculo').value = -1;
         document.getElementById('fomento').value = -1;
         document.getElementById('div_tipo_vinculo').style.visibility = "hidden";
         document.getElementById('div_fomento').style.visibility = "hidden";
@@ -69,7 +69,6 @@
     }
     </script>
     <script>
-        //TODO: CORRIGIR ONSUBMIT
         $(document).ready(function(){
             $('#btnEnviar').on('click',function(event){
                 var username = $('#identificacao').val(); 
@@ -149,8 +148,8 @@
             <select class="form-select" name="tipo_vinculo" id="tipo_vinculo" required="required" onchange="seBolsista()">
               <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
               <option value="1">Bolsista</option>
-              <option value="2">Voluntário</option>
-              <option value="0">Não se aplica</option>
+              <option value="0">Voluntário</option>
+              <option value="-1">Não se aplica</option>
             </select>
           </label>
         </div>

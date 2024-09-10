@@ -1,3 +1,4 @@
+	2024-09-10 15:27:38 -0300	fix: visibilidade dos tipo de vinculo e fomento
 	2024-09-10 14:47:42 -0300	fix: ajustado disabled do tipo de vinculo
 	2024-09-10 14:46:02 -0300	fix: tipo_vinculo padrão em /cadastrarProjeto
 	2024-09-10 14:42:26 -0300	fix: função submit do form cadastrarProjeto
