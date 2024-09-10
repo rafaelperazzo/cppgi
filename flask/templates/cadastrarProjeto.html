@@ -69,14 +69,17 @@
     }
     </script>
     <script>
+        //TODO: CORRIGIR ONSUBMIT
         $(document).ready(function(){
             $('#btnEnviar').on('click',function(event){
                 var username = $('#identificacao').val(); 
                 if (validarCPF(username)) {
-                    $('#frmCadastroProjeto').submit();
+                    //$('#frmCadastroProjeto').submit();
+                    return (true);
                 }
                 else {
-                    alert('CPF inválido!');
+                    //alert('CPF inválido!');
+                    return (false);
                 }
             });
         });
