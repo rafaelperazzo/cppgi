@@ -1,3 +1,6 @@
+	2024-09-10 12:56:19 -0300	fix: form CadastrarProjeto
+	2024-09-10 12:53:16 -0300	fix: form CadastrarProjeto
+	2024-09-09 16:01:07 -0300	fix: Inseridos novos campos no cadastrarProjeto
 	2024-09-09 12:57:30 -0300	fix: Incluídos vinculo, tipo de vínculo e agencia de fomento no cadastrarProjeto
 	2024-09-09 12:46:41 -0300	fix: Corrigido Layout da submissão de trabalhos, trechos que não dependem de ajustes no pesquisa.py
 	2024-09-09 12:34:56 -0300	fix: submissão apenas em pdf
