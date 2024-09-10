@@ -1,3 +1,4 @@
+	2024-09-10 14:46:02 -0300	fix: tipo_vinculo padrão em /cadastrarProjeto
 	2024-09-10 14:42:26 -0300	fix: função submit do form cadastrarProjeto
 	2024-09-10 12:56:19 -0300	fix: form CadastrarProjeto
 	2024-09-10 12:53:16 -0300	fix: form CadastrarProjeto
