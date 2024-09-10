@@ -426,7 +426,9 @@ def cadastrarProjeto():
     resumo = str(request.form['resumo'])
     resumo = removerAspas(resumo)
     vinculo = int(request.form['vinculo'])
-    tipo_vinculo = int(request.form['tipo_vinculo'])
+    tipo_vinculo = 0
+    if 'tipo_vinculo' in request.form:
+        tipo_vinculo = int(request.form['tipo_vinculo'])
     fomento = "-1"
     if 'fomento' in request.form:
         fomento = int(request.form['fomento']) 
