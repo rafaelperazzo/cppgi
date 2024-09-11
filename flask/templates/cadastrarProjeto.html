@@ -85,12 +85,37 @@
     </script>
     <script>
         function baixarDados(cpf) {
-          //response.data[0]['nome']
           axios.get('https://sci01-ter-jne.ufca.edu.br/pesquisa/indicacao/' + cpf)
             .then(function (response) {
-              console.log(response);
-              console.log(response.data[0]['nome']);
-              document.getElementById('autores').value = response.data[0]['nome'];
+              let total = response.data.length;
+              if (response.data.length==0) {
+                return;
+              }
+              if (response.data.length > 1) { //Pegar o penultimo
+                total = 1;
+              }
+              else {
+                  if (response.data.length==1) {
+                    //Pegar o único
+                    total = 0;
+                  }
+              }
+              document.getElementById('autores').value = response.data[total]['nome'];
+              document.getElementById('email').value = response.data[total]['email'];
+              document.getElementById('tipo_vinculo').value = response.data[total]['tipo_vinculo'];
+              if (document.getElementById('tipo_vinculo').value == 1) {
+                document.getElementById('fomento').value = response.data[total]['fomento'];  
+              }
+              else {
+                document.getElementById('fomento').value = -1;
+              }
+              let select = document.getElementById('projeto');
+              for (let i=0; i<response.data.length; i++) {
+                  let option = document.createElement('option');
+                  option.text = response.data[i]['dados'];
+                  option.value = response.data[i]['idProjeto'];
+                  select.add(option);
+              }
             })
             .catch(function (error) {
               console.log(error);
@@ -112,13 +137,7 @@
       </div>
       <br>
       <div class="row g-3">
-        <div class="col">
-          <label>
-            <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
-            <input name="autores" id="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
-          </label>
-        </div>
-          
+        
         <div class="col">
           <label>
             <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
@@ -127,13 +146,21 @@
             <br>
           </label>
         </div>
+        
+        <div class="col">
+          <label>
+            <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
+            <input name="autores" id="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
+          </label>
+        </div>
+          
       </div>
 
       <div class="row g-3">
         <div class="col">
           <label>
             <b>E-Mail do autor principal</b>: 
-            <input name="email" required="required" type="email"><br>
+            <input name="email" id="email" required="required" type="email"><br>
           </label>
           <br>
           <br>
@@ -258,12 +285,23 @@
           </label>
         </div>
       </div>
-        <div class="row g-3">
+      
+      <div class="row g-3">
           <label>
-            <b>Título</b>:
-            <textarea style="height: 100px" class="form-control" name="titulo"  required="required" maxlength="200"></textarea>
+              <b>Projeto de pesquisa associado (marcar NÃO SE APLICA caso o projeto não esteja listado)</b>:
+              <select class="form-select" name="projeto" id="projeto">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                <option value="0">Não se aplica</option>
+              </select>
           </label>
-        </div>
+      </div>
+
+      <div class="row g-3">
+        <label>
+          <b>Título</b>:
+          <textarea style="height: 100px" class="form-control" name="titulo"  required="required" maxlength="200"></textarea>
+        </label>
+      </div>
 
         <div class="row g-3">
           <label>
