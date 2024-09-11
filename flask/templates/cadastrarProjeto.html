@@ -85,6 +85,7 @@
     </script>
     <script>
         function baixarDados(cpf) {
+          cpf = cpf.replace(/[^\d]+/g,'');
           axios.get('https://sci01-ter-jne.ufca.edu.br/pesquisa/indicacao/' + cpf)
             .then(function (response) {
               let total = response.data.length;
