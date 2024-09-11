@@ -80,6 +80,7 @@ def test_0_cadastrar_projeto():
         "fomento": "1",
         "matriculas": "111111,222222,333333",
         "anais": "1",
+        "projeto": "0",
     },follow_redirects=True)
     assert response.status_code == 200
     consulta = """

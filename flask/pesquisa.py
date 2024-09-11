@@ -436,6 +436,11 @@ def cadastrarProjeto():
     matriculas = ""
     if 'matriculas' in request.form:
         matriculas = str(request.form['matriculas'])
+    
+    projeto_associado = 0
+    if 'projeto' in request.form:
+        projeto_associado = int(request.form['projeto'])
+    
     area_cnpq = str(request.form['area_cnpq'])
     subarea_cnpq = str(request.form['subarea_cnpq'])
     anais_permissao = int(request.form['anais'])
@@ -457,10 +462,10 @@ def cadastrarProjeto():
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
-    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas)
+    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado)
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
