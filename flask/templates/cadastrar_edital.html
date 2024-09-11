@@ -16,6 +16,7 @@
     <center><p><b><h1>CADASTRAR EDITAL</b></h1></p></center>
         
     <form action="{{url_for('cadastrar_edital')}}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="alert alert-dark" role="alert">
             <H3>DESCRIÇÃO DO EDITAL</H3>
         </div>

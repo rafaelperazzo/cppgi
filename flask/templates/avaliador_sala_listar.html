@@ -73,6 +73,7 @@
                 {% for linha in linhas %}
                     <tr>
                         <form action="{{url_for('salvar_avaliador_sala')}}" id="form_{{linha[0]}}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="id_avaliador_sala" id="id_avaliador_sala" value="{{linha[0]}}">
                             <td>{{linha[0]}}</td>
                             <td>

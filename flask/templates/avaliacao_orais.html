@@ -96,6 +96,7 @@ textarea {
 
 
     <form name="frmAvaliacao" action="/cppgi/confirmar" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <hr>
       <h3>Arquivos do projeto</h3>
       <a href="{{url_for('enviar_arquivo',filename=arquivo)}}">TEXTO DO TRABALHO</a><br><br>

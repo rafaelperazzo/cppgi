@@ -99,6 +99,7 @@
       <p id="mensagem" style="text-align:center"></p>
     </div>
     <form id="frmEnviar" name="frmEnviar" action="{{url_for('inserirAvaliador')}}" method="POST" onsubmit="//return (verificar_dados());">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="container text-center">
         <div class="row align-items-center justify-content-start">
           <div class="col">
