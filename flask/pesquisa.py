@@ -66,10 +66,9 @@ FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
 app = Flask(__name__)
-
+csrf = CSRFProtect(app)
 api = Api(app)
 CORS(app)
-csrf = CSRFProtect(app)
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
