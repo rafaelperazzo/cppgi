@@ -1,3 +1,4 @@
+	2024-09-11 11:05:45 -0300	fix: removendo . e - do cpf
 	2024-09-11 10:57:41 -0300	chore: incluída lista de projetos associados
 	2024-09-11 09:52:46 -0300	chore: acesso a api pesquisa
 	2024-09-10 15:52:01 -0300	fix: codigo de voluntario mudou para 0

@@ -30,6 +30,7 @@ import pyqrcode
 from flask_restful import Api
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from flask_wtf.csrf import CSRFProtect
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -68,6 +69,7 @@ app = Flask(__name__)
 
 api = Api(app)
 CORS(app)
+csrf = CSRFProtect(app)
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
@@ -404,9 +406,9 @@ def declaracaoOrientador():
 
 
 
-@app.route("/cadastrarProjeto", methods=['GET', 'POST'])
+@app.route("/cadastrarProjeto", methods=['POST'])
 def cadastrarProjeto():
-
+    csrf.protect()
     #CADASTRAR DADOS DO PROPONENTE
     destino = int(request.form['destino'])
     tipo = int(request.form['tipo_apresentacao'])
