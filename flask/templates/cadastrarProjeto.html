@@ -83,6 +83,20 @@
             });
         });
     </script>
+    <script>
+        function baixarDados(cpf) {
+          //response.data[0]['nome']
+          axios.get('https://sci01-ter-jne.ufca.edu.br/pesquisa/indicacao/' + cpf)
+            .then(function (response) {
+              console.log(response);
+              console.log(response.data[0]['nome']);
+              document.getElementById('autores').value = response.data[0]['nome'];
+            })
+            .catch(function (error) {
+              console.log(error);
+            });
+        }
+    </script>
   {%endblock%}
   {% block content %}
   <br>
@@ -101,14 +115,16 @@
         <div class="col">
           <label>
             <b>Lista de autores(as) (escreva o nome completo de cada um(a), separado por vírgulas)</b>: 
-            <input name="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
+            <input name="autores" id="autores" required="required" type="text" placeholder="Ex: José Maria, João dos Santos e Maria Helena"><br>
           </label>
         </div>
           
         <div class="col">
           <label>
             <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
-            <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"><br>
+            <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"
+            onblur="baixarDados(this.value)"><br>
+            <br>
           </label>
         </div>
       </div>
