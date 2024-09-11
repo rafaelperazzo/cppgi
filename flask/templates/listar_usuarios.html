@@ -71,6 +71,7 @@
                 {% for linha in usuarios %}
                     <tr>
                         <form action="{{url_for('cadastrar_usuario',operacao=1)}}" id="form_{{linha[0]}}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="id_usuario" id="id_usuario" value="{{linha[0]}}">
                             <td>{{linha[0]}}</td>
                             <td>

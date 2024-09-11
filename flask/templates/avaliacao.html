@@ -112,6 +112,7 @@ textarea {
 
 
     <form name="frmAvaliacao" action="/cppgi/avaliar" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <hr>
       <h2>TEXTO COMPLETO DO TRABALHO</h2>
       {{ arquivos }} <br>

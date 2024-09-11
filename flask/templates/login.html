@@ -87,7 +87,7 @@ function humano() {
 
 
 <form action="{{url_for('login')}}" METHOD="POST" onsubmit="return humano()">
-
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <div class="container-sm">
     <div class="alert alert-success" role="alert">
       <center><h2>Autenticação</h2></center>

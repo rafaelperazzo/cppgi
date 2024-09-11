@@ -4,7 +4,7 @@
   {% block content %}
   <br>
     <form name="frmCadastroVersaoFinal" action="/cppgi/cadastrarLinkApresentacao" method="POST">
-
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <h1 style="text-align: center;"> ENVIO DO LINK DA APRESENTAÇÃO</h1><br>
       <center><h2>Plataforma Yoko</h2></center>
       <center><i><font size="2">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail atendimento.prpi@ufca.edu.br para correção(ões).</font></i></center><br>

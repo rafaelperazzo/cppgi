@@ -83,13 +83,33 @@
             });
         });
     </script>
+
+    <script>
+        function validateEmail(email) {
+            var re = /\S+@\S+\.\S+/;
+            return re.test(email);
+        }
+    </script>
+
     <script>
         function baixarDados(cpf) {
+          if (validarCPF(cpf) == false) {
+            alert('CPF inválido!');
+            document.getElementById('identificacao').focus();
+            return;
+          }
           cpf = cpf.replace(/[^\d]+/g,'');
           axios.get('https://sci01-ter-jne.ufca.edu.br/pesquisa/indicacao/' + cpf)
             .then(function (response) {
+              
               let total = response.data.length;
               if (response.data.length==0) {
+                document.getElementById('autores').value = '';
+                document.getElementById('email').value = '';
+                let select = document.getElementById('projeto');
+                for (let i=1; i<select.length; i++) {
+                  select.remove(i);
+                }
                 return;
               }
               if (response.data.length > 1) { //Pegar o penultimo
@@ -111,6 +131,9 @@
                 document.getElementById('fomento').value = -1;
               }
               let select = document.getElementById('projeto');
+              for (let i=1; i<select.length; i++) {
+                select.remove(i);
+              }
               for (let i=0; i<response.data.length; i++) {
                   let option = document.createElement('option');
                   option.text = response.data[i]['dados'];
@@ -128,11 +151,11 @@
   <br>
     <form name="frmCadastroProjeto" id="frmCadastroProjeto" action="/cppgi/cadastrarProjeto" method="POST"
       enctype="multipart/form-data">
-
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <h1 style="text-align: center;"> SUBMISSÃO DE TRABALHO CIENTÍFICO</h1><br>
       <center><h2>Plataforma Yoko</h2></center>
       <hr> 
-      
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="alert alert-dark" role="alert">
         <h2>DADOS PESSOAIS</h2>
       </div>
@@ -143,7 +166,7 @@
           <label>
             <b>CPF do autor principal (apenas os números, sem pontos ou espaços)</b>: 
             <input name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"
-            onblur="baixarDados(this.value)"><br>
+            onblur="baixarDados(this.value);"><br>
             <br>
           </label>
         </div>
@@ -168,7 +191,7 @@
         </div>
         <div class="col">
           <label>
-            <b>Número de Matriculas dos demais autores (separados por vírgulas)</b>: 
+            <b>Números de Matriculas dos demais autores (separados por vírgulas)</b>: 
             <input name="matriculas" required="required" type="text"><br>
           </label>
           <br>
@@ -291,8 +314,7 @@
           <label>
               <b>Projeto de pesquisa associado (marcar NÃO SE APLICA caso o projeto não esteja listado)</b>:
               <select class="form-select" name="projeto" id="projeto">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                <option value="0">Não se aplica</option>
+                <option value="0" selected="selected" required="required">Não se aplica</option>
               </select>
           </label>
       </div>
@@ -354,6 +376,8 @@
         name="btnEnviar" id="btnEnviar" value="Enviar"
         formenctype="multipart/form-data" type="submit">
       </label><br>
+      <br>
+      <input class="btn btn-secondary btn-lg" type="reset" value="Limpar formulário">
       </div>
       <hr>
 </form>

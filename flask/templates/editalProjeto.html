@@ -211,6 +211,7 @@ $(document).ready(function(){
                 {% for linha in novos %}
                   <tr id="editalProjeto_{{linha[0]}}">
                     <form action="{{url_for('salvar_projeto')}}" method="POST" id="form_{{linha[0]}}_editalProjeto">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                       <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
                       {%if linha[9] is not none%}
                         <td>

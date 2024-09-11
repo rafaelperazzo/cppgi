@@ -16,7 +16,7 @@
     <center><p><b><h1>CADASTRAR SESSÃO</b></h1></p></center>
         
     <form name="form_cadastrar_salas" id="form_cadastrar_salas" action="{{url_for('cadastrar_salas',edital=edital)}}" method="POST">
-        
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="alert alert-dark" role="alert">
             <H3>DATA/SESSÃO</H3>
             <h4>Ex: Dia <b>14/04/2022</b>, das <b>14:00</b> as <b>17:00</b> com slots de <b>10</b> minutos, nas salas <b>K01,K06,I101</b></h4>

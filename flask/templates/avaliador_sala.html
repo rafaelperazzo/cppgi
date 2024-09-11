@@ -16,7 +16,7 @@
     <center><p><b><h1>ATRIBUIR AVALIADOR A UMA SALA</b></h1></p></center>
         
     <form name="form_avaliador_sala" id="form_avaliador_sala" action="{{url_for('avaliador_sala',edital=edital)}}" method="POST">
-        
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="alert alert-dark" role="alert">
             <H3>AVALIADOR/SALA</H3>
             <h4>{{edital}} - {{nome_longo}}</h4>
