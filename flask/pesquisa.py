@@ -2751,7 +2751,7 @@ def cadastrar_edital():
 def ver_imagem(qual):
     return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
 
-@app.route("/salvar_projeto", methods=['GET', 'POST'])
+@app.route("/salvar_projeto", methods=['POST'])
 @auth.login_required(role=['admin'])
 def salvar_projeto():
     nome = str(request.form['nome'])
