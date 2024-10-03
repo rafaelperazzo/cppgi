@@ -1,3 +1,4 @@
+	2024-09-13 09:51:30 -0300	fix: removido metodo get do salvar_projeto
 	2024-09-11 15:18:54 -0300	fix: incluídos csfr nos forms
 	2024-09-11 14:41:51 -0300	fix: local do csrf - logo apos o app
 	2024-09-11 14:40:55 -0300	fix: preencher dados automaticamente a partir do cpf informado

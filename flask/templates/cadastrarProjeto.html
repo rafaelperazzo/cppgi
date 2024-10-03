@@ -67,6 +67,24 @@
         document.getElementById('div_fomento').style.visibility = "hidden";
       }
     }
+
+    function seAcessibilidade() {
+      if (document.getElementById('acessibilidade').value == 1) { //Se necessita de acessibilidade
+        document.getElementById('descricao_acessibilidade').setAttribute('required', "");
+        document.getElementById('lingua').setAttribute('required', "");
+        document.getElementById('div_descricao_acessibilidade').style.visibility = "visible";
+        document.getElementById('div_lingua').style.visibility = "visible";
+      }
+      else {
+        document.getElementById('descricao_acessibilidade').removeAttribute('required');
+        document.getElementById('lingua').removeAttribute('required');
+        document.getElementById('div_descricao_acessibilidade').style.visibility = "hidden";
+        document.getElementById('div_lingua').style.visibility = "hidden";
+        document.getElementById('descricao_acessibilidade').value = '';
+        document.getElementById('lingua').value = 1;
+      }
+    }
+
     </script>
     <script>
         $(document).ready(function(){
@@ -366,7 +384,32 @@
             <option value="0">Não</option>
           </select>
         </label>
-      </div>      
+      </div>
+      <div class="alert alert-dark" role="alert">
+        <h2>ACESSIBILIDADE</h2>
+      </div>    
+      <div class="row g-3">
+        <label><b>Você possui alguma deficiência ou necessidade específica ?</b>
+          <select class="form-select" id="acessibilidade" name="acessibilidade" required="required" onchange="seAcessibilidade()">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            <option value="1">Sim</option>
+            <option value="0">Não</option>
+          </select>
+        </label>
+      </div>
+      <div class="row g-3" id="div_descricao_acessibilidade" style="visibility: hidden">
+        <label><b>Se sim, descreva a deficiência ou necessidade específica</b>:
+          <textarea style="height: 100px" class="form-control" id="descricao_acessibilidade" name="descricao_acessibilidade"></textarea>
+        </label>
+      </div>
+      <div class="row g-3" id="div_lingua" style="visibility: hidden">
+        <label><b>Em que lingua deseja apresentar o trabalho ?</b>
+          <select class="form-select" id="lingua" name="lingua">
+            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+            <option value="0">Português</option>
+            <option value="1">Libras - Língua Brasileira de Sinais</option>
+          </select>
+      </div>
       {%if PRODUCAO==1%} 
         <center><div class="g-recaptcha" data-sitekey="6Lfe8NgbAAAAAPYO9OZF4i34EpSKvNGQihaxr0Am"></div></center>
       {%endif%}

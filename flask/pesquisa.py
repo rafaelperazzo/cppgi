@@ -445,6 +445,19 @@ def cadastrarProjeto():
     area_cnpq = str(request.form['area_cnpq'])
     subarea_cnpq = str(request.form['subarea_cnpq'])
     anais_permissao = int(request.form['anais'])
+    
+    #Acessibilidade
+    acessibilidade = 0
+    if 'acessibilidade' in request.form:
+        acessibilidade = int(request.form['acessibilidade'])
+    
+    descricao_acessibilidade = ""
+    if 'descricao_acessibilidade' in request.form:
+        descricao_acessibilidade = str(request.form['descricao_acessibilidade'])
+    lingua = 0
+    if 'lingua' in request.form:
+        lingua = int(request.form['lingua'])
+    
     nomeDoArquivoTrabalho = ""
     if 'arquivo_trabalho' in request.files:
         token = id_generator()
@@ -463,10 +476,10 @@ def cadastrarProjeto():
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto,acessibilidade,descricao_acessibilidade,lingua)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
-    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado)
+    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado,acessibilidade,descricao_acessibilidade,lingua)
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
