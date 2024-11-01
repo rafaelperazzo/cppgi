@@ -42,7 +42,7 @@
             document.forms["frmAvaliacao"]["c8"].value = 0;
             document.forms["frmAvaliacao"]["c9"].value = 0;
             document.getElementById("total").innerHTML = "<h3>Pontuação total: 0</h3>";
-            document.getElementById("comentarios").value = "Trabalho identificado. Não recomendado por ."; 
+            document.getElementById("comentarios").value = "Trabalho identificado. Desclassificado."; 
         }
         else {
           document.getElementById("txtRecomendacao").value = 1;
@@ -154,7 +154,7 @@ textarea {
       <br>
       <div class="identificacao">
         <b>O trabalho está identificado?</b> <br>
-        <select id="identificado" name="identificado" required="required" onblur="recomendacao()" width="50%">
+        <select id="identificado" name="identificado" required="required" onblur="identificado()" width="50%">
           <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
           <option value="1">Sim</option>
           <option value="0">Não</option>
