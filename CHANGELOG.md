@@ -1,3 +1,4 @@
+	2024-11-01 10:19:47 -0300	feat: formulario de avaliação apenas avalia se o trabalho não estiver identificado
 	2024-11-01 09:33:07 -0300	chore: ajustes no texto do formulario de avaliação
 	2024-11-01 09:29:27 -0300	feat: adicionado campo de identificação no formulário de avaliação
 	2024-10-03 09:45:15 -0300	feat: incluídos campos de acessibilidade no form de cadastro de trabalho
