@@ -599,6 +599,7 @@ def enviarAvaliacao():
         c7 = str(request.form['c7'])
         c8 = str(request.form['c8'])
         c9 = str(request.form['c9'])
+        identificado = str(request.form['identificado'])
         consulta = """
         SELECT id FROM avaliacoes WHERE token="%s"
         """ %(token)
@@ -642,6 +643,8 @@ def enviarAvaliacao():
             consulta = "UPDATE avaliacoes SET c8=" + c8 + " WHERE token=\"" + token + "\""
             atualizar(consulta)
             consulta = "UPDATE avaliacoes SET c9=" + c9 + " WHERE token=\"" + token + "\""
+            atualizar(consulta)
+            consulta = "UPDATE avaliacoes SET identificado=" + identificado + " WHERE token=\"" + token + "\""
             atualizar(consulta)
         except:
             e = sys.exc_info()[0]

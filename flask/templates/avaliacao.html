@@ -28,7 +28,26 @@
        }
      }
 
-
+     function identificado() {
+        var identificado = parseInt(document.forms["frmAvaliacao"]["identificado"].value);
+        if (identificado==1) {
+            document.getElementById("txtRecomendacao").value = 0;
+            document.forms["frmAvaliacao"]["c1"].value = 0;
+            document.forms["frmAvaliacao"]["c2"].value = 0;
+            document.forms["frmAvaliacao"]["c3"].value = 0;
+            document.forms["frmAvaliacao"]["c4"].value = 0;
+            document.forms["frmAvaliacao"]["c5"].value = 0;
+            document.forms["frmAvaliacao"]["c6"].value = 0;
+            document.forms["frmAvaliacao"]["c7"].value = 0;
+            document.forms["frmAvaliacao"]["c8"].value = 0;
+            document.forms["frmAvaliacao"]["c9"].value = 0;
+            document.getElementById("total").innerHTML = "<h3>Pontuação total: 0</h3>";
+            document.getElementById("comentarios").value = "Trabalho identificado. Não recomendado por ."; 
+        }
+        else {
+          document.getElementById("txtRecomendacao").value = 1;
+        }
+     }
 
 </script>
   </head>
@@ -93,7 +112,12 @@ textarea {
   background-color: #f8f8f8;
   resize: none;
 }
-
+.identificacao {
+  background-color: #fcff33;
+}
+.alerta {
+  background-color: #06f969;
+}
 </style>
   <body>
     <center><img src="{{ url_for('static', filename='brasao.jpg')}}" width="8%" alt="" align="center"></center>
@@ -108,6 +132,7 @@ textarea {
         <li>A declaração de participação como consultor ad-hoc é gerada imediatamente após a submissão deste formulário de avaliação.</li>
         <li>Os proponentes não tem acesso, em hipótese alguma, aos nomes dos avaliadores, ficando estes dados acessíveis apenas a coordenadoria de pesquisa para fins de controle das declarações.</li>
         <li>Quaisquer dúvidas podem ser endereçadas a <b>pesquisa.prpi@ufca.edu.br</b>, ou pelo telefone <b>(88) 3221-9327</b></li>
+        <li class="alerta"><b>Caso o texto contenha a identificação do(s) autor(es), o mesmo deve ser rejeitado (não recomendado).</b> </li>
       </ol>
 
 
@@ -121,9 +146,20 @@ textarea {
       <h2>FORMULÁRIO DE AVALIAÇÃO</h2>
       <h3>O trabalho é considerado APROVADO (recomendado) caso o somatório dos conceitos abaixo seja maior ou igual a 70.</h3>
       <hr>
-      <b>Seu nome completo (para geração de declaração de avaliação):</b> <input name="txtNome"
-        required="required" size="80" type="text"><br>
+      <div class="identificacao">
+          <b>Seu nome completo (para geração de declaração de avaliação):</b> <input name="txtNome"
+            required="required" size="80" type="text"><br>
+      </div>
       <br>
+      <br>
+      <div class="identificacao">
+        <b>O trabalho está identificado?</b> <br>
+        <select id="identificado" name="identificado" required="required" onblur="recomendacao()" width="50%">
+          <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+          <option value="1">Sim</option>
+          <option value="0">Não</option>
+        </select>
+      </div><br>
       <table style="width:100%">
 
         <tr>
@@ -246,10 +282,10 @@ textarea {
       <BR>
       <div align="right"
       <p id="resultado"></p>
-    </div><br>
-
+    </div>
+      <br>
       <b>Comentários:<br>
-        <textarea name="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
+        <textarea name="txtComentarios" id="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
 
         Recomendação:
         <select id="txtRecomendacao" name="txtRecomendacao" required="required" onblur="recomendacao()" onfocus="recomendacao()" width="50%">
