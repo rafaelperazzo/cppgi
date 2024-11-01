@@ -1,3 +1,9 @@
+	2024-11-01 10:23:14 -0300	fix: formulário de avaliação com texto de ajuda para avaliador
+	2024-11-01 10:20:56 -0300	feat: formulario de avaliação apenas avalia se o trabalho não estiver identificado, com mensagem informativa para o avaliador
+	2024-11-01 10:19:47 -0300	feat: formulario de avaliação apenas avalia se o trabalho não estiver identificado
+	2024-11-01 09:33:07 -0300	chore: ajustes no texto do formulario de avaliação
+	2024-11-01 09:29:27 -0300	feat: adicionado campo de identificação no formulário de avaliação
+	2024-10-03 09:45:15 -0300	feat: incluídos campos de acessibilidade no form de cadastro de trabalho
 	2024-09-13 09:51:30 -0300	fix: removido metodo get do salvar_projeto
 	2024-09-11 15:18:54 -0300	fix: incluídos csfr nos forms
 	2024-09-11 14:41:51 -0300	fix: local do csrf - logo apos o app

@@ -28,7 +28,31 @@
        }
      }
 
-
+     function identificacao() {
+        
+        var identificado = parseInt(document.forms["frmAvaliacao"]["identificado"].value);
+        if (identificado==1) {
+            document.getElementById("txtRecomendacao").value = 0;
+            document.forms["frmAvaliacao"]["c1"].value = 0;
+            document.forms["frmAvaliacao"]["c2"].value = 0;
+            document.forms["frmAvaliacao"]["c3"].value = 0;
+            document.forms["frmAvaliacao"]["c4"].value = 0;
+            document.forms["frmAvaliacao"]["c5"].value = 0;
+            document.forms["frmAvaliacao"]["c6"].value = 0;
+            document.forms["frmAvaliacao"]["c7"].value = 0;
+            document.forms["frmAvaliacao"]["c8"].value = 0;
+            document.forms["frmAvaliacao"]["c9"].value = 0;
+            document.getElementById("total").innerHTML = "<h3>Pontuação total: 0</h3>";
+            document.getElementById("txtComentarios").value = "Trabalho identificado. Desclassificado."; 
+            document.getElementById('div_formulario').style.display = "none";
+        }
+        else {
+          document.getElementById("txtRecomendacao").value = 1;
+          document.getElementById('div_formulario').style.display = "block";
+          document.getElementById("txtComentarios").value = ""; 
+        }
+      
+     }
 
 </script>
   </head>
@@ -93,7 +117,12 @@ textarea {
   background-color: #f8f8f8;
   resize: none;
 }
-
+.identificacao {
+  background-color: #fcff33;
+}
+.alerta {
+  background-color: #06f969;
+}
 </style>
   <body>
     <center><img src="{{ url_for('static', filename='brasao.jpg')}}" width="8%" alt="" align="center"></center>
@@ -108,8 +137,8 @@ textarea {
         <li>A declaração de participação como consultor ad-hoc é gerada imediatamente após a submissão deste formulário de avaliação.</li>
         <li>Os proponentes não tem acesso, em hipótese alguma, aos nomes dos avaliadores, ficando estes dados acessíveis apenas a coordenadoria de pesquisa para fins de controle das declarações.</li>
         <li>Quaisquer dúvidas podem ser endereçadas a <b>pesquisa.prpi@ufca.edu.br</b>, ou pelo telefone <b>(88) 3221-9327</b></li>
+        <li class="alerta"><b>Caso o texto contenha a identificação do(s) autor(es), favor informar no campo abaixo.</b> </li>
       </ol>
-
 
     <form name="frmAvaliacao" action="/cppgi/avaliar" method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -121,145 +150,156 @@ textarea {
       <h2>FORMULÁRIO DE AVALIAÇÃO</h2>
       <h3>O trabalho é considerado APROVADO (recomendado) caso o somatório dos conceitos abaixo seja maior ou igual a 70.</h3>
       <hr>
-      <b>Seu nome completo (para geração de declaração de avaliação):</b> <input name="txtNome"
-        required="required" size="80" type="text"><br>
-      <br>
-      <table style="width:100%">
-
-        <tr>
-          <th>Item</th><th>Critério de análise e julgamento</th><th>Pontuação</th>
-        </tr>
-
-        <tr>
-          <td>A</td><td>Qualidade da redação e organização do texto: ortografia, gramática, clareza, objetividade;<b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c1" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>B</td><td>Atualidade, originalidade e relevância do tema para a área em questão <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c2" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>C</td><td>Objetivos são claros e bem definidos <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c3" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>D</td><td>Revisão de literatura reflete o estado da arte do conhecimento na área <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c4" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>E</td><td>Consistência conceitual ou teórica do trabalho é adequada e bem estruturada <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c5" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>F</td><td>Contribuição científica para o conhecimento atual na área temática é relevante <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c6" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>G</td><td>Método de pesquisa claramente definido e consistente com os objetivos do trabalho <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c7" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>H</td><td>Análise de dados e resultados com interpretação correta dos dados e articulada com a base teórica <b>(Máximo 20 pontos)</b></td>
-          <td>
-          <select name="c8" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(21) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-        <tr>
-          <td>I</td><td>Conclusões são fundamentadas nos dados da pesquisa, claras e objetivas <b>(Máximo 10 pontos)</b></td>
-          <td>
-          <select name="c9" required="required">
-            <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-            {% for i in range(11) %}
-              <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-          </select>
-          </td>
-        </tr>
-
-      </table>
-      <br>
-      <div align="right"
-      <p id="total"></p>
+      <div class="identificacao">
+          <b>Seu nome completo (para geração de declaração de avaliação):</b> <input name="txtNome"
+            required="required" size="80" type="text"><br>
       </div>
-      <BR>
-      <div align="right"
-      <p id="resultado"></p>
-    </div><br>
-
-      <b>Comentários:<br>
-        <textarea name="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
-
-        Recomendação:
-        <select id="txtRecomendacao" name="txtRecomendacao" required="required" onblur="recomendacao()" onfocus="recomendacao()" width="50%">
+      <div class="identificacao">
+        <b>O trabalho está identificado?</b> <br>
+        <select id="identificado" name="identificado" required="required" onchange="identificacao();" width="50%">
           <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-          <option value="1">Recomendado</option>
-          <option value="0">Não recomendado</option>
+          <option value="1">Sim</option>
+          <option value="0">Não</option>
         </select>
-        <br>
-      </b>
-      <div style="text-align: center;"><br>
+      </div><br>
+      <div id="div_formulario">
+          <table style="width:100%">
+
+            <tr>
+              <th>Item</th><th>Critério de análise e julgamento</th><th>Pontuação</th>
+            </tr>
+
+            <tr>
+              <td>A</td><td>Qualidade da redação e organização do texto: ortografia, gramática, clareza, objetividade;<b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c1" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>B</td><td>Atualidade, originalidade e relevância do tema para a área em questão <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c2" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>C</td><td>Objetivos são claros e bem definidos <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c3" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>D</td><td>Revisão de literatura reflete o estado da arte do conhecimento na área <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c4" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>E</td><td>Consistência conceitual ou teórica do trabalho é adequada e bem estruturada <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c5" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>F</td><td>Contribuição científica para o conhecimento atual na área temática é relevante <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c6" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>G</td><td>Método de pesquisa claramente definido e consistente com os objetivos do trabalho <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c7" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>H</td><td>Análise de dados e resultados com interpretação correta dos dados e articulada com a base teórica <b>(Máximo 20 pontos)</b></td>
+              <td>
+              <select name="c8" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(21) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+            <tr>
+              <td>I</td><td>Conclusões são fundamentadas nos dados da pesquisa, claras e objetivas <b>(Máximo 10 pontos)</b></td>
+              <td>
+              <select name="c9" required="required">
+                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+                {% for i in range(11) %}
+                  <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+              </select>
+              </td>
+            </tr>
+
+          </table>
+          <br>
+          <div align="right"
+          <p id="total"></p>
+          </div>
+          <BR>
+          <div align="right"
+          <p id="resultado"></p>
+        </div>
+          <br>
+          <b>Comentários:<br>
+            <textarea name="txtComentarios" id="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
+
+            Recomendação:
+            <select id="txtRecomendacao" name="txtRecomendacao" required="required" onblur="recomendacao()" onfocus="recomendacao()" width="50%">
+              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+              <option value="1">Recomendado</option>
+              <option value="0">Não recomendado</option>
+            </select>
+            <br>
+          </b>
+          <div style="text-align: center;"><br>
+          </div>
       </div>
       <b><input name="btnEnviar" value="Submeter Avaliação" type="submit"><br>
       </b> </form>
