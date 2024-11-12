@@ -1,4 +1,4 @@
-uploads/*.pdf
+flask/uploads/*.pdf
 .idea/*
 cron.avaliacao.sh
 *.log
