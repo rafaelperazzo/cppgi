@@ -1,3 +1,4 @@
+	2024-11-01 13:31:53 -0300	fix: colocado o target para os links das imagens dos certificados na rota /admin
 	2024-11-01 10:28:04 -0300	fix: formulário de avaliação com texto de ajuda para avaliador
 	2024-11-01 10:23:14 -0300	fix: formulário de avaliação com texto de ajuda para avaliador
 	2024-11-01 10:20:56 -0300	feat: formulario de avaliação apenas avalia se o trabalho não estiver identificado, com mensagem informativa para o avaliador
