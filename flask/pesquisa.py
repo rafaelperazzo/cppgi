@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#CPPGI
+#CPPGI 2024
 from fileinput import filename
 import re
 from urllib.parse import urlencode
@@ -2807,7 +2807,7 @@ def listar_consultores(id_projeto):
 @auth.login_required(role=['admin'])
 def listar_consultores_edital(edital):
     consulta = """
-    SELECT avaliacoes.id,idProjeto,avaliacoes.token,avaliador,nome_avaliador,
+    SELECT avaliacoes.id,avaliacoes.idProjeto,avaliacoes.token,avaliador,nome_avaliador,
     recomendacao,avaliacoes.link,finalizado,data_avaliacao 
     FROM avaliacoes 
     INNER JOIN editalProjeto on editalProjeto.id=avaliacoes.idProjeto 
