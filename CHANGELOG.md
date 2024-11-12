@@ -1,3 +1,4 @@
+	2024-11-12 16:15:42 -0300	fix: listar_consultores_edital com erro no SQL
 	2024-11-01 13:31:53 -0300	fix: colocado o target para os links das imagens dos certificados na rota /admin
 	2024-11-01 10:28:04 -0300	fix: formulário de avaliação com texto de ajuda para avaliador
 	2024-11-01 10:23:14 -0300	fix: formulário de avaliação com texto de ajuda para avaliador

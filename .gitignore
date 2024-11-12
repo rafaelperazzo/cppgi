@@ -1,3 +1,4 @@
+uploads/*.pdf
 .idea/*
 cron.avaliacao.sh
 *.log
