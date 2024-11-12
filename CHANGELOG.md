@@ -1,3 +1,4 @@
+	2024-11-12 16:20:55 -0300	fix
 	2024-11-12 16:19:15 -0300	fix: listar_consultores_edital com erro no SQL
 	2024-11-12 16:16:17 -0300	fix: listar_consultores_edital com erro no SQL
 	2024-11-12 16:15:42 -0300	fix: listar_consultores_edital com erro no SQL
