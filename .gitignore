@@ -18,3 +18,5 @@ mysql.sh
 *.ini
 backup.sh
 flask/documentos/*
+*.doc
+*.docx
