@@ -1,3 +1,4 @@
+	2024-11-14 10:20:47 -0300	chore: gitignore ajustado
 	2024-11-12 16:21:00 -0300	fix: gitignore
 	2024-11-12 16:20:55 -0300	fix
 	2024-11-12 16:19:15 -0300	fix: listar_consultores_edital com erro no SQL

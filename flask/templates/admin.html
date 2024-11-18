@@ -67,6 +67,10 @@ tr:nth-child(even) {
         <td><a href="{{url_for('listar_consultores_edital',edital=edital)}}">Listar todos os pedidos de avaliação</a> </td>
         <td>Verificar todos os pedidos de avaliação</td>
       </tr>
+      <tr>
+        <td><a href="{{url_for('parcial',edital=edital)}}">Atualizar status das submissões avaliadas</a> </td>
+        <td>Atualizar situação das submissões (se quantidade de avaliações for maior do que 3, atualizar)</td>
+      </tr>
     </table>
     
     <hr>

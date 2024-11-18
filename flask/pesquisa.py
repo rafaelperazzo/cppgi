@@ -1316,6 +1316,29 @@ def estatisticas():
     else:
         return("Acesso negado.")
 
+@app.route("/parcial/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def parcial(edital):
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=""" + edital
+    principal,total = executarSelect(consulta_principal)
+    for linha in principal:
+        id = str(linha[0])
+        consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=""" + id
+        auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
+        pontuacao = int(auxiliar[0])
+        finalizado = int(auxiliar[1])
+        situacao = "-1"
+        if finalizado>2:    
+            if (pontuacao<0):
+                situacao = "0"
+            else:
+                situacao = str("1")
+        consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
+        atualizar(consulta_update)
+    flash(u"Situação das submissões atualizada com sucesso!")
+    return(redirect(url_for('admin',edital=edital)))
+
 @app.route("/resultados", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def resultados():

@@ -1,5 +1,8 @@
 #!/bin/bash
 cd /home/perazzo/docker/projetos/cppgi
+docker-compose restart
+ssh sci01-ter-jne.ufca.edu.br '/backup/cppgi/./backup.mysql.sh'
+rsync -e 'ssh -p 22184' -avzh sci01-ter-jne.ufca.edu.br:/backup/cppgi/flask/uploads/ /home/perazzo/docker/projetos/cppgi/flask/uploads/
 dir="/backup/cppgi/share"
 server="perazzo@sci01-ter-jne.ufca.edu.br"
 arquivo=$(ssh sci01-ter-jne.ufca.edu.br 'ls -t /backup/cppgi/share | head -1')
@@ -7,4 +10,4 @@ scp $server:$dir/$arquivo share/
 gunzip -f share/$arquivo
 arquivo=$(ls -t share | head -1)
 /usr/local/bin/docker-compose -f /home/perazzo/docker/projetos/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mysql -u root -pSENHA < /share/$arquivo"
-rm share/$arquivo
+#rm share/$arquivo
