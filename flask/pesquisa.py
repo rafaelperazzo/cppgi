@@ -2592,15 +2592,20 @@ def enviar_email_avaliadores():
     consulta = """
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,
     e.tipo, DATEDIFF(NOW(),a.data_envio) as enviados,DATE_FORMAT(ed.deadline_avaliacao,'%d/%m/%Y') as deadline_avaliacao,ed.nome 
-    FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto AND e.tipo=ed.id AND e.valendo=1
+    FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto 
+    AND e.tipo=ed.id AND e.valendo=1
     AND a.finalizado=0 AND a.aceitou!=0 AND DATEDIFF(NOW(),a.data_envio)>1 
     AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now() AND ADDDATE(deadline,5)<now())
     """
     consulta = """
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,
     e.tipo, DATEDIFF(NOW(),a.data_envio) as enviados,DATE_FORMAT(ed.deadline_avaliacao,'%d/%m/%Y') as deadline_avaliacao,ed.nome 
-    FROM editalProjeto as e, avaliacoes as a,editais as ed WHERE e.id=a.idProjeto AND e.tipo=ed.id AND e.valendo=1
-    AND a.finalizado=0 AND a.aceitou!=0 AND DATEDIFF(NOW(),a.data_envio)>=1 
+    FROM editalProjeto as e, avaliacoes as a,editais as ed 
+    WHERE e.id=a.idProjeto 
+    AND e.tipo=ed.id AND e.valendo=1 
+    AND e.situacao=-1 
+    AND a.finalizado=0 AND a.aceitou!=0 
+    AND DATEDIFF(NOW(),a.data_envio)>=1 
     AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now())
     """
     linhas,total = executarSelect(consulta)
