@@ -1,3 +1,4 @@
+	2024-11-18 10:37:12 -0300	fix: envio de email para avaliadores apenas quando o status da submissão estiver indefinido.
 	2024-11-18 10:24:28 -0300	feat: Adicionado recurso para atualizar a situação das submissões que tiverem mais do que 2 avaliações
 	2024-11-14 10:20:47 -0300	chore: gitignore ajustado
 	2024-11-12 16:21:00 -0300	fix: gitignore
