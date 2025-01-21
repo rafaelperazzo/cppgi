@@ -1429,13 +1429,21 @@ def distribuirSalas():
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
             #APRESENTAÇÕES ORAIS - PREMIACAO
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=1 ORDER BY premiacao DESC,ua DESC,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id,ua,premiacao 
+            FROM editalProjeto 
+            WHERE valendo=1 AND situacao=1 AND categoria=0 
+            AND tipo=""" + edital + """ and premiacao=1 
+            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
+            modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
             
-            i = 0
-            for linha in pricipal:
-                pass
+            #Recuperando a premiação anterior
+            ua_anterior = ""
+            for linha in principal:
+                ua_anterior = str(linha[1])
+                break
             
+            i = 0
             for linha in principal:
                 id = str(linha[0])
                 try:
@@ -1449,7 +1457,11 @@ def distribuirSalas():
                 i = i + 1
             
             #APRESENTAÇÕES ORAIS - DEMAIS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=0 ORDER BY ua DESC,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto 
+            WHERE valendo=1 AND situacao=1 AND categoria=0 
+            AND tipo=""" + edital + """ and premiacao=0 
+            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
+            modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
             
             for linha in principal:
@@ -1466,7 +1478,7 @@ def distribuirSalas():
                 i = i + 1
 
             #POSTERS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"
             principal,total = executarSelect(consulta_principal)
             i = 1
             data_apresentacao,inicio,local_apresentacao = getSessoesPosters(edital)
