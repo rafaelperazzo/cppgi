@@ -1651,7 +1651,7 @@ def premiacao():
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8+c9) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 ORDER BY data_avaliacao LIMIT 3) av"""
+                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8+c9) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
                 auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
                 media = str(auxiliar[0])
                 consulta_update = "UPDATE editalProjeto SET media1=" + media + " WHERE id=" + id
