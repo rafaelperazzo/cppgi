@@ -1433,6 +1433,9 @@ def distribuirSalas():
             principal,total = executarSelect(consulta_principal)
             
             i = 0
+            for linha in pricipal:
+                pass
+            
             for linha in principal:
                 id = str(linha[0])
                 try:

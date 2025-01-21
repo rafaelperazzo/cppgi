@@ -85,31 +85,38 @@ tr:nth-child(even) {
               <td><a href="{{url_for('resultados',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">RESULTADO</a></td>
               <td>Processar resultados.</td>
             </tr>  
-            <tr>
+            <tr bgcolor="yellow">
               <td>
-                <a href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">Calcular médias</a>
+                <a href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">** 1) Calcular médias **</a>
                 </td>
-              <td>Calcula as médias e marca os candidatos a premiação.</td>
+              <td>Calcula as médias dos trabalhos escritos e marca os candidatos a premiação.</td>
             </tr>
             <tr>
               <td><a href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalho aprovados</a></td>
               <td>Listar trabalhos aprovados</td>
             </tr>
-            <tr>
-              <td><a href="{{url_for('listar_salas',edital=edital)}}">Listar Sessões de apresentações</a></td>
+            <tr bgcolor="yellow">
+              <td><a href="{{url_for('listar_salas',edital=edital)}}">** 2) Sessões de apresentações **</a></td>
               <td>Listar e cadastrar sessões</td>
             </tr>
-            <tr>
+            <tr bgcolor="yellow">
               <td>
                 <a href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
-                  Refazer distribuição de salas</a>
+                  ** 3) Distribuição automática de salas **</a>
               </td>
-              <td>Refazer distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
+              <td>Distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
             </tr>
-            <tr>
+            <tr bgcolor="#92f906">
+              <td>
+                <a href="{{url_for('cadastrar_usuario',operacao=0)}}">
+                  ** Cadastrar avaliador de sessão oral/poster **</a>
+              </td>
+              <td>Cadastro de avaliador de sessão oral/poster</td>
+            </tr>
+            <tr bgcolor="yellow">
               <td>
                 <a href="{{url_for('avaliador_sala_listar',edital=edital)}}">
-                  Listar atribuições de avaliadores por sala</a>
+                  ** 4) Atribuir avaliador para sala **</a>
               </td>
               <td>Listar atribuições de avaliadores por sala</td>
             </tr>
