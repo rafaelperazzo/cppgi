@@ -1,3 +1,4 @@
+	2025-01-22 10:39:19 -0300	fix: /links_avaliadores - Incluido o root_site ao invés do link fixo
 	2025-01-22 10:13:34 -0300	fix: Alterado o texto do critério D do formulário de avaliação oral.
 	2025-01-22 09:56:22 -0300	fix: Alteradas notas de avaliação do trabalho oral: Agora todos os critérios são de 0-10
 	2025-01-21 10:32:52 -0300	fix: /distribuirSalas - Ajustando a ordenação da distribuição para levar em consideração as áreas e subáreas cnpq
