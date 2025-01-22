@@ -3229,7 +3229,11 @@ def links_avaliadores(edital):
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
     url = ROOT_SITE.replace('https://','')
     url = ROOT_SITE.replace('http://','')
-    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo,ROOT_SITE=url))
+    prefixo = 'https://'
+    if 'http://' in ROOT_SITE:
+        prefixo = 'http://'
+    
+    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo,ROOT_SITE=url,PREFIXO=prefixo))
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos

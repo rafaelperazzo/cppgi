@@ -1,3 +1,4 @@
+	2025-01-22 10:54:37 -0300	fix: /links_avaliadores - removendo o http(s):// do url
 	2025-01-22 10:39:19 -0300	fix: /links_avaliadores - Incluido o root_site ao invés do link fixo
 	2025-01-22 10:13:34 -0300	fix: Alterado o texto do critério D do formulário de avaliação oral.
 	2025-01-22 09:56:22 -0300	fix: Alteradas notas de avaliação do trabalho oral: Agora todos os critérios são de 0-10
