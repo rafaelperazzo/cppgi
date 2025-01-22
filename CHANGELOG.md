@@ -1,3 +1,4 @@
+	2025-01-22 10:13:34 -0300	fix: Alterado o texto do critério D do formulário de avaliação oral.
 	2025-01-22 09:56:22 -0300	fix: Alteradas notas de avaliação do trabalho oral: Agora todos os critérios são de 0-10
 	2025-01-21 10:32:52 -0300	fix: /distribuirSalas - Ajustando a ordenação da distribuição para levar em consideração as áreas e subáreas cnpq
 	2025-01-21 10:07:28 -0300	fix: admin.html - ajustado a sequencia de passos que devem ser seguidos no pos-avaliação
