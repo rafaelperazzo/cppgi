@@ -2370,10 +2370,11 @@ def confirmar():
         else:
             return("ERRO")
     elif request.method == "POST":
-        c1 = int(request.form['c1'])
-        c2 = int(request.form['c2'])
-        c3 = int(request.form['c3'])
-        c4 = int(request.form['c4'])
+        c1 = int(25*int(request.form['c1'])/10)
+        c2 = int(25*int(request.form['c2'])/10)
+        c3 = int(25*int(request.form['c3'])/10)
+        c4 = int(25*int(request.form['c4'])/10)
+        
         c = """SELECT nome FROM users WHERE username='""" + session['username'] + """'"""
         linhas,total = executarSelect(c)
         avaliador = "INDEFINIDO"

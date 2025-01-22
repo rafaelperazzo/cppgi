@@ -1,3 +1,4 @@
+	2025-01-21 10:32:52 -0300	fix: /distribuirSalas - Ajustando a ordenação da distribuição para levar em consideração as áreas e subáreas cnpq
 	2025-01-21 10:07:28 -0300	fix: admin.html - ajustado a sequencia de passos que devem ser seguidos no pos-avaliação
 	2025-01-21 09:49:42 -0300	fix: /premiacao - Cálculo da média alterada para considerar os primeiros dois avaliadores com recomendação positiva
 	2024-12-04 09:45:12 -0300	fix: rota meusPareceres com erro no SQL: idProjeto é uma coluna ambigua. Corrigido para avaliacoes.idProjeto
