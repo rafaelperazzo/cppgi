@@ -1519,7 +1519,7 @@ def programacao():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             
-            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR><hr>')
+            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR><hr>')
 
                         FROM editalProjeto
 
@@ -1527,7 +1527,7 @@ def programacao():
 
                         ORDER BY local_apresentacao,data_apresentacao,ua """
 
-            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
+            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR>')
 
                         FROM editalProjeto
 
@@ -2046,7 +2046,7 @@ def getSalas(edital):
 
 def getSalasPorData(edital,data):
     consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE tipo=""" + edital + """ 
-     and categoria=0 and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY local_apresentacao"""
+     and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY local_apresentacao"""
     linhas,total = executarSelect(consulta)
     salas = []
     for linha in linhas:
