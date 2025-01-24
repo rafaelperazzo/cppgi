@@ -1497,7 +1497,7 @@ def distribuirSalas():
                 try:
                     update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
                     atualizar(update)
-                    update = update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
+                    update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
                     atualizar(update)
                     j = j + 1
                     if j > quantidade_por_avaliador:
