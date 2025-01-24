@@ -1,3 +1,19 @@
+	2025-01-24 11:20:10 -0300	fix: /distribuidSalas - Corrigido questão da quantidade de trabalhos por avaliador de poster
+	2025-01-24 10:42:59 -0300	fix: /parcial - Corrigido erro ao atualizar a coluna situacao
+	2025-01-24 10:41:50 -0300	fix: /parcial - Corrigido erro ao atualizar a coluna situacao
+	2025-01-24 10:36:38 -0300	fix: /parcial - Corrigido erro ao atualizar a coluna situacao
+	2025-01-24 09:55:04 -0300	fix: /distribuirSalas - Posters podem ser divididos em vários espaços, para diminuir a quantidade de trabalhos por avaliador
+	2025-01-24 09:30:43 -0300	fix: /programacao - Incluídas area e subarea cnpq
+	2025-01-24 08:56:56 -0300	fix: Ordenação da rota /programacao - agora é por sala
+	2025-01-22 11:13:04 -0300	fix: /links_avaliadores - colocando http/https automaticamente baseado no config.ini
+	2025-01-22 10:54:37 -0300	fix: /links_avaliadores - removendo o http(s):// do url
+	2025-01-22 10:39:19 -0300	fix: /links_avaliadores - Incluido o root_site ao invés do link fixo
+	2025-01-22 10:13:34 -0300	fix: Alterado o texto do critério D do formulário de avaliação oral.
+	2025-01-22 09:56:22 -0300	fix: Alteradas notas de avaliação do trabalho oral: Agora todos os critérios são de 0-10
+	2025-01-21 10:32:52 -0300	fix: /distribuirSalas - Ajustando a ordenação da distribuição para levar em consideração as áreas e subáreas cnpq
+	2025-01-21 10:07:28 -0300	fix: admin.html - ajustado a sequencia de passos que devem ser seguidos no pos-avaliação
+	2025-01-21 09:49:42 -0300	fix: /premiacao - Cálculo da média alterada para considerar os primeiros dois avaliadores com recomendação positiva
+	2024-12-04 09:45:12 -0300	fix: rota meusPareceres com erro no SQL: idProjeto é uma coluna ambigua. Corrigido para avaliacoes.idProjeto
 	2024-11-18 10:37:12 -0300	fix: envio de email para avaliadores apenas quando o status da submissão estiver indefinido.
 	2024-11-18 10:24:28 -0300	feat: Adicionado recurso para atualizar a situação das submissões que tiverem mais do que 2 avaliações
 	2024-11-14 10:20:47 -0300	chore: gitignore ajustado

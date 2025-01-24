@@ -31,6 +31,7 @@ from flask_restful import Api
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
+import math
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -1329,7 +1330,7 @@ def parcial(edital):
         pontuacao = int(auxiliar[0])
         finalizado = int(auxiliar[1])
         situacao = "-1"
-        if finalizado>2:    
+        if finalizado>=2:    
             if (pontuacao<0):
                 situacao = "0"
             else:
@@ -1418,6 +1419,7 @@ def getSessoesPosters(edital):
         dia = str(linha[0])
         inicio = str(linha[1])
         salas = str(linha[2])
+        salas = salas.split(",")
         return(dia,inicio,salas)
 
 @app.route("/distribuirSalas", methods=['GET', 'POST'])
@@ -1428,9 +1430,21 @@ def distribuirSalas():
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
+            
             #APRESENTAÇÕES ORAIS - PREMIACAO
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=1 ORDER BY premiacao DESC,ua DESC,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id,ua,premiacao 
+            FROM editalProjeto 
+            WHERE valendo=1 AND situacao=1 AND categoria=0 
+            AND tipo=""" + edital + """ and premiacao=1 
+            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
+            modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
+            
+            #Recuperando a premiação anterior
+            ua_anterior = ""
+            for linha in principal:
+                ua_anterior = str(linha[1])
+                break
             
             i = 0
             for linha in principal:
@@ -1446,7 +1460,11 @@ def distribuirSalas():
                 i = i + 1
             
             #APRESENTAÇÕES ORAIS - DEMAIS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=0 AND tipo=""" + edital + " and premiacao=0 ORDER BY ua DESC,modalidade DESC,media1 DESC,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto 
+            WHERE valendo=1 AND situacao=1 AND categoria=0 
+            AND tipo=""" + edital + """ and premiacao=0 
+            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
+            modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
             
             for linha in principal:
@@ -1463,21 +1481,31 @@ def distribuirSalas():
                 i = i + 1
 
             #POSTERS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,nome,titulo"
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"
             principal,total = executarSelect(consulta_principal)
-            i = 1
-            data_apresentacao,inicio,local_apresentacao = getSessoesPosters(edital)
+            i = 0
+            data_apresentacao,inicio,local_todos = getSessoesPosters(edital)
             data_apresentacao = data_apresentacao + " " + inicio
-            
+            quantidade_por_avaliador = math.ceil(int(total)/len(local_todos))
+            logging.debug(len(local_todos))
+            logging.debug(quantidade_por_avaliador)
+            logging.debug(len(principal))
+            logging.debug(local_todos)
+            j = 1
             for linha in principal:
                 id = str(linha[0])
-                
-                update = """UPDATE editalProjeto SET local_apresentacao='""" + local_apresentacao + """' WHERE id=""" + id
-                atualizar(update)
-                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
-                atualizar(update)
-                i = i + 1
-            
+                try:
+                    update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
+                    atualizar(update)
+                    update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
+                    atualizar(update)
+                    j = j + 1
+                    if j > quantidade_por_avaliador:
+                        j = 1
+                        i = i + 1
+                except Exception as e:
+                    logging.error(str(e))
+                    logging.error("/distribuirSalas - POSTERS")
             return(redirect(url_for('programacao',edital=edital)))
         else:
             return("OK")
@@ -1493,13 +1521,13 @@ def programacao():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             
-            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR><hr>')
+            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR><hr>')
 
                         FROM editalProjeto
 
                         WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY ua,local_apresentacao,data_apresentacao """
+                        ORDER BY local_apresentacao,data_apresentacao,ua """
 
             final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
 
@@ -1507,7 +1535,7 @@ def programacao():
 
                         WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY ua,local_apresentacao,data_apresentacao """
+                        ORDER BY local_apresentacao,data_apresentacao,ua """
 
             linhas,total = executarSelect(final_oral)
             poster,total_poster = executarSelect(final_poster)
@@ -1651,7 +1679,7 @@ def premiacao():
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8+c9) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 ORDER BY data_avaliacao LIMIT 3) av"""
+                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8+c9) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
                 auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
                 media = str(auxiliar[0])
                 consulta_update = "UPDATE editalProjeto SET media1=" + media + " WHERE id=" + id
@@ -1714,7 +1742,7 @@ def apresentacoes():
                 data_formatada = data
             
             if (sala!='POSTER'): #APRESENTAÇÃO ORAL
-                consulta = """SELECT id,nome,titulo,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y - %T') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE local_apresentacao='""" + sala + """' AND tipo=""" + edital + """ and valendo=1 and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY ua,data_apresentacao"""                
+                consulta = """SELECT id,nome,titulo,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE local_apresentacao='""" + sala + """' AND tipo=""" + edital + """ and valendo=1 and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY ua,data_apresentacao"""                
                 linhas,total = executarSelect(consulta)
                 link = getLinkSala(edital,sala)
                 return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,link=link,roles=session['roles']))
@@ -1722,13 +1750,13 @@ def apresentacoes():
                 if 'ua' in request.args:
                     ua = int(request.args.get('ua'))
                     if ua==1:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %T') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências da Vida' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y -%H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências da Vida' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                     elif ua==2:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %T') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Humanidades' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Humanidades' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                     else:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %T') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                 else:
-                    consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %T') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                    consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                 linhas,total = executarSelect(consulta)
                 
                 return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,roles=session['roles']))
@@ -2355,10 +2383,11 @@ def confirmar():
         else:
             return("ERRO")
     elif request.method == "POST":
-        c1 = int(request.form['c1'])
-        c2 = int(request.form['c2'])
-        c3 = int(request.form['c3'])
-        c4 = int(request.form['c4'])
+        c1 = int(25*int(request.form['c1'])/10)
+        c2 = int(25*int(request.form['c2'])/10)
+        c3 = int(25*int(request.form['c3'])/10)
+        c4 = int(25*int(request.form['c4'])/10)
+        
         c = """SELECT nome FROM users WHERE username='""" + session['username'] + """'"""
         linhas,total = executarSelect(c)
         avaliador = "INDEFINIDO"
@@ -3211,7 +3240,13 @@ def links_avaliadores(edital):
     """ % (edital)
     linhas,total=executarSelect(consulta)
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
-    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo))
+    url = ROOT_SITE.replace('https://','')
+    url = ROOT_SITE.replace('http://','')
+    prefixo = 'https://'
+    if 'http://' in ROOT_SITE:
+        prefixo = 'http://'
+    
+    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo,ROOT_SITE=url,PREFIXO=prefixo))
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos
