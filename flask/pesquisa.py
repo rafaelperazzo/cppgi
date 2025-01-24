@@ -1330,7 +1330,7 @@ def parcial(edital):
         pontuacao = int(auxiliar[0])
         finalizado = int(auxiliar[1])
         situacao = "-1"
-        if finalizado>2:    
+        if finalizado>=2:    
             if (pontuacao<0):
                 situacao = "0"
             else:
@@ -1430,6 +1430,7 @@ def distribuirSalas():
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
+            
             #APRESENTAÇÕES ORAIS - PREMIACAO
             consulta_principal = """SELECT id,ua,premiacao 
             FROM editalProjeto 

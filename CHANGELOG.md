@@ -1,3 +1,4 @@
+	2025-01-24 09:55:04 -0300	fix: /distribuirSalas - Posters podem ser divididos em vários espaços, para diminuir a quantidade de trabalhos por avaliador
 	2025-01-24 09:30:43 -0300	fix: /programacao - Incluídas area e subarea cnpq
 	2025-01-24 08:56:56 -0300	fix: Ordenação da rota /programacao - agora é por sala
 	2025-01-22 11:13:04 -0300	fix: /links_avaliadores - colocando http/https automaticamente baseado no config.ini
