@@ -1514,7 +1514,7 @@ def programacao():
 
                         WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY ua,local_apresentacao,data_apresentacao """
+                        ORDER BY local_apresentacao,data_apresentacao,ua """
 
             final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
 
@@ -1522,7 +1522,7 @@ def programacao():
 
                         WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY ua,local_apresentacao,data_apresentacao """
+                        ORDER BY local_apresentacao,data_apresentacao,ua """
 
             linhas,total = executarSelect(final_oral)
             poster,total_poster = executarSelect(final_poster)
