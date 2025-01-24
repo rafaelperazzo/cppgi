@@ -1,3 +1,4 @@
+	2025-01-24 08:56:56 -0300	fix: Ordenação da rota /programacao - agora é por sala
 	2025-01-22 11:13:04 -0300	fix: /links_avaliadores - colocando http/https automaticamente baseado no config.ini
 	2025-01-22 10:54:37 -0300	fix: /links_avaliadores - removendo o http(s):// do url
 	2025-01-22 10:39:19 -0300	fix: /links_avaliadores - Incluido o root_site ao invés do link fixo
