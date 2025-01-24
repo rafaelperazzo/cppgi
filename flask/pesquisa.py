@@ -31,6 +31,7 @@ from flask_restful import Api
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
+import math
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -1418,7 +1419,7 @@ def getSessoesPosters(edital):
         dia = str(linha[0])
         inicio = str(linha[1])
         salas = str(linha[2])
-        
+        salas = salas.split(",")
         return(dia,inicio,salas)
 
 @app.route("/distribuirSalas", methods=['GET', 'POST'])
@@ -1481,19 +1482,26 @@ def distribuirSalas():
             #POSTERS
             consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"
             principal,total = executarSelect(consulta_principal)
-            i = 1
-            data_apresentacao,inicio,local_apresentacao = getSessoesPosters(edital)
+            i = 0
+            data_apresentacao,inicio,local_todos = getSessoesPosters(edital)
             data_apresentacao = data_apresentacao + " " + inicio
-            
+            quantidade_por_avaliador = math.ceil(int(total)/len(local_todos))
+            j = 0
             for linha in principal:
                 id = str(linha[0])
-                
-                update = """UPDATE editalProjeto SET local_apresentacao='""" + local_apresentacao + """' WHERE id=""" + id
-                atualizar(update)
-                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
-                atualizar(update)
-                i = i + 1
-            
+                try:
+                    update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
+                    atualizar(update)
+                    update = update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
+                    atualizar(update)
+                    j = j + 1
+                    if j > quantidade_por_avaliador:
+                        j = 0
+                        i = i + 1
+                except Exception as e:
+                    logging.error(str(e))
+                    logging.error("/distribuirSalas - POSTERS")
+                    break
             return(redirect(url_for('programacao',edital=edital)))
         else:
             return("OK")
