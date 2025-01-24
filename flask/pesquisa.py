@@ -1487,10 +1487,6 @@ def distribuirSalas():
             data_apresentacao,inicio,local_todos = getSessoesPosters(edital)
             data_apresentacao = data_apresentacao + " " + inicio
             quantidade_por_avaliador = math.ceil(int(total)/len(local_todos))
-            logging.debug(len(local_todos))
-            logging.debug(quantidade_por_avaliador)
-            logging.debug(len(principal))
-            logging.debug(local_todos)
             j = 1
             for linha in principal:
                 id = str(linha[0])
@@ -1504,6 +1500,7 @@ def distribuirSalas():
                     if j > quantidade_por_avaliador:
                         j = 1
                         i = i + 1
+                        
                 except Exception as e:
                     logging.error(str(e))
                     logging.error("/distribuirSalas - POSTERS")
