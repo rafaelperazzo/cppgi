@@ -1,3 +1,4 @@
+	2025-01-24 14:10:28 -0300	fix: /distribuirSalas - Corrigido erro na consulta
 	2025-01-24 11:20:10 -0300	fix: /distribuidSalas - Corrigido questão da quantidade de trabalhos por avaliador de poster
 	2025-01-24 10:42:59 -0300	fix: /parcial - Corrigido erro ao atualizar a coluna situacao
 	2025-01-24 10:41:50 -0300	fix: /parcial - Corrigido erro ao atualizar a coluna situacao
