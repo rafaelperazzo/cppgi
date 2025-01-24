@@ -1422,6 +1422,31 @@ def getSessoesPosters(edital):
         salas = salas.split(",")
         return(dia,inicio,salas)
 
+def distribuirIgualmente(local,turno,linhas,edital):
+    cv  = []
+    ct = []
+    hu = []
+    for linha in linhas:
+        entrada = [linha[0],linha[1]]
+        if linha[1]=='Ciências da Vida':
+            cv.append(entrada)
+        elif linha[1]=='Ciências Exatas, Tecnológicas e Multidisciplinar':
+            ct.append(entrada)
+        else:
+            hu.append(entrada)
+    consulta = """
+    SELECT count(*) FROM editalProjeto WHERE tipo=%s AND valendo=1 and categoria=0 AND situacao=1 GROUP BY ua ORDER BY ua
+    """ % (edital)
+    dados,total = executarSelect(consulta)
+    uas = []
+    for dado in dados:
+        uas.append(dado[0])
+    consulta = """
+    SELECT id FROM salas WHERE edital=%s
+    """ % (edital)
+    salas,orais = executarSelect(consulta)
+    orais = orais - 1
+    
 @app.route("/distribuirSalas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def distribuirSalas():
@@ -1430,7 +1455,6 @@ def distribuirSalas():
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
-            
             #APRESENTAÇÕES ORAIS - PREMIACAO
             consulta_principal = """SELECT id,ua,premiacao 
             FROM editalProjeto 
@@ -1439,7 +1463,7 @@ def distribuirSalas():
             ORDER BY ua DESC,area_cnpq,subarea_cnpq,
             modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
-            
+            distribuirIgualmente(local_todos,turno_todos,principal,edital)
             #Recuperando a premiação anterior
             ua_anterior = ""
             for linha in principal:
