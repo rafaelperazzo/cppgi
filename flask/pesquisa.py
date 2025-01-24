@@ -1495,6 +1495,7 @@ def distribuirSalas():
             for linha in principal:
                 id = str(linha[0])
                 try:
+                    #Atualizando
                     update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
                     atualizar(update)
                     update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
