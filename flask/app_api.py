@@ -178,3 +178,27 @@ class Trabalhos(Resource):
             dado = {'id': linha[0],'autores': linha[2], 'area': linha[1],'titulo': linha[3], 'situacao': int(linha[4]),'modalidade': linha[5],'local_apresentacao': linha[6],'data_apresentacao': linha[7]}
             dados.append(dado)
         return dados
+
+class Apresentador(Resource):
+    
+    def inicio_sessao(self,sala):
+        consulta = """
+            SELECT salas,inicio FROM `salas` WHERE salas like "%""" + str(sala) + """%
+        """
+        linhas,total = executarSelect(consulta)
+        for linha in linhas:
+            return(linha[1])
+        return("")
+    
+    def get(self,id_submissao):
+        consulta = """
+        SELECT DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto 
+        WHERE id=
+        """ + str(id_submissao)
+        linhas,total = executarSelect(consulta)
+        dados = []
+        for linha in linhas:
+            inicio = self.inicio_sessao(linha[1])
+            dado = {'data': str(linha[0]),'local': str(inicio)}
+            dados.append(dado)
+        return dados
