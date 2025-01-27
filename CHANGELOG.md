@@ -1,3 +1,4 @@
+	2025-01-27 10:40:24 -0300	fix: Corrigida a distribuição automática para dividir os trabalhos com 65% de cada subárea para o primeiro dia.
 	2025-01-24 15:40:30 -0300	chore: distribuirIgualmente - iniciada a implementação de um novo algoritmo para distribuição automática de salas
 	2025-01-24 14:57:12 -0300	fix: /programacao - Ordenação corrigida para local,hora,ua
 	2025-01-24 14:19:08 -0300	refactor: /distribuirSalas - removidos logs

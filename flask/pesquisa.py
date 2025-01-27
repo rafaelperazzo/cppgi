@@ -1424,6 +1424,10 @@ def getSessoesPosters(edital):
         return(dia,inicio,salas)
 
 def distribuir(local,turno,uas,trabalhos):
+    '''
+    Distribui os trabalhos orais de forma igualitária entre as salas, considerando
+    65% do total de cada UA para o primeiro dia e o restante para o segundo dia.
+    '''
     #Distribuindo os trabalhos para a ua
     quantidades_por_dia = []
     for ua in uas:
@@ -1537,6 +1541,7 @@ def distribuirSalas():
                 except Exception as e:
                     logging.error(str(e))
                     logging.error("/distribuirSalas - POSTERS")
+            
             return(redirect(url_for('programacao',edital=edital)))
         else:
             return("OK")
