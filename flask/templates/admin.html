@@ -149,7 +149,10 @@ tr:nth-child(even) {
               <td><a href="{{url_for('notasApresentacoes',edital=edital)}}">CALCULAR NOTAS DAS APRESENTAÇÕES</a></td>
               <td>PROCESSAR NOTAS DAS APRESENTAÇÕES</td>
             </tr>
-            
+            <tr>
+              <td><a href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
+              <td>Envia os e-mails com as instruções de apresentação para os apresentadores</td>
+            </tr>
             <tr>
               <td><a href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
               <td>Envia os e-mails para os moderadores de sessões, com as instruções para avaliação das apresentações</td>

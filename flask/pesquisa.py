@@ -1818,7 +1818,7 @@ def processar_emails_versao_final(linhas,edital):
                 if PRODUCAO==1:
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 else:
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
                     mail.send(msg)
                 except Exception as e:
@@ -1946,7 +1946,7 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -2003,7 +2003,7 @@ def emailPosEvento():
                 texto_email = render_template('email_pos_evento.html',evento=nome_edital,nome_longo=nome_longo)
                 subject = "AGRADECIMENTOS"
                 msg = Message(subject = subject,bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                #msg = Message(subject = subject,bcc=["rafael.mota@ufca.edu.br"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                #msg = Message(subject = subject,bcc=["rafaelperazzo@gmail.com"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 try:
                     if PRODUCAO==1:
                         mail.send(msg)
@@ -2031,7 +2031,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafael.mota@ufca.edu.br'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -2550,7 +2550,7 @@ def processar_emails_certificados(linhas,edital,app):
                     msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
                     mail.send(msg)
                 else:
-                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=['rafael.mota@ufca.edu.br'],html=texto_email)
+                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=['rafaelperazzo@gmail.com'],html=texto_email)
                     mail.send(msg)
                     app.logger.debug('E-mail com certificado enviado!')
                     break
