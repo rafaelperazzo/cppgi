@@ -33,6 +33,7 @@ from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 import math
 
+
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
 SERVER_URL = config['DEFAULT']['server']
@@ -1422,6 +1423,77 @@ def getSessoesPosters(edital):
         salas = salas.split(",")
         return(dia,inicio,salas)
 
+def distribuir(local,turno,uas,trabalhos):
+    #Distribuindo os trabalhos para a ua
+    quantidades_por_dia = []
+    for ua in uas:
+        quantidades_por_dia.append(math.ceil(ua*0.65))
+    #logging.debug(quantidades_por_dia)
+    k = 0
+    #DISTRIBUINDO 65% DOS TRABALHOS DE CADA UA
+    for i in range(0,len(uas),1):
+        for j in range(0,quantidades_por_dia[i],1):
+            #logging.debug(trabalhos[i][j][0])
+            try:
+                update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                atualizar(update)
+                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                atualizar(update)
+                logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
+            except IndexError:
+                logging.error('(distribuir)Erro no indice: ' + str(i))
+                break
+            k = k + 1
+    #DISTRIBUINDO OS DEMAIS TRABALHOS
+    for i in range(0,len(uas),1):
+        for j in range(quantidades_por_dia[i],len(trabalhos[i]),1):
+            #logging.debug(trabalhos[i][j][0])
+            try:
+                update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                atualizar(update)
+                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                atualizar(update)
+                logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
+            except IndexError:
+                logging.error('(distribuir)Erro no indice: ' + str(i))
+                break
+            k = k + 1
+            
+def distribuirIgualmente(local,turno,linhas,edital):
+    cv  = []
+    ct = []
+    hu = []
+    
+    #Inserindo os IDs dos trabalhos em cada UA
+    
+    for linha in linhas:
+        entrada = [linha[0],linha[1]]
+        if linha[1]=='Ciências da Vida':
+            cv.append(entrada)
+        elif linha[1]=='Ciências Exatas, Tecnológicas e Multidisciplinar':
+            ct.append(entrada)
+        else:
+            hu.append(entrada)
+    
+    #Recuperando a quantidade de trabalhos por UA
+    consulta = """
+    SELECT count(*) FROM editalProjeto WHERE tipo=%s AND valendo=1 and categoria=0 AND situacao=1 GROUP BY ua ORDER BY ua
+    """ % (edital)
+    dados,total = executarSelect(consulta)
+    uas = []
+    for dado in dados:
+        uas.append(dado[0])
+    
+    #Recuperando a quantidade de salas para apresentações orais
+    consulta = """
+    SELECT id FROM salas WHERE edital=%s
+    """ % (edital)
+    salas,orais = executarSelect(consulta)
+    orais = orais - 1 #Removendo as "salas de posters"
+    
+    trabalhos_uas = [cv,ct,hu]
+    distribuir(local,turno,uas,trabalhos_uas)
+
 @app.route("/distribuirSalas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 def distribuirSalas():
@@ -1431,55 +1503,16 @@ def distribuirSalas():
             edital = str(request.args.get('edital'))
             turno_todos,local_todos=getSessoesSalas(edital,"0")
             
-            #APRESENTAÇÕES ORAIS - PREMIACAO
+            #APRESENTAÇÕES ORAIS
             consulta_principal = """SELECT id,ua,premiacao 
             FROM editalProjeto 
             WHERE valendo=1 AND situacao=1 AND categoria=0 
-            AND tipo=""" + edital + """ and premiacao=1 
-            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
+            AND tipo=""" + edital + """ 
+             ORDER BY ua DESC,area_cnpq,subarea_cnpq,
             modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal)
+            distribuirIgualmente(local_todos,turno_todos,principal,edital)
             
-            #Recuperando a premiação anterior
-            ua_anterior = ""
-            for linha in principal:
-                ua_anterior = str(linha[1])
-                break
-            
-            i = 0
-            for linha in principal:
-                id = str(linha[0])
-                try:
-                    update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
-                    atualizar(update)
-                    update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno_todos[i] + """' WHERE id=""" + id
-                    atualizar(update)
-                except IndexError:
-                    logging.error('Erro no indice: ' + str(i))
-                    break
-                i = i + 1
-            
-            #APRESENTAÇÕES ORAIS - DEMAIS
-            consulta_principal = """SELECT id FROM editalProjeto 
-            WHERE valendo=1 AND situacao=1 AND categoria=0 
-            AND tipo=""" + edital + """ and premiacao=0 
-            ORDER BY ua DESC,area_cnpq,subarea_cnpq,
-            modalidade DESC,media1 DESC,nome,titulo"""
-            principal,total = executarSelect(consulta_principal)
-            
-            for linha in principal:
-                id = str(linha[0])
-                try:
-                    update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
-                    atualizar(update)
-                    update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno_todos[i] + """' WHERE id=""" + id
-                    atualizar(update)
-                    
-                except IndexError:
-                    logging.error('Erro no indice: ' + str(i))
-                    break
-                i = i + 1
-
             #POSTERS
             consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"
             principal,total = executarSelect(consulta_principal)
@@ -1519,7 +1552,7 @@ def programacao():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             
-            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR><hr>')
+            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR><hr>')
 
                         FROM editalProjeto
 
@@ -1527,7 +1560,7 @@ def programacao():
 
                         ORDER BY local_apresentacao,data_apresentacao,ua """
 
-            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,ua,data_apresentacao SEPARATOR '<BR><BR>')
+            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR>')
 
                         FROM editalProjeto
 
@@ -2046,7 +2079,7 @@ def getSalas(edital):
 
 def getSalasPorData(edital,data):
     consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE tipo=""" + edital + """ 
-     and categoria=0 and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY local_apresentacao"""
+     and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY local_apresentacao"""
     linhas,total = executarSelect(consulta)
     salas = []
     for linha in linhas:

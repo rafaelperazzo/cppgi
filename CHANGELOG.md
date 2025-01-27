@@ -1,3 +1,6 @@
+	2025-01-24 15:40:30 -0300	chore: distribuirIgualmente - iniciada a implementação de um novo algoritmo para distribuição automática de salas
+	2025-01-24 14:57:12 -0300	fix: /programacao - Ordenação corrigida para local,hora,ua
+	2025-01-24 14:19:08 -0300	refactor: /distribuirSalas - removidos logs
 	2025-01-24 14:12:04 -0300	fix: /distribuirSalas - Comentario
 	2025-01-24 14:10:28 -0300	fix: /distribuirSalas - Corrigido erro na consulta
 	2025-01-24 11:20:10 -0300	fix: /distribuidSalas - Corrigido questão da quantidade de trabalhos por avaliador de poster
