@@ -192,7 +192,13 @@ class Apresentador(Resource):
     
     def get(self,id_submissao):
         consulta = """
-        SELECT DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),local_apresentacao,tipo FROM editalProjeto 
+        SELECT 
+        DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
+        local_apresentacao,
+        tipo,
+        titulo,
+        nome 
+        FROM editalProjeto 
         WHERE id=
         """ + str(id_submissao)
         linhas,total = executarSelect(consulta)
@@ -201,6 +207,6 @@ class Apresentador(Resource):
             inicio = self.inicio_sessao(linha[1])
             link = getLinkSala(str(linha[2]),str(linha[1]))
             data_hora = str(linha[0]) + " - " + str(inicio)
-            dado = {'data': data_hora,'local': str(linha[1]),'link': link}
+            dado = {'data': data_hora,'local': str(linha[1]),'link': link,'titulo': str(linha[3]),'autores': str(linha[4])} 
             dados.append(dado)
         return dados
