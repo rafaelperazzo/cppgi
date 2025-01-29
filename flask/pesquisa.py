@@ -1860,6 +1860,15 @@ def getAvaliadoresSala(edital,sala,dia):
         avaliadores.append(str(linha[0]))
     return (avaliadores)
 
+def inicio_sessao(sala):
+    consulta = """
+        SELECT salas,TIME_FORMAT(inicio,'%H:%i') FROM `salas` WHERE salas like "%""" + str(sala) + """%"
+    """
+    linhas,total = executarSelect(consulta)
+    for linha in linhas:
+        return(linha[1])
+    return("")
+
 def processar_emails_informacoes_apresentacao(linhas,edital):
     with app.app_context():
         if PRODUCAO==1:
@@ -1871,6 +1880,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
                 autores = str(linha[3])
                 local = str(linha[4])
                 data = str(linha[5])
+                data = inicio_sessao(local)
                 link = getLinkSala(edital,local)
                 avaliadores = getAvaliadoresSala(edital,local,str(linha[6]))
                 jaMandouOlink = obterColunaUnica('editalProjeto','link_apresentacao','id',edital)
@@ -1914,9 +1924,11 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             cpf = str(linha[3])
             senha = str(linha[5])
             apresentacao = str(linha[6])
-            local_apresentacao = str(linha[8])
+            local_da_apresentacao = str(linha[8])
             data_apresentacao = str(linha[11])
+            #data_apresentacao = inicio_sessao(local_da_apresentacao)
             hora_sessao = str(linha[10])
+            hora_sessao = inicio_sessao(local_da_apresentacao)
             avaliadores = 'INDEFINIDOS'
             jaMandouOlink = '0'
             jaMandouVersaoFinal = '0'
@@ -1931,16 +1943,16 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             except Exception as e:
                 app.logger.error("[JAMANDOUOLINK] Erro ao buscar link de apresentacao: " + str(e))                
             try:
-                avaliadores = getAvaliadoresSala(edital,local_apresentacao,str(linha[9]))
+                avaliadores = getAvaliadoresSala(edital,local_da_apresentacao,str(linha[9]))
             except Exception as e:
                 app.logger.error("[GET_AVALIADORES]Erro ao buscar avaliadores da sala: " + str(e))                
             try:
-                link = getLinkSala(edital,local_apresentacao)
+                link = getLinkSala(edital,local_da_apresentacao)
             except Exception as e:
                 app.logger.error("[LINK_DA_SALA]Erro ao gerar o link da sala: " + str(e))
                 link = "INDEFINIDO"
             try:
-                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao)                
+                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_da_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao)                
             except Exception as e:
                 logging.error("[render_template]Erro ao gerar o link da sala: " + str(e))
             if PRODUCAO==1:
