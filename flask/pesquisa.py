@@ -3098,7 +3098,6 @@ def avaliador_sala(edital):
         WHERE edital=%s
         """ %(edital)
         datas,total = executarSelect(consulta)
-        
         consulta_usuarios = """
         SELECT username,nome FROM users 
         WHERE roles like '%avaliador%'
@@ -3119,7 +3118,8 @@ def avaliador_sala(edital):
         VALUES('%s',%s,'%s','%s','%s')
         """ %(username,edital,sala,data,area)
         atualizar(consulta)
-        return("SUCESSO")
+        return(redirect(url_for('avaliador_sala_listar',edital=edital)))
+        #return("SUCESSO")
 
 @app.route("/avaliador_sala_listar/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
@@ -3130,7 +3130,7 @@ def avaliador_sala_listar(edital):
     FROM usuarios_salas
     INNER JOIN users ON users.username=usuarios_salas.username 
     WHERE edital=%s 
-    ORDER BY area,data,sala
+    ORDER BY data,sala,area
     """ %(edital)
     linhas,total = executarSelect(consulta)
     nome_longo = obterColunaUnica('editais','nome_longo','id',edital)

@@ -1,3 +1,4 @@
+	2025-01-29 10:35:48 -0300	fix: Inseridos autores e titulo na api Apresentadores
 	2025-01-29 10:27:03 -0300	fix: /emailInstrucoes - Hora da apresentação trocada pela hora do inicio da sessão
 	2025-01-27 15:30:34 -0300	fix: Api de apresentador, para disponibilizar dia e hora da apresentação, dado o ID
 	2025-01-27 14:48:51 -0300	fix: Corrigidos os emails no caso de testes
