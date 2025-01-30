@@ -1,5 +1,5 @@
 from flask_restful import Resource
-from pesquisa import executarSelect
+from pesquisa import executarSelect,getLinkSala
 class Submissoes(Resource):
     def consultar(self,consulta,id_edital,modalidade,area):
         consulta = """
@@ -176,5 +176,37 @@ class Trabalhos(Resource):
         dados = []
         for linha in linhas:
             dado = {'id': linha[0],'autores': linha[2], 'area': linha[1],'titulo': linha[3], 'situacao': int(linha[4]),'modalidade': linha[5],'local_apresentacao': linha[6],'data_apresentacao': linha[7]}
+            dados.append(dado)
+        return dados
+
+class Apresentador(Resource):
+    
+    def inicio_sessao(self,sala):
+        consulta = """
+            SELECT salas,TIME_FORMAT(inicio,'%H:%i') FROM `salas` WHERE salas like "%""" + str(sala) + """%"
+        """
+        linhas,total = executarSelect(consulta)
+        for linha in linhas:
+            return(linha[1])
+        return("")
+    
+    def get(self,id_submissao):
+        consulta = """
+        SELECT 
+        DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
+        local_apresentacao,
+        tipo,
+        titulo,
+        nome 
+        FROM editalProjeto 
+        WHERE id=
+        """ + str(id_submissao)
+        linhas,total = executarSelect(consulta)
+        dados = []
+        for linha in linhas:
+            inicio = self.inicio_sessao(linha[1])
+            link = getLinkSala(str(linha[2]),str(linha[1]))
+            data_hora = str(linha[0]) + " - " + str(inicio)
+            dado = {'data': data_hora,'local': str(linha[1]),'link': link,'titulo': str(linha[3]),'autores': str(linha[4])} 
             dados.append(dado)
         return dados

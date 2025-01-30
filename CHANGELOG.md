@@ -1,3 +1,7 @@
+	2025-01-29 10:35:48 -0300	fix: Inseridos autores e titulo na api Apresentadores
+	2025-01-29 10:27:03 -0300	fix: /emailInstrucoes - Hora da apresentação trocada pela hora do inicio da sessão
+	2025-01-27 15:30:34 -0300	fix: Api de apresentador, para disponibilizar dia e hora da apresentação, dado o ID
+	2025-01-27 14:48:51 -0300	fix: Corrigidos os emails no caso de testes
 	2025-01-27 11:05:12 -0300	doc: Incluida documentacao da função distribuir
 	2025-01-27 10:40:24 -0300	fix: Corrigida a distribuição automática para dividir os trabalhos com 65% de cada subárea para o primeiro dia.
 	2025-01-24 15:40:30 -0300	chore: distribuirIgualmente - iniciada a implementação de um novo algoritmo para distribuição automática de salas
