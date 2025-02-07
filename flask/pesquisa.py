@@ -1032,7 +1032,7 @@ def meusProjetos():
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=0 AND idProjeto=editalProjeto.id) as reprovados,
         categoria,editais.situacao,editais.id, editalProjeto.arquivo_projeto_final,
         editalProjeto.situacao, editalProjeto.obs,editalProjeto.link_apresentacao,
-        editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y %H:%i')  
+        editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y')  
          FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
         registrar_acesso('/meusProjetos',request.remote_addr,str(session['username']))
