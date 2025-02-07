@@ -32,7 +32,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 import math
-
+import json
 
 WORKING_DIR='/home/perazzo/cppgi/'
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
@@ -1868,6 +1868,12 @@ def inicio_sessao(sala):
     for linha in linhas:
         return(linha[1])
     return("")
+
+@app.route("/horario/<sala>", methods=['GET'])
+def horarioSala(sala):
+    horario = inicio_sessao(sala)
+    horario = {"horario":horario}
+    return(json.dumps(horario))
 
 def processar_emails_informacoes_apresentacao(linhas,edital):
     with app.app_context():
