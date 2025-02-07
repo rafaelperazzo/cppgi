@@ -49,6 +49,21 @@
     <title>Minhas submissões</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
     
+    <script>
+      async function getHorarioSessao(sala) {
+        const response = await fetch('/cppgi/horario/'+sala);
+        const data = await response.json();
+        return (data.horario);
+      }
+      /*(async function() {
+        const resultado = await getHorarioSessao('R08');
+        console.log(resultado);
+      })();
+      //const resultado = getHorarioSessao('R08');
+      //console.log(resultado);*/
+  
+  </script>
+
   </head>
   <body>
     <!-- Modal -->
@@ -187,7 +202,17 @@
                 {% endif %}
               </td>
               <td>{{linha[14]}}</td>
-              <td>{{linha[16]}} - {{linha[17]}} - (horário do início da sessão - enviado por e-mail)</td>
+              <td>{{linha[16]}} - {{linha[17]}} - 
+                <button onclick="
+                (async function() {
+                  const resultado = await getHorarioSessao('{{linha[16]}}');
+                  document.getElementById('horario_linha[0]').innerHTML = resultado;
+                  //alert(resultado);
+                })();
+                "
+                >HORÁRIO</button>
+                <p id="horario_linha[0]"></p>
+              </td>
             </tr>
             {% endfor %}
             </tbody>
