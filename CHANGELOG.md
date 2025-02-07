@@ -1,3 +1,4 @@
+	2025-01-30 10:19:52 -0300	fix: cadastrar avaliador por sala estava levando para uma mensagem de SUCESSO. Corrigido para voltar para a lista de atribuições
 	2025-01-29 10:35:48 -0300	fix: Inseridos autores e titulo na api Apresentadores
 	2025-01-29 10:27:03 -0300	fix: /emailInstrucoes - Hora da apresentação trocada pela hora do inicio da sessão
 	2025-01-27 15:30:34 -0300	fix: Api de apresentador, para disponibilizar dia e hora da apresentação, dado o ID
