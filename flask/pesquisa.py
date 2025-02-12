@@ -3240,13 +3240,14 @@ ORDER BY ua,media DESC
 @app.route('/premiados/<edital>')
 @auth.login_required(role=['admin'])
 def premiados(edital):
+    ############ GRADUAÇÃO
     ua = u"Ciências da Vida"
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
-    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
     ua='%s'
-    ORDER BY ua,media DESC,media1 DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
     """ % (edital,ua)
     vida,total = executarSelect(consulta)
     
@@ -3254,9 +3255,9 @@ def premiados(edital):
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
-    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
     ua='%s'
-    ORDER BY ua,media DESC,media1 DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
     """ % (edital,ua)
     humanidades,total = executarSelect(consulta)
 
@@ -3264,13 +3265,47 @@ def premiados(edital):
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
-    WHERE tipo=%s and valendo=1 and premiacao=1 AND 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
     ua='%s'
-    ORDER BY ua,media DESC,media1 DESC LIMIT 6
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
     """ % (edital,ua)
     exatas,total = executarSelect(consulta)
+    ###########################################
+    
+    ############ PÓS GRADUAÇÃO
+    ua = u"Ciências da Vida"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
+    ua='%s'
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
+    """ % (edital,ua)
+    vida_pg,total = executarSelect(consulta)
+    
+    ua = u"Humanidades"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
+    ua='%s'
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
+    """ % (edital,ua)
+    humanidades_pg,total = executarSelect(consulta)
+
+    ua = u"Ciências Exatas, Tecnológicas e Multidisciplinar"
+    consulta = """
+    SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
+    FROM `editalProjeto` 
+    WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
+    ua='%s'
+    ORDER BY ua,media DESC,media1 DESC LIMIT 10
+    """ % (edital,ua)
+    exatas_pg,total = executarSelect(consulta)
+    ##########################
+    
     nome = obterColunaUnica('editais','nome_longo','id',str(edital))
-    return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,nome_edital=nome))
+    return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,humanidades_pg=humanidades_pg,vida_pg=vida_pg,exatas_pg=exatas_pg,nome_edital=nome))
 
 @app.route('/links_avaliadores/<edital>')
 @auth.login_required(role=['admin'])
