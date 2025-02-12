@@ -1,3 +1,4 @@
+	2025-02-07 10:38:46 -0300	fix: horário de apresentação pode ser consultado em /meusProjetos clicando no botão HORARIO
 	2025-02-07 09:26:49 -0300	fix: ocultado o horário de apresentação do trabalho
 	2025-01-30 10:19:52 -0300	fix: cadastrar avaliador por sala estava levando para uma mensagem de SUCESSO. Corrigido para voltar para a lista de atribuições
 	2025-01-29 10:35:48 -0300	fix: Inseridos autores e titulo na api Apresentadores
