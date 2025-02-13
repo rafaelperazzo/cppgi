@@ -1073,7 +1073,7 @@ def minhasAvaliacoes(id_projeto):
                 comentarios,
                 DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
                 FROM avaliacoes_orais 
-                WHERE idProjeto=""" + idProjeto + """ ORDER BY avaliacoes_orais.data"""
+                WHERE avaliacoes_orais.idProjeto=""" + idProjeto + """ ORDER BY avaliacoes_orais.data"""
             else:
                 consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
                 (c1+c2+c3+c4) as pontuacaoTotal, 
@@ -1081,7 +1081,7 @@ def minhasAvaliacoes(id_projeto):
                 DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
                 FROM avaliacoes_orais,editalProjeto 
                 WHERE editalProjeto.id=avaliacoes_orais.idProjeto 
-                AND idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY avaliacoes_orais.data"""
+                AND avaliacoes_orais.idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY avaliacoes_orais.data"""
             pareceres,total = executarSelect(consulta)
             return(render_template('minhasAvaliacoes.html',linhas=pareceres,total=total,titulo=tituloProjeto))
         else:
