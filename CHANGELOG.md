@@ -1,3 +1,4 @@
+	2025-02-14 08:41:02 -0300	fix: template minhasAvaliacoes corrigido de acordo com os novos critérios
 	2025-02-13 08:55:40 -0300	fix: /minhasAvaliacoes - Coluna idProjeto estava ambigua
 	2025-02-12 09:39:15 -0300	fix: Lista de premiados com 10 nomes por área, separando em pós graduação e graduação
 	2025-02-07 10:38:46 -0300	fix: horário de apresentação pode ser consultado em /meusProjetos clicando no botão HORARIO
