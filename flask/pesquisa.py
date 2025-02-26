@@ -1847,7 +1847,7 @@ def solicitarVersaoFinal(edital):
     flash("Solicitações enviadas com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
-
+  
 def getAvaliadoresSala(edital,sala,dia):
     consulta = """SELECT users.nome FROM users,usuarios_salas 
     WHERE users.username=usuarios_salas.username and 
