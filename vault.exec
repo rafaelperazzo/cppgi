@@ -1,0 +1,2 @@
+vault agent generate-config -type="env-template" -exec="./cppgi.exec" -path="cppgi/MYSQL_PASSWORD" -path="cppgi/MYSQL_ROOT_PASSWORD" agent-config.hcl
+vault agent -config=agent-config.hcl -log-level=error

@@ -1,1 +1,1 @@
-gocryptfs -allow_other cipher plain
+gocryptfs cipher plain

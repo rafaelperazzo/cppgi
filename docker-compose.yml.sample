@@ -1,29 +1,33 @@
-version: '3.8'
-
 services:
   db_cppgi:
-     image: mariadb:10.5.8
-     restart: always
-     command: mysqld --sql_mode=""
+     image: mariadb:11
+     build: ./mariadb
+     restart: no
+     command: mariadbd --sql_mode=""
      environment:
-       MYSQL_ROOT_PASSWORD: SENHA
+       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
        MYSQL_DATABASE: cppgi
        MYSQL_USER: cppgi
-       MYSQL_PASSWORD: SENHA
+       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
        TZ: America/Fortaleza
+     #ports:
+     #  - "33306:3306"
      volumes:
-       - ./mysql:/var/lib/mysql
+       - mariadb-cppgi:/var/lib/mysql
        - ./share:/share
+       #- ./encryption:/etc/mysql/encryption
+       - ./conf:/etc/mysql/conf.d:ro
+       #- ./plain:/etc/mysql/password
      networks:
        - web  
 
   cppgi:
-    image: cppgi:py3
+    image: cppgi:latest
     build: .
     volumes:
       - ./flask:/home/perazzo/cppgi
       - ./fonts:/fonts
-    restart: always
+    restart: no
     ports:
       - "9010:80"
     networks:
@@ -32,3 +36,6 @@ services:
 networks:
   web:
     external: true
+
+volumes:
+  mariadb-cppgi:
