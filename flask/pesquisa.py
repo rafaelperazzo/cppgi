@@ -256,6 +256,20 @@ def getSubAreasCNPQ():
     conn.close()
     return(linhas)
 
+def username_valido(username):
+    """Verifica se um nome de usuário é válido.
+
+    Args:
+        username (string): Nome de usuário
+
+    Returns:
+        boolean: Verdadeiro ou falso
+    """
+    if not username.isalnum():
+        return False
+    return True
+
+
 '''
 INÍCIO AUTENTICAÇÃO
 **************************************************************
@@ -269,8 +283,15 @@ def verify_password(username, password):
         conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
         conn.select_db('cppgi')
         cursor  = conn.cursor()
-        consulta = """SELECT id,username,permission,roles,nome FROM users WHERE username='""" + username + """' AND password=('""" + password + """')"""
-        cursor.execute(consulta)
+        consulta = """SELECT 
+        id,
+        username,
+        permission,
+        roles,
+        nome 
+        FROM users 
+        WHERE username = %s AND password = %s """
+        cursor.execute(consulta,(username,password))
         total = cursor.rowcount
         if (total==0):
             return (False)
@@ -1847,7 +1868,7 @@ def solicitarVersaoFinal(edital):
     flash("Solicitações enviadas com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
-
+  
 def getAvaliadoresSala(edital,sala,dia):
     consulta = """SELECT users.nome FROM users,usuarios_salas 
     WHERE users.username=usuarios_salas.username and 

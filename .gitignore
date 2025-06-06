@@ -1,3 +1,9 @@
+*.hcl
+.env
+encryption/*
+cipher/*
+plain/*
+conf/*.cnf
 flask/uploads/*
 .idea/*
 cron.avaliacao.sh

@@ -1,0 +1,26 @@
+[mariadb]
+## File Key Management
+#plugin_load_add = file_key_management
+#file_key_management_filename = /etc/mysql/encryption/keys.enc
+#file_key_management_filekey = FILE:/etc/mysql/password/password_file
+#file_key_management_encryption_algorithm = aes_cbc
+
+plugin_load_add = hashicorp_key_management
+hashicorp-key-management-vault-url=https://yokoapps.com.br:8200/v1/mariadb
+
+hashicorp-key-management-token=SEU_TOKEN
+hashicorp-key-management-caching-enabled=ON
+
+## InnoDB/XtraDB Encryption Setup
+#innodb_default_encryption_key_id = 1
+innodb_encrypt_tables = FORCE
+innodb_encrypt_log = ON
+innodb_encryption_threads = 4
+
+## Aria Encryption Setup
+aria_encrypt_tables = ON
+
+## Temp & Log Encryption
+encrypt-tmp-disk-tables = 1
+encrypt-tmp-files = 1
+encrypt_binlog = ON
