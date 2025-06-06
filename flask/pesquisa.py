@@ -293,7 +293,7 @@ def verify_password(username, password):
         WHERE username = %s AND password = %s """
         cursor.execute(consulta,(username,password))
         total = cursor.rowcount
-        if (total==0):
+        if (total==0): #Se não encontrou o usuário
             return (False)
         else:
             linha = cursor.fetchone()
