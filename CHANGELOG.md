@@ -1,3 +1,4 @@
+	2025-06-06 14:05:22 -0300	fix: fix de commit
 	2025-06-06 14:03:36 -0300	fix: verify_password com consulta parametrizada
 	2025-02-26 11:08:44 -0300	chore: iniciada reorganização dos arquivos de configuração
 	2025-02-26 09:29:07 -0300	feat: Configurada criptografia do BD com o hashcorp vault

@@ -256,6 +256,21 @@ def getSubAreasCNPQ():
     conn.close()
     return(linhas)
 
+def numero_valido(numero):
+    """Verifica se um número é válido.
+
+    Args:
+        numero (string): Identificador
+
+    Returns:
+        boolean: Verdadeiro ou falso
+    """
+    try:
+        int(numero)
+        return True
+    except ValueError:
+        return False
+
 def username_valido(username):
     """Verifica se um nome de usuário é válido.
 
@@ -269,6 +284,41 @@ def username_valido(username):
         return False
     return True
 
+def token_valido(token):
+    """Verifica se um token é válido.
+
+    Args:
+        token (string): Token
+
+    Returns:
+        boolean: Verdadeiro ou falso
+    """
+    if not token.isalnum():
+        return False
+    else:
+        return True
+
+def executarSelect2(consulta,tipo=0,valores=()):
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    cursor  = conn.cursor()
+    try:
+        if valores==():
+            cursor.execute(consulta)
+        else:
+            cursor.execute(consulta,tuple(valores))
+        total = cursor.rowcount
+        if tipo==0: #Retorna todas as linhas
+            resultado = cursor.fetchall()
+        else: #Retorna uma única linha
+            resultado = cursor.fetchone()
+        return (resultado,total)
+    except Exception as e:
+        logging.error(e)
+        logging.error("ERRO Na função executarSelect. Ver consulta abaixo.")
+        logging.error(consulta)
+    finally:
+        cursor.close()
+        conn.close()
 
 '''
 INÍCIO AUTENTICAÇÃO
