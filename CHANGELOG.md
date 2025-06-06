@@ -1,3 +1,4 @@
+	2025-02-26 11:08:44 -0300	chore: iniciada reorganização dos arquivos de configuração
 	2025-02-26 09:29:07 -0300	feat: Configurada criptografia do BD com o hashcorp vault
 	2025-02-19 08:53:10 -0300	fix: corrigidas versões dos pacotes do requirements.txt
 	2025-02-14 08:41:02 -0300	fix: template minhasAvaliacoes corrigido de acordo com os novos critérios
