@@ -256,6 +256,21 @@ def getSubAreasCNPQ():
     conn.close()
     return(linhas)
 
+def numero_valido(numero):
+    """Verifica se um número é válido.
+
+    Args:
+        numero (string): Identificador
+
+    Returns:
+        boolean: Verdadeiro ou falso
+    """
+    try:
+        int(numero)
+        return True
+    except ValueError:
+        return False
+
 def username_valido(username):
     """Verifica se um nome de usuário é válido.
 
@@ -269,6 +284,41 @@ def username_valido(username):
         return False
     return True
 
+def token_valido(token):
+    """Verifica se um token é válido.
+
+    Args:
+        token (string): Token
+
+    Returns:
+        boolean: Verdadeiro ou falso
+    """
+    if not token.isalnum():
+        return False
+    else:
+        return True
+
+def executarSelect2(consulta,tipo=0,valores=()):
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    cursor  = conn.cursor()
+    try:
+        if valores==():
+            cursor.execute(consulta)
+        else:
+            cursor.execute(consulta,tuple(valores))
+        total = cursor.rowcount
+        if tipo==0: #Retorna todas as linhas
+            resultado = cursor.fetchall()
+        else: #Retorna uma única linha
+            resultado = cursor.fetchone()
+        return (resultado,total)
+    except Exception as e:
+        logging.error(e)
+        logging.error("ERRO Na função executarSelect. Ver consulta abaixo.")
+        logging.error(consulta)
+    finally:
+        cursor.close()
+        conn.close()
 
 '''
 INÍCIO AUTENTICAÇÃO
@@ -435,6 +485,7 @@ def cadastrarProjeto():
     destino = int(request.form['destino'])
     tipo = int(request.form['tipo_apresentacao'])
     tipo_trabalho = int(request.form['tipo_trabalho'])
+    categoria_trabalho = int(request.form['categoria_trabalho'])
     nome = str(request.form['autores'])
     nome = nome.upper()
     identificacao = str(request.form['identificacao'])
@@ -499,8 +550,8 @@ def cadastrarProjeto():
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto,acessibilidade,descricao_acessibilidade,lingua)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto,acessibilidade,descricao_acessibilidade,lingua,categoria_trabalho)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
     valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado,acessibilidade,descricao_acessibilidade,lingua)
     inserir(consulta,valores)
@@ -621,8 +672,8 @@ def enviarAvaliacao():
         c6 = str(request.form['c6'])
         c7 = str(request.form['c7'])
         c8 = str(request.form['c8'])
-        c9 = str(request.form['c9'])
-        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8) + int(c9)
+        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
+        total = float((100*total)/80)
         if total>=70:
             recomendacao = "1"
         else:
@@ -669,8 +720,6 @@ def enviarAvaliacao():
             consulta = "UPDATE avaliacoes SET c7=" + c7 + " WHERE token=\"" + token + "\""
             atualizar(consulta)
             consulta = "UPDATE avaliacoes SET c8=" + c8 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c9=" + c9 + " WHERE token=\"" + token + "\""
             atualizar(consulta)
             consulta = "UPDATE avaliacoes SET identificado=" + identificado + " WHERE token=\"" + token + "\""
             atualizar(consulta)
@@ -1070,9 +1119,9 @@ def meusPareceres():
             if autenticado():
                 tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
                 if ('todos' in request.args) and (session['permissao']==0):
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,c9,(c1+c2+c3+c4+c5+c6+c7+c8+c9) as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=""" + idProjeto + """ ORDER BY data_avaliacao"""
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=""" + idProjeto + """ ORDER BY data_avaliacao"""
                 else:
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,c9,(c1+c2+c3+c4+c5+c6+c7+c8+c9) as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY data_avaliacao"""
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY data_avaliacao"""
                 pareceres,total = executarSelect(consulta)
                 return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto))
             else:
@@ -1736,7 +1785,7 @@ def premiacao():
             principal,total = executarSelect(consulta_principal)
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8+c9) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
+                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
                 auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
                 media = str(auxiliar[0])
                 consulta_update = "UPDATE editalProjeto SET media1=" + media + " WHERE id=" + id
