@@ -14,8 +14,8 @@
        var c6 = parseInt(document.forms["frmAvaliacao"]["c6"].value);
        var c7 = parseInt(document.forms["frmAvaliacao"]["c7"].value);
        var c8 = parseInt(document.forms["frmAvaliacao"]["c8"].value);
-       var c9 = parseInt(document.forms["frmAvaliacao"]["c9"].value);
-       var total = c1+c2+c3+c4+c5+c6+c7+c8+c9;
+       var total = c1+c2+c3+c4+c5+c6+c7+c8;
+       total = (100*total)/80;
        var totalStr = total.toString();
        document.getElementById("total").innerHTML = "<h3>Pontuação total: " + totalStr + "</h3>";
        if (total>=70) {
@@ -41,7 +41,6 @@
             document.forms["frmAvaliacao"]["c6"].value = 0;
             document.forms["frmAvaliacao"]["c7"].value = 0;
             document.forms["frmAvaliacao"]["c8"].value = 0;
-            document.forms["frmAvaliacao"]["c9"].value = 0;
             document.getElementById("total").innerHTML = "<h3>Pontuação total: 0</h3>";
             document.getElementById("txtComentarios").value = "Trabalho identificado. Desclassificado."; 
             document.getElementById('div_formulario').style.display = "none";
@@ -170,7 +169,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>A</td><td>Qualidade da redação e organização do texto: ortografia, gramática, clareza, objetividade;<b>(Máximo 10 pontos)</b></td>
+              <td>A</td><td>Qualidade da redação e organização do texto;<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c1" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -182,7 +181,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>B</td><td>Atualidade, originalidade e relevância do tema para a área em questão <b>(Máximo 10 pontos)</b></td>
+              <td>B</td><td>Atualidade, originalidade e relevância do tema para a área em questão;<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c2" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -194,7 +193,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>C</td><td>Objetivos são claros e bem definidos <b>(Máximo 10 pontos)</b></td>
+              <td>C</td><td>Objetivos da pesquisa são claros e bem definidos;<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c3" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -206,7 +205,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>D</td><td>Revisão de literatura reflete o estado da arte do conhecimento na área <b>(Máximo 10 pontos)</b></td>
+              <td>D</td><td>Contextualização teórica;<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c4" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -218,7 +217,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>E</td><td>Consistência conceitual ou teórica do trabalho é adequada e bem estruturada <b>(Máximo 10 pontos)</b></td>
+              <td>E</td><td>Contribuição científica; <b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c5" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -230,7 +229,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>F</td><td>Contribuição científica para o conhecimento atual na área temática é relevante <b>(Máximo 10 pontos)</b></td>
+              <td>F</td><td>Método de pesquisa claramente definido e consistente com os objetivos do trabalho; <b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c6" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -242,7 +241,7 @@ textarea {
             </tr>
 
             <tr>
-              <td>G</td><td>Método de pesquisa claramente definido e consistente com os objetivos do trabalho <b>(Máximo 10 pontos)</b></td>
+              <td>G</td><td>Análise e resultados;<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c7" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
@@ -254,21 +253,9 @@ textarea {
             </tr>
 
             <tr>
-              <td>H</td><td>Análise de dados e resultados com interpretação correta dos dados e articulada com a base teórica <b>(Máximo 20 pontos)</b></td>
+              <td>H</td><td>Conclusão<b>(Máximo 10 pontos)</b></td>
               <td>
               <select name="c8" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(21) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
-
-            <tr>
-              <td>I</td><td>Conclusões são fundamentadas nos dados da pesquisa, claras e objetivas <b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c9" required="required">
                 <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
                 {% for i in range(11) %}
                   <option value="{{ i }}">{{ i }}</option>
