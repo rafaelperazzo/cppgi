@@ -1,3 +1,4 @@
+	2025-09-25 10:04:59 -0300	fix: /cadastrarProjeto
 	2025-09-16 09:22:37 -0300	fix: Feitas alterações para o SEPEC 2025
 	2025-06-06 14:08:43 -0300	fix: inseridas funções para validação dos dados que vem dos usuários
 	2025-06-06 14:05:22 -0300	fix: fix de commit
