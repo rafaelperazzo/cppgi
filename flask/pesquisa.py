@@ -1093,17 +1093,41 @@ def declaracaoEvento():
         else:
             return ("OK")
 
+@app.context_processor
+def hora_apresentacao():
+    def get_hora_sessao():
+        return("09:00")
+    return dict(get_hora_sessao=get_hora_sessao)
+
 @app.route("/meusProjetos", methods=['GET', 'POST'])
 def meusProjetos():
     if autenticado():
 
-        consulta_outros = """SELECT editalProjeto.id,editais.nome,editalProjeto.nome,ua,titulo,modalidade,arquivo_projeto,
+        consulta_outros = """SELECT editalProjeto.id,
+        editais.nome,
+        editalProjeto.nome,
+        ua,
+        titulo,
+        modalidade,
+        arquivo_projeto,
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=1 AND idProjeto=editalProjeto.id) as aprovados,
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=0 AND idProjeto=editalProjeto.id) as reprovados,
-        categoria,editais.situacao,editais.id, editalProjeto.arquivo_projeto_final,
-        editalProjeto.situacao, editalProjeto.obs,editalProjeto.link_apresentacao,
-        editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y')  
-         FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
+        categoria,
+        editais.situacao,
+        editais.id,
+        editalProjeto.arquivo_projeto_final,
+        editalProjeto.situacao, 
+        editalProjeto.obs,
+        editalProjeto.link_apresentacao,
+        editalProjeto.local_apresentacao,
+        DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y'),
+        CASE
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 09:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 12 AND HOUR(editalProjeto.data_apresentacao) < 18 THEN 'Tarde - 14:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 18 AND HOUR(editalProjeto.data_apresentacao) < 24 THEN 'Noite - 18:30'
+        ELSE 'Indefinido'
+    	END AS turno 
+        FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
         registrar_acesso('/meusProjetos',request.remote_addr,str(session['username']))
         return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao'],SITE=CPPGI_SITE))

@@ -202,16 +202,7 @@
                 {% endif %}
               </td>
               <td>{{linha[14]}}</td>
-              <td>{{linha[16]}} - {{linha[17]}} - 
-                <button onclick="
-                (async function() {
-                  const resultado = await getHorarioSessao('{{linha[16]}}');
-                  document.getElementById('horario_linha[0]').innerHTML = resultado;
-                  //alert(resultado);
-                })();
-                "
-                >HORÁRIO</button>
-                <p id="horario_linha[0]"></p>
+              <td>{{linha[16]}} - {{linha[17]}} - {{linha[18]}}
               </td>
             </tr>
             {% endfor %}
