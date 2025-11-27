@@ -1,3 +1,4 @@
+	2025-11-24 11:12:01 -0300	fix: meusProjetos sem horário de apresentação
 	2025-10-10 08:39:28 -0300	fix: textos do certificado e email para avaliadores
 	2025-10-09 10:22:04 -0300	fix: texto do certificado do avaliador
 	2025-09-25 10:04:59 -0300	fix: /cadastrarProjeto

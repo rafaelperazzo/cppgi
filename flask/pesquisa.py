@@ -1122,7 +1122,7 @@ def meusProjetos():
         editalProjeto.local_apresentacao,
         DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y'),
         CASE
-        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 09:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 08:00'
         WHEN HOUR(editalProjeto.data_apresentacao) >= 12 AND HOUR(editalProjeto.data_apresentacao) < 18 THEN 'Tarde - 14:00'
         WHEN HOUR(editalProjeto.data_apresentacao) >= 18 AND HOUR(editalProjeto.data_apresentacao) < 24 THEN 'Noite - 18:30'
         ELSE 'Indefinido'
