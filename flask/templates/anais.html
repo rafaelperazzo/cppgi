@@ -1,73 +1,32 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Anais do Congresso</title>
-    <style>
-    div {
-      background-color: lightgrey;
-      width: 500px;
-      border: 5px solid black;
-      padding: 50px;
-      margin: 20px;
-    }
-table {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-}
+{% block title %}Anais do Congresso{% endblock %}
 
-tr:nth-child(even) {
-    background-color: #dddddd;
-    text-align: center;
-}
-</style>
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
-<script>
-$(document).ready(function(){
- $("#myInput").on("keyup", function() {
-   var value = $(this).val().toLowerCase();
-   $("#myTable tr").filter(function() {
-     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-   });
- });
-});
-</script>
-
-<script>
-$(document).ready(function(){
- $("#txtNovos").on("keyup", function() {
-   var value = $(this).val().toLowerCase();
-   $("#tabelaNovos tr").filter(function() {
-     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-   });
- });
-});
-</script>
+{% block head_extra %}
+<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 <script src="{{ url_for('static', filename='tablefilter/dist/tablefilter/tablefilter.js')}}"></script>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='tablefilter/dist/tablefilter/style/tablefilter.css')}}" />
-  </head>
-  <body>
-<center><img src="{{ url_for('static', filename=logo)}}" width="50%" alt=""></center>
-<center><img src="{{ url_for('static', filename=ficha)}}" width="50%" alt=""></center>
-<hr>
-<h3>ISBN: {{isbn}} </h3>
-<h3>Conferência: {{conferencia}}</h3>
-<h3>Total de trabalhos: {{total}} </h3>
-<hr>
-    <h2>Lista dos trabalhos publicados</h2>
-    
-    <table id="trabalhos">
-      
-        <th>Grande Área</th><th>Tipo de Trabalho</th><th>Autores</th><th>PDF</th>
-      
-      
+{% endblock %}
+
+{% block page_header %}
+<img src="{{ url_for('static', filename=logo)}}" class="mx-auto w-1/2" alt="">
+<img src="{{ url_for('static', filename=ficha)}}" class="mx-auto w-1/2" alt="">
+<div class="mt-2 text-center text-slate-600">
+  <h3>ISBN: {{isbn}}</h3>
+  <h3>Conferência: {{conferencia}}</h3>
+  <h3>Total de trabalhos: {{total}}</h3>
+</div>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-2 text-lg font-semibold text-slate-800">Lista dos trabalhos publicados</h2>
+
+<div class="table-wrapper">
+  <table class="table-base" id="trabalhos">
+    <thead>
+      <tr><th>Grande Área</th><th>Tipo de Trabalho</th><th>Autores</th><th>PDF</th></tr>
+    </thead>
+    <tbody>
       {% for linha in linhas %}
         <tr>
             {% if '.pdf' in linha[4] %}
@@ -75,39 +34,35 @@ $(document).ready(function(){
             {%else%}
             <td>{{linha[2]}}</td><td>{{linha[1]}}</td> <td>{{linha[3]}}</td><td><a href="{{url_for('enviar_arquivo',filename=linha[4])}}"><img src="{{ url_for('static', filename='docx.png')}}" style="width:50%" alt="" align="center"></a></td>
             {% endif %}
-            
         </tr>
       {% endfor %}
-      
-    </table>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
 
-    <script>
-        var filtersConfig = {
-        // instruct TableFilter location to import ressources from
-        base_path: 'https://unpkg.com/tablefilter@latest/dist/tablefilter/',
-        col_0: 'select',
-        col_1: 'select',
-        alternate_rows: true,
-        rows_counter: true,
-        btn_reset: true,
-        loader: true,
-        responsive: true,
-        popup_filters: false,
-        mark_active_columns: true,
-        highlight_keywords: true,
-        no_results_message: true,
-        /*col_widths: [
-          '150px', '100px', '100px',
-          '70px'
-        ],*/
-        extensions: [{
-          name: 'sort'
-        }]
-      };
+{% block scripts_extra %}
+<script>
+    var filtersConfig = {
+    // instruct TableFilter location to import ressources from
+    base_path: 'https://unpkg.com/tablefilter@latest/dist/tablefilter/',
+    col_0: 'select',
+    col_1: 'select',
+    alternate_rows: true,
+    rows_counter: true,
+    btn_reset: true,
+    loader: true,
+    responsive: true,
+    popup_filters: false,
+    mark_active_columns: true,
+    highlight_keywords: true,
+    no_results_message: true,
+    extensions: [{
+      name: 'sort'
+    }]
+  };
 
-      var tf = new TableFilter('trabalhos', filtersConfig);
-      tf.init();
-    </script>
-
-  </body>
-</html>
+  var tf = new TableFilter('trabalhos', filtersConfig);
+  tf.init();
+</script>
+{% endblock %}

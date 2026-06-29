@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Avaliação de Projeto</title>
+{% extends "layout.html" %}
 
+{% block title %}Avaliação de Projeto{% endblock %}
+
+{% block head_extra %}
 <script>
     function recomendacao() {
        var c1 = parseInt(document.forms["frmAvaliacao"]["c1"].value);
@@ -29,7 +28,7 @@
      }
 
      function identificacao() {
-        
+
         var identificado = parseInt(document.forms["frmAvaliacao"]["identificado"].value);
         if (identificado==1) {
             document.getElementById("txtRecomendacao").value = 0;
@@ -42,259 +41,113 @@
             document.forms["frmAvaliacao"]["c7"].value = 0;
             document.forms["frmAvaliacao"]["c8"].value = 0;
             document.getElementById("total").innerHTML = "<h3>Pontuação total: 0</h3>";
-            document.getElementById("txtComentarios").value = "Trabalho identificado. Desclassificado."; 
+            document.getElementById("txtComentarios").value = "Trabalho identificado. Desclassificado.";
             document.getElementById('div_formulario').style.display = "none";
         }
         else {
           document.getElementById("txtRecomendacao").value = 1;
           document.getElementById('div_formulario').style.display = "block";
-          document.getElementById("txtComentarios").value = ""; 
+          document.getElementById("txtComentarios").value = "";
         }
-      
+
      }
-
 </script>
-  </head>
-  <style>
-table {
-font-family: arial, sans-serif;
-border-collapse: collapse;
-width: 100%;
-}
+{% endblock %}
 
-td, th {
-border: 1px solid #dddddd;
-text-align: left;
-padding: 8px;
-}
+{% block page_header %}
+<h1 class="page-title">Avaliação de Trabalho Científico</h1>
+{% endblock %}
 
-tr:nth-child(even) {
-background-color: #dddddd;
-}
+{% block content %}
+<h3 class="text-lg font-semibold text-slate-800">Informações importantes</h3>
+<ol class="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+  <li>A declaração de participação como consultor ad-hoc é gerada imediatamente após a submissão deste formulário de avaliação.</li>
+  <li>Os proponentes não tem acesso, em hipótese alguma, aos nomes dos avaliadores, ficando estes dados acessíveis apenas a coordenadoria de pesquisa para fins de controle das declarações.</li>
+  <li>Quaisquer dúvidas podem ser endereçadas a <b>pesquisa.prpi@ufca.edu.br</b>, ou pelo telefone <b>(88) 3221-9327</b></li>
+  <li class="rounded bg-brand-100 px-2 py-1"><b>Caso o texto contenha a identificação do(s) autor(es), favor informar no campo abaixo.</b></li>
+</ol>
 
-input[type=text], select {
-  width: 100%;
-  padding: 12px 20px;
-  margin: 8px 0;
-  display: inline-block;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-input[type=email], select {
-  width: 100%;
-  padding: 12px 20px;
-  margin: 8px 0;
-  display: inline-block;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
+<form name="frmAvaliacao" action="/cppgi/avaliar" method="POST" class="mt-4 flex flex-col gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-input[type=submit] {
+  <div class="alert-info"><h2 class="text-lg font-bold">TEXTO COMPLETO DO TRABALHO</h2></div>
+  <p>{{ arquivos }}</p>
 
-  background-color: #808080;
-  color: black;
-  padding: 14px 20px;
-  margin: 8px 0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
+  <div class="alert-info">
+    <div>
+      <h2 class="text-lg font-bold">FORMULÁRIO DE AVALIAÇÃO</h2>
+      <p class="mt-1 text-sm">O trabalho é considerado APROVADO (recomendado) caso o somatório dos conceitos abaixo seja maior ou igual a 70.</p>
+    </div>
+  </div>
 
-input[type=submit]:hover {
-  background-color: #45a049;
-}
+  <div class="rounded-md bg-amber-100 p-3">
+    <label class="form-label">Seu nome completo (para geração de declaração de avaliação):</label>
+    <input class="form-input" name="txtNome" required="required" size="80" type="text">
+  </div>
+  <div class="rounded-md bg-amber-100 p-3">
+    <label class="form-label">O trabalho está identificado?</label>
+    <select class="form-select" id="identificado" name="identificado" required="required" onchange="identificacao();">
+      <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
+      <option value="1">Sim</option>
+      <option value="0">Não</option>
+    </select>
+  </div>
 
-textarea {
-  width: 100%;
-  height: 150px;
-  padding: 12px 20px;
-  box-sizing: border-box;
-  border: 2px solid #ccc;
-  border-radius: 4px;
-  background-color: #f8f8f8;
-  resize: none;
-}
-.identificacao {
-  background-color: #fcff33;
-}
-.alerta {
-  background-color: #06f969;
-}
-</style>
-  <body>
-    <center><img src="{{ url_for('static', filename='brasao.jpg')}}" width="8%" alt="" align="center"></center>
-    <br><center>
-    Ministério da Educação<BR>
-    Universidade Federal do Cariri<BR>
-    Plataforma Yoko - Eventos<BR></center>
-    <center><h1>Avaliação de Trabalho Científico</h1><center>
-      <hr>
-      <h3>Informações importantes</h3>
-      <ol>
-        <li>A declaração de participação como consultor ad-hoc é gerada imediatamente após a submissão deste formulário de avaliação.</li>
-        <li>Os proponentes não tem acesso, em hipótese alguma, aos nomes dos avaliadores, ficando estes dados acessíveis apenas a coordenadoria de pesquisa para fins de controle das declarações.</li>
-        <li>Quaisquer dúvidas podem ser endereçadas a <b>pesquisa.prpi@ufca.edu.br</b>, ou pelo telefone <b>(88) 3221-9327</b></li>
-        <li class="alerta"><b>Caso o texto contenha a identificação do(s) autor(es), favor informar no campo abaixo.</b> </li>
-      </ol>
-
-    <form name="frmAvaliacao" action="/cppgi/avaliar" method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <hr>
-      <h2>TEXTO COMPLETO DO TRABALHO</h2>
-      {{ arquivos }} <br>
-
-      <hr>
-      <h2>FORMULÁRIO DE AVALIAÇÃO</h2>
-      <h3>O trabalho é considerado APROVADO (recomendado) caso o somatório dos conceitos abaixo seja maior ou igual a 70.</h3>
-      <hr>
-      <div class="identificacao">
-          <b>Seu nome completo (para geração de declaração de avaliação):</b> <input name="txtNome"
-            required="required" size="80" type="text"><br>
-      </div>
-      <div class="identificacao">
-        <b>O trabalho está identificado?</b> <br>
-        <select id="identificado" name="identificado" required="required" onchange="identificacao();" width="50%">
-          <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-          <option value="1">Sim</option>
-          <option value="0">Não</option>
-        </select>
-      </div><br>
-      <div id="div_formulario">
-          <table style="width:100%">
-
-            <tr>
-              <th>Item</th><th>Critério de análise e julgamento</th><th>Pontuação</th>
-            </tr>
-
-            <tr>
-              <td>A</td><td>Qualidade da redação e organização do texto;<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c1" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
+  <div id="div_formulario" class="flex flex-col gap-4">
+    <div class="table-wrapper">
+      <table class="table-base">
+        <thead>
+          <tr><th>Item</th><th>Critério de análise e julgamento</th><th>Pontuação</th></tr>
+        </thead>
+        <tbody>
+          {% set criterios = [
+            ('A', 'Qualidade da redação e organização do texto;', 'c1'),
+            ('B', 'Atualidade, originalidade e relevância do tema para a área em questão;', 'c2'),
+            ('C', 'Objetivos da pesquisa são claros e bem definidos;', 'c3'),
+            ('D', 'Contextualização teórica;', 'c4'),
+            ('E', 'Contribuição científica;', 'c5'),
+            ('F', 'Método de pesquisa claramente definido e consistente com os objetivos do trabalho;', 'c6'),
+            ('G', 'Análise e resultados;', 'c7'),
+            ('H', 'Conclusão', 'c8'),
+          ] %}
+          {% for letra, descricao, campo in criterios %}
+          <tr>
+            <td>{{ letra }}</td>
+            <td>{{ descricao }} <b>(Máximo 10 pontos)</b></td>
+            <td>
+              <select class="form-select" name="{{ campo }}" required="required">
+                <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
                 {% for i in range(11) %}
                   <option value="{{ i }}">{{ i }}</option>
                 {% endfor %}
               </select>
-              </td>
-            </tr>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-            <tr>
-              <td>B</td><td>Atualidade, originalidade e relevância do tema para a área em questão;<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c2" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
+    <div class="text-right" id="total"></div>
+    <div class="text-right" id="resultado"></div>
 
-            <tr>
-              <td>C</td><td>Objetivos da pesquisa são claros e bem definidos;<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c3" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
+    <div>
+      <label class="form-label">Comentários:</label>
+      <textarea class="form-textarea h-40" name="txtComentarios" id="txtComentarios" required="required" onfocus="recomendacao()"></textarea>
+    </div>
 
-            <tr>
-              <td>D</td><td>Contextualização teórica;<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c4" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
+    <div>
+      <label class="form-label">Recomendação:</label>
+      <select class="form-select" id="txtRecomendacao" name="txtRecomendacao" required="required" onblur="recomendacao()" onfocus="recomendacao()">
+        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
+        <option value="1">Recomendado</option>
+        <option value="0">Não recomendado</option>
+      </select>
+    </div>
+  </div>
 
-            <tr>
-              <td>E</td><td>Contribuição científica; <b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c5" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
-
-            <tr>
-              <td>F</td><td>Método de pesquisa claramente definido e consistente com os objetivos do trabalho; <b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c6" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
-
-            <tr>
-              <td>G</td><td>Análise e resultados;<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c7" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
-
-            <tr>
-              <td>H</td><td>Conclusão<b>(Máximo 10 pontos)</b></td>
-              <td>
-              <select name="c8" required="required">
-                <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-                {% for i in range(11) %}
-                  <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-              </select>
-              </td>
-            </tr>
-
-          </table>
-          <br>
-          <div align="right"
-          <p id="total"></p>
-          </div>
-          <BR>
-          <div align="right"
-          <p id="resultado"></p>
-        </div>
-          <br>
-          <b>Comentários:<br>
-            <textarea name="txtComentarios" id="txtComentarios" cols="120" rows="40" required="required" onfocus="recomendacao()"></textarea><br>
-
-            Recomendação:
-            <select id="txtRecomendacao" name="txtRecomendacao" required="required" onblur="recomendacao()" onfocus="recomendacao()" width="50%">
-              <option  disabled="disabled"  selected="selected" value=""> --selecione-- </option>
-              <option value="1">Recomendado</option>
-              <option value="0">Não recomendado</option>
-            </select>
-            <br>
-          </b>
-          <div style="text-align: center;"><br>
-          </div>
-      </div>
-      <b><input name="btnEnviar" value="Submeter Avaliação" type="submit"><br>
-      </b> </form>
-    <p><br>
-    </p>
-    <p><br>
-    </p>
-    <p><br>
-    </p>
-  </body>
-</html>
+  <div class="flex justify-center">
+    <input class="btn-primary cursor-pointer" name="btnEnviar" value="Submeter Avaliação" type="submit">
+  </div>
+</form>
+{% endblock %}

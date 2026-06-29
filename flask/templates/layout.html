@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Plataforma Yoko{% endblock %} - Plataforma Yoko</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css', _external=True) }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="flex min-h-screen flex-col bg-slate-50 text-slate-800">
+
+  <header class="institutional-header">
+    <img src="{{ url_for('static', filename='cabecalho.png') }}" width="100" height="150" alt="Brasão UFCA">
+    <div class="text-sm leading-tight text-slate-600">
+      <p>Ministério da Educação</p>
+      <p>Universidade Federal do Cariri</p>
+      <p class="font-semibold">Plataforma Yoko - Eventos</p>
+    </div>
+    {% block page_header %}{% endblock %}
+  </header>
+
+  <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-warning" role="alert" data-dismissible>
+            <strong>{{ message }}</strong>
+            <button type="button" class="text-amber-700 hover:text-amber-900" aria-label="Fechar" onclick="this.closest('[data-dismissible]').remove()">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="app-footer">
+    <p>Desenvolvedor: Prof. Rafael Perazzo Barbosa Mota (rafael.perazzo@ufrpe.br)</p>
+  </footer>
+
+  {% block scripts_extra %}{% endblock %}
+</body>
+</html>

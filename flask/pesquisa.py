@@ -5,12 +5,13 @@ import re
 from urllib.parse import urlencode
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,Markup,session
+from flask import request,url_for,send_from_directory,redirect,flash,session
 from flask_httpauth import HTTPBasicAuth
 import datetime
-import MySQLdb
+#import MySQLdb
+import mariadb as MySQLdb
 import os
-from ezodf import newdoc
+#from ezodf import newdoc
 import zipfile
 import tempfile
 import string
@@ -33,8 +34,11 @@ from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 import math
 import json
+import boto3
+import time
 
-WORKING_DIR='/home/perazzo/cppgi/'
+#WORKING_DIR='/home/perazzo/cppgi/'
+WORKING_DIR=''
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
 SERVER_URL = config['DEFAULT']['server']
 
@@ -49,6 +53,30 @@ try:
     PRODUCAO = int(PRODUCAO)
 except:
     PRODUCAO = 1
+
+try:
+    AWS_REGION = config['DEFAULT']['AWS_REGION']
+except:
+    AWS_REGION = ""
+
+try:
+    AWS_S3_BUCKET = config['DEFAULT']['AWS_S3_BUCKET']
+except:
+    AWS_S3_BUCKET = ""
+
+try:
+    AWS_S3_KEY_ID = config['DEFAULT']['AWS_S3_KEY_ID']
+except:
+    AWS_S3_KEY_ID = ""
+
+try:
+    AWS_S3_SECRET_KEY = config['DEFAULT']['AWS_S3_SECRET_KEY']
+except:
+    AWS_S3_SECRET_KEY = ""
+
+s3 = boto3.client('s3', region_name=AWS_REGION,
+                  aws_access_key_id=AWS_S3_KEY_ID,
+                  aws_secret_access_key=AWS_S3_SECRET_KEY)
 
 from waitress import serve
 UPLOAD_FOLDER = WORKING_DIR + 'uploads/'
@@ -184,7 +212,7 @@ def enviar_email(msg):
             mail.send(msg)
 
 def atualizar(consulta):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.autocommit(True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
@@ -201,7 +229,7 @@ def atualizar(consulta):
         conn.close()
 
 def inserir(consulta,valores):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.autocommit(True)
     conn.select_db('cppgi')
     cursor  = conn.cursor()
@@ -235,7 +263,7 @@ def getData():
     return resultado
 
 def getEditaisAbertos():
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = """SELECT id,nome,DATE_FORMAT(deadline,'%d/%m/%Y - %H:%i') FROM editais WHERE now()<deadline ORDER BY id DESC"""
@@ -246,7 +274,7 @@ def getEditaisAbertos():
     return(linhas)
 
 def getSubAreasCNPQ():
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = """SELECT id,descricao FROM subcnpq ORDER BY descricao"""
@@ -299,7 +327,7 @@ def token_valido(token):
         return True
 
 def executarSelect2(consulta,tipo=0,valores=()):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     cursor  = conn.cursor()
     try:
         if valores==():
@@ -330,7 +358,7 @@ def verify_password(username, password):
     password combination is valid.
     """
     try:
-        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
         conn.select_db('cppgi')
         cursor  = conn.cursor()
         consulta = """SELECT 
@@ -377,7 +405,7 @@ def logout():
 Retorna uma coluna de uma linha única dado uma chave primária
 '''
 def obterColunaUnica(tabela,coluna,colunaId,valorId):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT " + coluna + " FROM " + tabela + " WHERE " + colunaId + "=" + valorId
@@ -424,7 +452,59 @@ FIM AUTENTICAÇÃO
 **************************************************************
 '''
 
-@app.before_first_request
+def upload_s3(origem,destino):
+    try:
+        s3.upload_file(origem, AWS_S3_BUCKET, destino)
+        os.remove(origem)
+        app.logger.info("[S3] Upload de arquivo {} para o S3 concluído com sucesso.", origem)
+    except (ClientError,FileNotFoundError) as e:
+        app.logger.error("[S3] Erro ao fazer upload ({}, {}) para o S3: {}", origem, destino, e)
+
+def upload_e_apaga(arquivo):
+    """
+    Upload e apaga o arquivo
+    """
+    separados = arquivo.split("/")
+    nome_arquivo = separados[1]
+    pasta = 'cppgi/' + separados[0] + "/"
+    destino = pasta + nome_arquivo
+    origem = arquivo
+    #Faz o upload do arquivo para o S3
+    if PRODUCAO == 1:
+        thread_s3_upload = threading.Thread(target=upload_s3, args=(origem,destino,))
+        thread_s3_upload.start()
+    else:
+        os.remove(origem)
+
+def esperar(arquivo):
+    # Espera o tempo definido em segundos
+    time.sleep(3)
+    #check if file exists
+    if os.path.exists(arquivo):
+        #remove file
+        try:
+            os.remove(arquivo)
+        except FileNotFoundError as e:
+            app.logger.error("Erro ao remover arquivo temporário (função esperar({})):{}",arquivo,str(e))
+    if os.path.exists(arquivo + '.gpg'):
+        #remove file
+        try:
+            os.remove(arquivo + '.gpg')
+        except FileNotFoundError as e:
+            app.logger.error("Erro ao remover arquivo temporário (função esperar({})):{}",arquivo + '.gpg',str(e))
+
+@app.route("/enviar_arquivo/<filename>", methods=['GET'])
+def enviar_arquivo(filename):
+    arquivo = secure_filename(filename)
+    try:
+        s3.download_file(AWS_S3_BUCKET, 'cppgi/' + UPLOAD_FOLDER + arquivo, UPLOAD_FOLDER + arquivo)
+        thread = threading.Thread(target=esperar,args=(ATTACHMENTS_DIR + arquivo,))
+        thread.start()
+        return(send_from_directory(app.config['UPLOADED_DOCUMENTS_DEST'], arquivo))
+    except Exception:
+        return("Arquivo não encontrado!")
+
+@app.before_request
 def iniciar_sessao():
     session['PRODUCAO'] = PRODUCAO
 
@@ -537,7 +617,7 @@ def cadastrarProjeto():
         token = id_generator()
         nomeDoArquivoTrabalho = "TRABALHO" + "." + token + ".pdf"
         filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
-
+        upload_e_apaga(filename)
     nomeDoArquivoSuplementar1 = ""
     
     nomeDoArquivoSuplementar2 = ""
@@ -584,7 +664,7 @@ def cadastrarProjeto():
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT arquivo_projeto,arquivo_plano1,arquivo_plano2 FROM editalProjeto WHERE id=" + idProjeto
@@ -594,7 +674,7 @@ def getFiles(idProjeto):
     return(linha)
 
 def naoEstaFinalizado(token):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT finalizado FROM avaliacoes WHERE token=\"" + token + "\""
@@ -608,7 +688,7 @@ def naoEstaFinalizado(token):
         return (False)
 
 def podeAvaliar(idProjeto):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     #consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
@@ -646,7 +726,7 @@ def getPaginaAvaliacao():
                 links = links + "<a href=\"" + link_plano2 + "\">ARQUIVO SUPLEMENTAR 2</a><BR>"
             '''
             links = links + "<input type=\"hidden\" id=\"token\" name=\"token\" value=\"" + tokenAvaliacao + "\">"
-            links = Markup(links)
+            #links = Markup(links)
             if naoEstaFinalizado(tokenAvaliacao):
                 consulta = "UPDATE avaliacoes SET aceitou=1 WHERE token=\"" + tokenAvaliacao + "\""
                 atualizar(consulta)
@@ -744,7 +824,7 @@ def enviarAvaliacao():
         return("OK")
 
 def descricaoEdital(codigoEdital):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT id,nome FROM editais WHERE id=" + codigoEdital
@@ -814,7 +894,7 @@ def getDeclaracaoAvaliador():
             return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     cursor.execute(consulta)
@@ -836,7 +916,7 @@ def recusarConvite():
 @auth.login_required(role=['admin'])
 def avaliacoesNegadas():
     if request.method == "GET":
-        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
         conn.select_db('cppgi')
         cursor  = conn.cursor()
         if 'edital' in request.args:
@@ -927,7 +1007,7 @@ def inserirAvaliador():
 
 #Retorna a quantidade de linhas da consulta
 def quantidades(consulta):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     cursor.execute(consulta)
@@ -937,7 +1017,7 @@ def quantidades(consulta):
 
 
 def executarSelect(consulta,tipo=0):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
@@ -960,7 +1040,7 @@ def executarSelect(consulta,tipo=0):
 
 
 def avaliacoesEncerradas(codigoEdital):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
@@ -996,7 +1076,7 @@ def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
         codigoEdital = str(edital)
-        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi", charset="utf8", use_unicode=True)
+        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
         conn.select_db('cppgi')
         cursor  = conn.cursor()
 
@@ -1093,17 +1173,41 @@ def declaracaoEvento():
         else:
             return ("OK")
 
+@app.context_processor
+def hora_apresentacao():
+    def get_hora_sessao():
+        return("09:00")
+    return dict(get_hora_sessao=get_hora_sessao)
+
 @app.route("/meusProjetos", methods=['GET', 'POST'])
 def meusProjetos():
     if autenticado():
 
-        consulta_outros = """SELECT editalProjeto.id,editais.nome,editalProjeto.nome,ua,titulo,modalidade,arquivo_projeto,
+        consulta_outros = """SELECT editalProjeto.id,
+        editais.nome,
+        editalProjeto.nome,
+        ua,
+        titulo,
+        modalidade,
+        arquivo_projeto,
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=1 AND idProjeto=editalProjeto.id) as aprovados,
         (SELECT COUNT(recomendacao) FROM `avaliacoes` WHERE finalizado=1 AND recomendacao=0 AND idProjeto=editalProjeto.id) as reprovados,
-        categoria,editais.situacao,editais.id, editalProjeto.arquivo_projeto_final,
-        editalProjeto.situacao, editalProjeto.obs,editalProjeto.link_apresentacao,
-        editalProjeto.local_apresentacao,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y')  
-         FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
+        categoria,
+        editais.situacao,
+        editais.id,
+        editalProjeto.arquivo_projeto_final,
+        editalProjeto.situacao, 
+        editalProjeto.obs,
+        editalProjeto.link_apresentacao,
+        editalProjeto.local_apresentacao,
+        DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y'),
+        CASE
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 08:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 12 AND HOUR(editalProjeto.data_apresentacao) < 18 THEN 'Tarde - 14:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 18 AND HOUR(editalProjeto.data_apresentacao) < 24 THEN 'Noite - 18:30'
+        ELSE 'Indefinido'
+    	END AS turno 
+        FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
         projetos2019,total2019 = executarSelect(consulta_outros)
         registrar_acesso('/meusProjetos',request.remote_addr,str(session['username']))
         return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao'],SITE=CPPGI_SITE))
@@ -1512,6 +1616,8 @@ def distribuir(local,turno,uas,trabalhos):
                 update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                #Turno[0] na linha abaixo indica que todos os trabalho começam no primeiro horário
+                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
@@ -1526,6 +1632,7 @@ def distribuir(local,turno,uas,trabalhos):
                 update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
@@ -1627,21 +1734,21 @@ def programacao():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             
-            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR><hr>')
+            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua,id SEPARATOR '<BR><BR><hr>')
 
                         FROM editalProjeto
 
                         WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY local_apresentacao,data_apresentacao,ua """
+                        ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
-            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR>')
+            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua,id SEPARATOR '<BR><BR>')
 
                         FROM editalProjeto
 
                         WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY local_apresentacao,data_apresentacao,ua """
+                        ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
             linhas,total = executarSelect(final_oral)
             poster,total_poster = executarSelect(final_poster)
@@ -1677,7 +1784,7 @@ def mapa():
         FROM editalProjeto
         WHERE situacao=1 and valendo=1 and tipo=""" + edital + """ GROUP BY local_apresentacao,
         date(data_apresentacao) 
-        ORDER BY local_apresentacao,date(data_apresentacao)
+        ORDER BY local_apresentacao,date(data_apresentacao),id
         """
         linhas,total = executarSelect(consulta)
         return(render_template('mapa.html',linhas=linhas,nome_edital=nome_edital))
@@ -2586,6 +2693,7 @@ def updateZip(zipname, filename, data):
         dados = data.encode('utf8')
         zf.writestr(filename, dados)
 
+'''
 def gerarCertificadoApresentacao(autores,titulo,id,token=0):
     namef = app.config['CERTIFICADOS_FOLDER'] + 'certificado-' + id + '.odt'
     odt = newdoc(doctype='odt', filename=namef, template='/home/perazzo/cppgi/documentos/07-certificado.apresentacao.odt')
@@ -2618,6 +2726,7 @@ def certificadoApresentacoes():
             return("OK")
     else:
         return("OK")
+'''
 
 def processar_emails_certificados(linhas,edital,app):
     with app.app_context():
@@ -2654,7 +2763,8 @@ def enviarCertificados(edital):
     t1.start()
     flash("Certificados ENVIADOS com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
-        
+
+'''  
 def gerarCertificadoModerador(nome,tipo,id,token=0):
     namef = app.config['CERTIFICADOS_FOLDER'] + 'MODERADOR-certificado-' + id + '.odt'
     odt = newdoc(doctype='odt', filename=namef, template='/home/perazzo/cppgi/documentos/07-certificado.moderador.odt')
@@ -2687,6 +2797,7 @@ def certificadoModerador():
             return("OK")
     else:
         return("OK")
+'''
 
 @app.route("/listarCertificados", methods=['GET', 'POST'])
 def listarCertificados():
@@ -3295,11 +3406,11 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
-
+'''
 @app.route('/enviar_arquivo/<filename>')
 def enviar_arquivo(filename):
     return(send_from_directory(ATTACHMENTS_DIR,filename))
-
+'''
 
 '''
 SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
@@ -3414,5 +3525,5 @@ if __name__ == "__main__":
     api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
     api.add_resource(Trabalhos,'/api/trabalhos/<id_edital>/<apresentacao>')
     api.add_resource(Apresentador,'/api/apresentador/<id_submissao>')
-    serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
+    serve(app, host='0.0.0.0', port=8090, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
 

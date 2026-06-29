@@ -10,11 +10,14 @@ cron.avaliacao.sh
 *.log
 *.gz
 *.sh
+!commit.sh
+!deploy.sh
 *.tar.gz
 *.zip
 *.pass
 *.sql
 *.yml
+!.github/workflows/*.yml
 *.pdf
 *.xml
 mysql/*
@@ -26,3 +29,4 @@ backup.sh
 flask/documentos/*
 *.doc
 *.docx
+.tailwindcli

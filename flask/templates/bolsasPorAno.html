@@ -1,67 +1,9 @@
-<!DOCTYPE html>
+{% extends "layout.html" %}
 
-<html>
-  <head>
-	  <style>
-table {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 100%;
-}
+{% block title %}Distribuição de bolsas por ano{% endblock %}
 
-td, th {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-}
-
-tr:nth-child(even) {
-    background-color: #dddddd;
-}
-
-table.novos {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 50%;
-}
-
-td.novos, th.novos {
-    border: 1px solid #dddddd;
-    text-align: center;
-    padding: 8px;
-}
-
-tr.novos:nth-child(even) {
-    background-color: #CCFFCC;
-}
-
-p.aprovado {
-  color: green;
-}
-
-p.indefinido {
-  color: orange;
-}
-
-p.reprovado {
-  color: red;
-}
-
-.column {
-  float: left;
-  width: 45%;
-  padding: 5px;
-}
-
-/* Clearfix (clear floats) */
-.row::after {
-  content: "";
-  clear: both;
-  display: table;
-}
-
-</style>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+{% block head_extra %}
+<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 <script>
 $(document).ready(function(){
  $("#myInput").on("keyup", function() {
@@ -72,39 +14,22 @@ $(document).ready(function(){
  });
 });
 </script>
+{% endblock %}
 
-<script>
-$(document).ready(function(){
- $("#txtNovos").on("keyup", function() {
-   var value = $(this).val().toLowerCase();
-   $("#tabelaNovos tr").filter(function() {
-     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-   });
- });
-});
-</script>
+{% block page_header %}
+<h1 class="page-title">Distribuição de bolsas por ano</h1>
+<h2 class="page-subtitle">{{ ano }}</h2>
+{% endblock %}
 
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Distribuição de bolsas por ano</title>
-  </head>
-  <body>
-    <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
-    <center>
-    MINISTÉRIO DA EDUCAÇÃO<br>
-    UNIVERSIDADE FEDERAL DO CARIRI<br>
-    PRÓ-REITORIA DE PESQUISA, INOVAÇÃO E PÓS-GRADUAÇÃO<br>
-    COORDENADORIA DE PESQUISA <br>
-    </center>
-    <hr>
-    <h1><b>Distribuição de bolsas por ano</b></h1>
-    <h1><center>{{ ano }}</center></h1>
+{% block content %}
+<h2 class="mb-2 text-lg font-semibold text-slate-800">Propostas ordenadas por proponente</h2>
+<input id="myInput" type="text" placeholder="Procurar.." class="form-input mb-4 max-w-xs">
 
-    <h1>Propostas ordenadas por proponente</h1>
-    <input id="myInput" type="text" placeholder="Procurar.."><BR>
-    <table>
-      <thead>
-        <th>SIAPE</th><th>PROPONENTE</th><th>Bolsas concedidas</th><th>Editais</th><th>Modalidades<br>(1 - PIBIC; 2- PIBITI; 3- PIBIC-EM)</th>
-      </thead>
+<div class="table-wrapper">
+  <table class="table-base">
+    <thead>
+      <tr><th>SIAPE</th><th>PROPONENTE</th><th>Bolsas concedidas</th><th>Editais</th><th>Modalidades<br>(1 - PIBIC; 2- PIBITI; 3- PIBIC-EM)</th></tr>
+    </thead>
     <tbody id="myTable">
     {% for linha in linhas %}
     <tr>
@@ -112,19 +37,18 @@ $(document).ready(function(){
     <td>{{ linha[1] }}</td>
     <td>
       {% if linha[2]>2 %}
-          <p class="reprovado">{{ linha[2] }}</p>
+          <p class="font-semibold text-red-600">{{ linha[2] }}</p>
       {% else %}
-          <p class="aprovado">{{ linha[2] }}</p>
+          <p class="font-semibold text-brand-700">{{ linha[2] }}</p>
       {% endif %}
     </td>
     <td>{{ linha[3]|safe }}</td>
     <td>{{ linha[4]|safe }}</td>
+    </tr>
     {% endfor %}
     </tbody>
-    </table>
+  </table>
+</div>
 
-    Total: {{total}} de proponentes distintos.
-
-
-  </body>
-</html>
+<p class="mt-2">Total: {{total}} de proponentes distintos.</p>
+{% endblock %}

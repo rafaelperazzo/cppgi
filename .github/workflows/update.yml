@@ -1,0 +1,29 @@
+# This workflow will update the system when a tag is pushed.
+# The workflow is triggered on pushes of version tags (v*.*.*).
+
+name: Atualizar sistema CPPGI
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: enviando comandos ssh
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          script: |
+            cd /home/admin/cppgi
+            git checkout master
+            git pull origin master --tags
+            sudo systemctl restart cppgi.service

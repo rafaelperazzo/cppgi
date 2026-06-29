@@ -1,81 +1,62 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ titulo }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
-    <hr>
-    <center><p><b><h1>CADASTRAR EDITAL</b></h1></p></center>
-        
-    <form action="{{url_for('cadastrar_edital')}}" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="alert alert-dark" role="alert">
-            <H3>DESCRIÇÃO DO EDITAL</H3>
-        </div>
-        <div class="container text-center">
-            <div class="row align-items-start">
-                <div class="col">
-                    <p><b>Nome curto</b></p>
-                    <input type="text" class="form-control form-control-sm" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required">                                
-                </div>
-                <div class="col">
-                    <p><b>Nome longo</b></p>
-                    <input type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required">
-                </div>
-            </div>
-        </div>
-        <div class="alert alert-dark" role="alert">
-            <H3>DATAS</H3>
-        </div>
-        <div class="container text-center">
-            <div class="row align-items-start">
-                
-                <div class="col">
-                    <p><b>Deadline submissões</b></p>
-                    <input class="form-control-sm" type="date" id="deadline" name="deadline" required="required">
-                </div>
-                <div class="col">
-                    <p><b>Deadline de avaliações dos trabalhos</b></p>
-                    <input class="form-control-sm" type="date" id="deadline_avaliacao" name="deadline_avaliacao" required="required">
-                </div>
-                <div class="col">
-                    <p><b>Deadline de submissão da versão final</b></p>
-                    <input type="date" class="form-control-sm" id="deadline_final" name="deadline_final" required="required">
-                </div>
-                <div class="col">
-                    <p><b>Deadline de submissão da apresentação</b></p>
-                    <input type="date" class="form-control-sm" id="deadline_apresentacao" name="deadline_apresentacao" required="required">
-                </div>
-            </div>
-        </div>
-        <div class="alert alert-dark" role="alert">
-            <H3>SITUACAO DO EDITAL E ISBN</H3>
-        </div>
-        <div class="container text-center">
-            <div class="row align-items-start">
-                <div class="col">
-                    <p><b>Situação</b></p>
-                    <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="Situação" required="required" value="N/A">                                
-                </div>
-                <div class="col">
-                    <p><b>ISBN</b></p>
-                    <input type="text" class="form-control form-control-sm" id="isbn" name="isbn" placeholder="ISBN" required="required">                                
-                </div>
-            </div>
-        </div>
-        
-        <center><input class="btn btn-success" type="submit" value="Salvar"></center>
-    </form>
+{% extends "layout.html" %}
 
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">CADASTRAR EDITAL</h2>
+{% endblock %}
+
+{% block content %}
+<form action="{{url_for('cadastrar_edital')}}" method="POST" enctype="multipart/form-data" class="flex flex-col gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="alert-info"><h3 class="text-lg font-bold">DESCRIÇÃO DO EDITAL</h3></div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">Nome curto</label>
+            <input type="text" class="form-input" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required">
+        </div>
+        <div>
+            <label class="form-label">Nome longo</label>
+            <input type="text" class="form-input" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required">
+        </div>
+    </div>
+
+    <div class="alert-info"><h3 class="text-lg font-bold">DATAS</h3></div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <label class="form-label">Deadline submissões</label>
+            <input class="form-input" type="date" id="deadline" name="deadline" required="required">
+        </div>
+        <div>
+            <label class="form-label">Deadline de avaliações dos trabalhos</label>
+            <input class="form-input" type="date" id="deadline_avaliacao" name="deadline_avaliacao" required="required">
+        </div>
+        <div>
+            <label class="form-label">Deadline de submissão da versão final</label>
+            <input type="date" class="form-input" id="deadline_final" name="deadline_final" required="required">
+        </div>
+        <div>
+            <label class="form-label">Deadline de submissão da apresentação</label>
+            <input type="date" class="form-input" id="deadline_apresentacao" name="deadline_apresentacao" required="required">
+        </div>
+    </div>
+
+    <div class="alert-info"><h3 class="text-lg font-bold">SITUACAO DO EDITAL E ISBN</h3></div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">Situação</label>
+            <input type="text" class="form-input" id="situacao" name="situacao" placeholder="Situação" required="required" value="N/A">
+        </div>
+        <div>
+            <label class="form-label">ISBN</label>
+            <input type="text" class="form-input" id="isbn" name="isbn" placeholder="ISBN" required="required">
+        </div>
+    </div>
+
+    <div class="flex justify-center">
+        <input class="btn-primary cursor-pointer" type="submit" value="Salvar">
+    </div>
+</form>
+{% endblock %}

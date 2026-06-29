@@ -1,106 +1,82 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta http-equiv="refresh" content="30"/>
-    <title>Estatísticas por edital</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}Estatísticas por edital{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-</style>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-  </head>
-  <body>
-    <p><b><h1>Edital em Números</b></h1></p>
-    <p><b><h2>{{ nomeEdital }}</h2><br></b></p>
-    <hr>
-    <BR>
-    <h2>  PROGRESSO DAS AVALIAÇÕES </h2>
-    {% if 0<=progresso<=40 %}
-        <div class="w3-light-grey w3-round">
-          <div class="w3-container w3-round w3-red" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
-        </div>
-    {% endif %}
+{% block head_extra %}
+<meta http-equiv="refresh" content="30"/>
+{% endblock %}
 
-    {% if 40<progresso<=75 %}
-    <div class="w3-light-grey w3-round">
-      <div class="w3-container w3-round w3-yellow" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
+{% block page_header %}
+<h1 class="page-title">Edital em Números</h1>
+<h2 class="page-subtitle">{{ nomeEdital }}</h2>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-2 text-lg font-semibold text-slate-800">PROGRESSO DAS AVALIAÇÕES</h2>
+
+{% if 0<=progresso<=40 %}
+    <div class="h-6 w-full overflow-hidden rounded-full bg-slate-200">
+      <div class="flex h-6 items-center justify-center rounded-full bg-red-500 text-xs font-semibold text-white" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
     </div>
-    {% endif %}
+{% endif %}
 
-    {% if 75<progresso<100 %}
-    <div class="w3-light-grey w3-round">
-      <div class="w3-container w3-round w3-green" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
-    </div>
-    {% endif %}
+{% if 40<progresso<=75 %}
+<div class="h-6 w-full overflow-hidden rounded-full bg-slate-200">
+  <div class="flex h-6 items-center justify-center rounded-full bg-amber-400 text-xs font-semibold text-slate-900" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
+</div>
+{% endif %}
 
-    {% if progresso==100 %}
-    <div class="w3-light-grey w3-round">
-      <div class="w3-container w3-round w3-green" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
-    </div>
-    <center><H2>AVALIAÇÕES CONCLUÍDAS!</H2></center>
-    {% endif %}
+{% if 75<progresso<100 %}
+<div class="h-6 w-full overflow-hidden rounded-full bg-slate-200">
+  <div class="flex h-6 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
+</div>
+{% endif %}
 
-    <hr>
-    <table style="width:100%">
-      <caption><h2>Dados</h2></caption>
-      <th>Descrição</th><th>Total</th><th>Percentual</th>
+{% if progresso==100 %}
+<div class="h-6 w-full overflow-hidden rounded-full bg-slate-200">
+  <div class="flex h-6 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white" style="width:{{ progresso|round|int }}%">{{ progresso|round|int }}%</div>
+</div>
+<h2 class="mt-2 text-center text-lg font-bold text-brand-700">AVALIAÇÕES CONCLUÍDAS!</h2>
+{% endif %}
+
+<div class="table-wrapper mt-6">
+  <table class="table-base">
+    <caption class="mb-2 text-left text-lg font-semibold text-slate-800">Dados</caption>
+    <thead>
+      <tr><th>Descrição</th><th>Total</th><th>Percentual</th></tr>
+    </thead>
+    <tbody>
       <tr>
         <td>Total de submissões</td> <td>{{total}}</td> <td>-</td>
       </tr>
-
       <tr>
         <td>Total de pedidos de avaliações enviados</td> <td>{{totalAvaliacoes}}</td> <td>-</td>
       </tr>
-
       <tr>
         <td>Total de avaliações negadas (o consultor não aceitou avaliar a submissão)</td> <td>{{totalAvaliacoesNegadas}}</td> <td>{{ ((totalAvaliacoesNegadas/totalAvaliacoes)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de avaliações finalizadas</td> <td>{{totalAvaliacoesFinalizadas}}</td> <td>{{ ((totalAvaliacoesFinalizadas/totalAvaliacoes)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos com 2 ou mais avaliações concluídas</td> <td>{{totalAvaliacoesConcluidas}}</td> <td>{{ ((totalAvaliacoesConcluidas/total)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos aprovados (quantidade de aprovações maior que reprovações)</td> <td>{{totalSubmissoesAprovadas}}</td> <td>{{ ((totalSubmissoesAprovadas/total)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos reprovados (quantidade de reprovações maior que aprovações)</td> <td>{{totalSubmissoesReprovadas}}</td> <td>{{ ((totalSubmissoesReprovadas/total)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos empatados (quantidade de aprovações igual a reprovações)</td> <td>{{totalSubmissoesIndefinidas}}</td> <td>{{ ((totalSubmissoesIndefinidas/total)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos com apenas 1 avaliação concluída</td> <td>{{totalAvaliacoesPendentes}}</td> <td>{{ ((totalAvaliacoesPendentes/total)*100)|round|int }}%</td>
       </tr>
-
       <tr>
         <td>Total de trabalhos sem avaliações concluídas</td> <td>{{totalAvaliacoesZeradas}}</td> <td>{{ ((totalAvaliacoesZeradas/total)*100)|round|int }}%</td>
       </tr>
-
-    </table>
-
-
-  </body>
-</html>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

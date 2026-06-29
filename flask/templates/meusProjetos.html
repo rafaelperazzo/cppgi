@@ -1,228 +1,162 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    
-	  <style>
-    p.aprovado {
-      color: green;
-    }
+{% extends "layout.html" %}
 
-    p.indefinido {
-      color: orange;
-    }
+{% block title %}Minhas submissões{% endblock %}
 
-    p.reprovado {
-      color: red;
-    }
+{% block head_extra %}
+<script>
+  async function getHorarioSessao(sala) {
+    const response = await fetch('/cppgi/horario/'+sala);
+    const data = await response.json();
+    return (data.horario);
+  }
+</script>
+{% endblock %}
 
-    a.fixed {
+{% block page_header %}
+<h1 class="page-title">Minhas submissões</h1>
+{% endblock %}
 
-    position: fixed;
+{% block content %}
+<a class="fixed right-4 top-4 btn-outline" href="/cppgi/logout">Sair</a>
 
-    right: 0;
+<!-- Modal Informações versão final -->
+<div id="modalVersaoFinal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+  <div class="card max-w-lg w-full" style="display:block">
+    <div class="mb-3 flex items-center justify-between">
+      <h5 class="text-lg font-bold">Informações sobre a versão final da submissão</h5>
+      <button type="button" class="text-slate-500 hover:text-slate-800" onclick="document.getElementById('modalVersaoFinal').style.display='none'">&times;</button>
+    </div>
+    <p>A versão final deve ser enviada com as seguintes alterações:</p>
+    <ul class="list-disc pl-5">
+      <li>Correções sugeridas pelos revisores;</li>
+      <li>Identificação dos autores.</li>
+    </ul>
+    <div class="mt-4 text-right">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('modalVersaoFinal').style.display='none'">Fechar</button>
+    </div>
+  </div>
+</div>
 
-    top: 0;
+<div class="alert-warning">
+  *Caso sua submissão não esteja listada abaixo, favor entrar em contato com a PRPI no e-mail atendimento.prpi@ufca.edu.br.
+</div>
 
-    width: 260px;
-
-    border: 0px solid black;
-
-    }
-
-    a.editalProjeto {
-
-    position: fixed;
-
-    right: 0;
-
-    top: 5;
-
-    width: 260px;
-
-    border: 0px solid black;
-
-    }
-</style>
-    
-    <title>Minhas submissões</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    
-    <script>
-      async function getHorarioSessao(sala) {
-        const response = await fetch('/cppgi/horario/'+sala);
-        const data = await response.json();
-        return (data.horario);
-      }
-      /*(async function() {
-        const resultado = await getHorarioSessao('R08');
-        console.log(resultado);
-      })();
-      //const resultado = getHorarioSessao('R08');
-      //console.log(resultado);*/
-  
-  </script>
-
-  </head>
-  <body>
-    <!-- Modal -->
-    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="exampleModalLabel">Informações sobre a versão final da submissão</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p>A versão final deve ser enviada com as seguintes alterações:</p>
-            <ul>
-              <li>Correções sugeridas pelos revisores;</li>
-              <li>Identificação dos autores.</li>
-            </ul>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-          </div>
-        </div>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert-danger">
+        <strong>{{message}}</strong>
       </div>
-    </div>
-    <div class="alert alert-secondary" role="alert">
-      <h1>Minhas submissões</h1>
-    </div>
-    <div class="alert alert-warning" role="alert">
-      *Caso sua submissão não esteja listada abaixo, favor entrar em contato com a PRPI no e-mail atendimento.prpi@ufca.edu.br.
-    </div>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        {% for message in messages %}
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong>{{message}}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-    {% if total2019!=0 %}
-          <table class="table table-striped">
-            <thead>
-              <th>CERTIFICADO</th>
-              <th>Id</th>
-              <th>Edital</th>
-              <th>Situação do Edital</th>
-              <th>Autor(es)</th>
-              <th>Grande Área</th>
-              <th>Tipo de trabalho</th>
-              <th>Tipo de apresentação</th>
-              <th>Titulo</th>
-              <th>Situação da submissão</th>
-              <th>Avaliações (escrita)</th>
-              <th>Avaliações (apresentação)</th>
-              <th>Enviar versão final*</th>
-              <th>Link da apresentação</th>
-              <th>Mensagens</th>
-              <th>Local e data de apresentação</th>
-            </thead>
-            <tbody>
-            {% for linha in projetos2019 %}
-            <tr>
-              <td><a href="{{url_for('baixarCertificado',id_projeto=linha[0])}}"><img src="{{ url_for('static', filename='certificado.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
-              
-              <td>{{linha[0]}}</td>
-              {% if permissao==1 %}
-                  <td>{{linha[1]}}</td>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if total2019!=0 %}
+  <div class="table-wrapper">
+    <table class="table-base">
+      <thead>
+        <tr>
+          <th>CERTIFICADO</th>
+          <th>Id</th>
+          <th>Edital</th>
+          <th>Situação do Edital</th>
+          <th>Autor(es)</th>
+          <th>Grande Área</th>
+          <th>Tipo de trabalho</th>
+          <th>Tipo de apresentação</th>
+          <th>Titulo</th>
+          <th>Situação da submissão</th>
+          <th>Avaliações (escrita)</th>
+          <th>Avaliações (apresentação)</th>
+          <th>Enviar versão final*</th>
+          <th>Link da apresentação</th>
+          <th>Mensagens</th>
+          <th>Local e data de apresentação</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for linha in projetos2019 %}
+      <tr>
+        <td><a href="{{url_for('baixarCertificado',id_projeto=linha[0])}}"><img src="{{ url_for('static', filename='certificado.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+
+        <td>{{linha[0]}}</td>
+        {% if permissao==1 %}
+            <td>{{linha[1]}}</td>
+        {% else %}
+            <td><a class="text-brand-700 hover:underline" href="{{url_for('editalProjeto',edital=linha[11])}}">{{linha[1]}}</a></td>
+        {% endif %}
+        <td>{{linha[10]}}</td> <!-- SITUAÇÃO DO EDITAL -->
+        <td>{{linha[2]}}</td> <!-- Autores -->
+        <td>{{linha[3]}}</td> <!-- GRANDE ÁREA -->
+
+        <td>
+            {% if linha[5]==0 %}
+              RESUMO SIMPLES
+            {% endif %}
+            {% if linha[5]==1 %}
+              RESUMO EXPANDIDO
+            {% endif %}
+            {% if linha[5]==2 %}
+              TRABALHO COMPLETO
+            {% endif %}
+        </td>  <!-- TIPO DE TRABALHO -->
+
+        <td>
+          {% if linha[9]==0 %}
+            APRESENTAÇÃO ORAL
+          {% endif %}
+          {% if linha[9]==1 %}
+            APRESENTAÇÃO EM POSTER
+          {% endif %}
+        </td>  <!-- TIPO DE APRESENTAÇÃO -->
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=linha[6])}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
+        <!-- SITUAÇÃO DO PROJETO -->
+        <td>
+            {% if linha[13]==1 %}
+                <p class="font-semibold text-brand-700">APROVADO</p>
+            {% elif linha[13]==0 %}
+                <p class="font-semibold text-red-600">NÃO APROVADO</p>
+            {% else %}
+                <p class="font-semibold text-amber-600">EM AVALIAÇÃO</p>
+            {% endif %}
+        </td>
+        <!-- PARECERES -->
+        <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+        <td><a href="/cppgi/minhasAvaliacoes/{{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
+        <td>
+          {% if linha[13]>0 %}
+              {% if linha[12]=='0' %}
+                  <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" class="cursor-pointer" onclick="document.getElementById('modalVersaoFinal').style.display='flex'">
+                  <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}"  alt="" align="center"><br><br>
+                  <a class="text-brand-700 hover:underline" href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ENVIAR VERSÃO FINAL</a><br><br>
               {% else %}
-                  <td><a href="{{url_for('editalProjeto',edital=linha[11])}}">{{linha[1]}}</a></td>
+              <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" class="cursor-pointer" onclick="document.getElementById('modalVersaoFinal').style.display='flex'">
+                  <a href="{{url_for('enviar_arquivo',filename=linha[12])}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><br><br>
+                  <a class="text-brand-700 hover:underline" href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ATUALIZAR VERSÃO FINAL</a><br><br>
               {% endif %}
-              <td>{{linha[10]}}</td> <!-- SITUAÇÃO DO EDITAL -->
-              <td>{{linha[2]}}</td> <!-- Autores -->
-              <td>{{linha[3]}}</td> <!-- GRANDE ÁREA -->
+          {% endif %}
+        </td>
+        <td>
+          {% if linha[13]>0 %}
+              {% if linha[15]=='0' %}
+                  <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" alt="" align="center"><br><br>
+                  <a class="text-brand-700 hover:underline" href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ENVIAR LINK DE APRESENTAÇÃO</a><br><br>
+              {% else %}
+                  <a href="{{linha[15]|safe}}" target="_blank"><img src="{{ url_for('static', filename='presentation.png')}}" alt="" align="center"></a><br><br>
+                    <a class="text-brand-700 hover:underline" href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><br><br>
+              {% endif %}
+          {% endif %}
+        </td>
+        <td>{{linha[14]}}</td>
+        <td>{{linha[16]}} - {{linha[17]}} - {{linha[18]}}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+    <h3 class="text-lg font-semibold text-slate-700">Nenhuma submissão.</h3>
+{% endif %}
 
-              <td>
-                  {% if linha[5]==0 %}
-                    RESUMO SIMPLES
-                  {% endif %}
-                  {% if linha[5]==1 %}
-                    RESUMO EXPANDIDO
-                  {% endif %}
-                  {% if linha[5]==2 %}
-                    TRABALHO COMPLETO
-                  {% endif %}
-              </td>  <!-- TIPO DE TRABALHO -->
-
-              <td>
-                {% if linha[9]==0 %}
-                  APRESENTAÇÃO ORAL
-                {% endif %}
-                {% if linha[9]==1 %}
-                  APRESENTAÇÃO EM POSTER
-                {% endif %}
-
-              </td>  <!-- TIPO DE APRESENTAÇÃO -->
-              <td><a href="{{url_for('enviar_arquivo',filename=linha[6])}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
-              <!-- SITUAÇÃO DO PROJETO -->
-              <td>
-
-                          {% if linha[13]==1 %}
-                              <p class="aprovado">APROVADO</p>
-                          {% elif linha[13]==0 %}
-                              <p class="reprovado">NÃO APROVADO</p>
-                          {% else %}
-                              <p class="indefinido">EM AVALIAÇÃO</p>
-                          {% endif %}
-              </td>
-              <!-- PARECERES -->
-              <td><a href="/cppgi/meusPareceres?id={{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
-              <td><a href="/cppgi/minhasAvaliacoes/{{linha[0]}}"><img src="{{ url_for('static', filename='pareceres.png')}}?rnd={{ range(1, 10000) | random }}" alt="" align="center"></a></td>
-              <td>
-                {% if linha[13]>0 %}
-                    {% if linha[12]=='0' %}
-                        <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}"  alt="" align="center"><BR><BR>
-                        <a href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ENVIAR VERSÃO FINAL</a><BR><BR>
-                    {% else %}
-                    <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                        <a href="{{url_for('enviar_arquivo',filename=linha[12])}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><BR><BR>
-                        <a href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ATUALIZAR VERSÃO FINAL</a><BR><BR>
-                    {% endif %}
-
-                {% endif %}
-              </td>
-              <td>
-                {% if linha[13]>0 %}
-                    {% if linha[15]=='0' %}
-                        <img src="{{ url_for('static', filename='interrogacao_amarela.png')}}" alt="" align="center"><BR><BR>
-                        <a href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ENVIAR LINK DE APRESENTAÇÃO</a><BR><BR>
-                    {% else %}
-                        
-                        <a href="{{linha[15]|safe}}" target="_blank"><img src="{{ url_for('static', filename='presentation.png')}}" alt="" align="center"></a><BR><BR>
-                          <a href="{{url_for('enviarApresentacao',id_trabalho=linha[0])}}">ATUALIZAR LINK DE APRESENTAÇÃO</a><BR><BR>
-                    {% endif %}
-
-                {% endif %}
-              </td>
-              <td>{{linha[14]}}</td>
-              <td>{{linha[16]}} - {{linha[17]}} - 
-                <button onclick="
-                (async function() {
-                  const resultado = await getHorarioSessao('{{linha[16]}}');
-                  document.getElementById('horario_linha[0]').innerHTML = resultado;
-                  //alert(resultado);
-                })();
-                "
-                >HORÁRIO</button>
-                <p id="horario_linha[0]"></p>
-              </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-                  
-    {% else %}
-        <h3>Nenhuma submissão.</h3>
-    {% endif %}
-    <a class="fixed" href="/cppgi/logout">Sair</a>
-    <a href="{{url_for('home')}}"><button type="button" class="btn btn-outline-primary">INÍCIO</button></a>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+<a href="{{url_for('home')}}" class="btn-outline mt-4 inline-block">INÍCIO</a>
+{% endblock %}

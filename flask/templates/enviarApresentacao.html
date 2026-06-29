@@ -1,41 +1,44 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
+
 {% block title %}ENVIAR LINK DE APRESENTAÇÃO{% endblock %}
 
-  {% block content %}
-  <br>
-    <form name="frmCadastroVersaoFinal" action="/cppgi/cadastrarLinkApresentacao" method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      <h1 style="text-align: center;"> ENVIO DO LINK DA APRESENTAÇÃO</h1><br>
-      <center><h2>Plataforma Yoko</h2></center>
-      <center><i><font size="2">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail atendimento.prpi@ufca.edu.br para correção(ões).</font></i></center><br>
-      <input type="hidden" id="idTrabalho" name="idTrabalho" value="{{idTrabalho}}">
-<hr>
-<h2>{{titulo}}</h2>
+{% block page_header %}
+<h1 class="page-title">ENVIO DO LINK DA APRESENTAÇÃO</h1>
+{% endblock %}
 
-        <br>
-        <!--<h3>A apresentação (slides) deve estar disponível em um link do google drive, com compartilhamento público. Cole abaixo o link para finalizar.</h3>-->
-        <br><b>LINK DE APRESENTAÇÃO (APRESENTAÇÃO GOOGLE DRIVE)</b>: <input name="link" required="required" type="text"><br>
-      <br>
-      <input type="checkbox" id="termo" name="termo" value="aceito" required="required">
-      <label for="termo"> 
+{% block content %}
+<form name="frmCadastroVersaoFinal" action="/cppgi/cadastrarLinkApresentacao" method="POST" class="mx-auto max-w-2xl flex flex-col gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-        AUTORIZO o uso de minha imagem em todo e qualquer material, entre fotos e documentos, para ser utilizada pela Universidade Federal do Cariri (UFCA), 
-        sejam esses destinados à divulgação ao público em geral. 
-        A presente autorização é concedida a título gratuito, abrangendo o uso e veiculação da imagem acima mencionada em todo território nacional e no 
-        exterior, das seguintes formas: (I) outdoor; (II) busdoor; folhetos em geral (encartes, mala direta, catálogo etc.); (III) folder de apresentação; 
-        (IV) anúncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mídia eletrônica (painéis, vídeo-tapes, televisão, 
-        cinema, programa para rádio, entre outros); (IX) redes sociais (Facebook, Twitter, YouTube, Instagram, entre outros), X) artigos, capítulos de livros, 
-        (XI) vídeos e demais produtos oriundos da UFCA. Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a 
-        ser reclamado a título de direitos conexos à minha imagem ou a qualquer outro, e assino a presente autorização.
+  <p class="text-center text-sm italic text-slate-500">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail atendimento.prpi@ufca.edu.br para correção(ões).</p>
+  <input type="hidden" id="idTrabalho" name="idTrabalho" value="{{idTrabalho}}">
 
-      </label><br><br>
-      <!--<center><div class="g-recaptcha" data-sitekey="6LfzEZ4UAAAAAGZdKtY1Qw9zYUdZsQbYdjaXV6c6"></div></center>-->
-      <center><h4>Clique em "Enviar" apenas uma vez e aguarde a conclusão do envio!</h4></center>
-      <div style="text-align: center;"><label><input name="btnEnviar" value="Enviar" type="submit"></label><br>
-        <label></label></div>
-      <div style="text-align: right;"><label></label><br>
-      </div>
-      <br>
-      <hr>
+  <hr class="border-slate-200">
+  <h2 class="text-lg font-semibold text-slate-800">{{titulo}}</h2>
+
+  <div>
+    <label class="form-label">LINK DE APRESENTAÇÃO (APRESENTAÇÃO GOOGLE DRIVE)</label>
+    <input class="form-input" name="link" required="required" type="text">
+  </div>
+
+  <div class="flex items-start gap-2">
+    <input type="checkbox" id="termo" name="termo" value="aceito" required="required" class="mt-1">
+    <label for="termo" class="text-sm text-slate-600">
+      AUTORIZO o uso de minha imagem em todo e qualquer material, entre fotos e documentos, para ser utilizada pela Universidade Federal do Cariri (UFCA),
+      sejam esses destinados à divulgação ao público em geral.
+      A presente autorização é concedida a título gratuito, abrangendo o uso e veiculação da imagem acima mencionada em todo território nacional e no
+      exterior, das seguintes formas: (I) outdoor; (II) busdoor; folhetos em geral (encartes, mala direta, catálogo etc.); (III) folder de apresentação;
+      (IV) anúncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mídia eletrônica (painéis, vídeo-tapes, televisão,
+      cinema, programa para rádio, entre outros); (IX) redes sociais (Facebook, Twitter, YouTube, Instagram, entre outros), X) artigos, capítulos de livros,
+      (XI) vídeos e demais produtos oriundos da UFCA. Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a
+      ser reclamado a título de direitos conexos à minha imagem ou a qualquer outro, e assino a presente autorização.
+    </label>
+  </div>
+
+  <p class="text-center font-semibold">Clique em "Enviar" apenas uma vez e aguarde a conclusão do envio!</p>
+  <div class="flex justify-center">
+    <input class="btn-primary cursor-pointer" name="btnEnviar" value="Enviar" type="submit">
+  </div>
+  <hr class="border-slate-200">
 </form>
 {% endblock %}
