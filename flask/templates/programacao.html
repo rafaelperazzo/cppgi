@@ -1,75 +1,44 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>{{ titulo }}</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}{{ titulo }}{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-p.aprovado {
-  color: green;
-}
+{% block page_header %}
+<h1 class="page-title">PROGRAMAÇÃO</h1>
+<h2 class="page-subtitle">{{nome_edital}}</h2>
+{% endblock %}
 
-p.indefinido {
-  color: orange;
-}
-
-p.reprovado {
-  color: red;
-}
-</style>
-  </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>PROGRAMAÇÃO</b></h1></p></center>
-    <h2>{{nome_edital}}</h2>
-    <hr><br>
-    <!--<center><h2>grande_area.decode('utf-8')</h2></center>-->
-    <hr>
-    <table style="width:100%">
-      <caption><h2>Apresentações Orais</h2></caption>
-      <tr>
-      <th>Local de Apresentação</th><th>Dia, Hora, Título, Autores</th>
-      </tr>
+{% block content %}
+<div class="table-wrapper mb-6">
+  <table class="table-base">
+    <caption class="mb-2 text-left text-lg font-semibold text-slate-800">Apresentações Orais</caption>
+    <thead>
+      <tr><th>Local de Apresentação</th><th>Dia, Hora, Título, Autores</th></tr>
+    </thead>
+    <tbody>
       {% for linha in oral %}
       <tr>
-        <td><a href='/cppgi/apresentacoes?edital={{edital}}&sala={{ linha[0] }}'>{{linha[0]}}</a></td>
+        <td><a class="text-brand-700 hover:underline" href='/cppgi/apresentacoes?edital={{edital}}&sala={{ linha[0] }}'>{{linha[0]}}</a></td>
         <td>{{ linha[1]|safe }}</td>
       </tr>
       {% endfor %}
-    </table>
+    </tbody>
+  </table>
+</div>
 
-    <hr><br>
-
-    <table style="width:100%">
-      <caption><h2>Apresentações em Poster</h2></caption>
-      <tr>
-      <th>Local de Apresentação</th><th>Dia, Hora, Título, Autores</th>
-      </tr>
+<div class="table-wrapper">
+  <table class="table-base">
+    <caption class="mb-2 text-left text-lg font-semibold text-slate-800">Apresentações em Poster</caption>
+    <thead>
+      <tr><th>Local de Apresentação</th><th>Dia, Hora, Título, Autores</th></tr>
+    </thead>
+    <tbody>
       {% for linha in poster %}
       <tr>
         <td>{{ linha[0] }}</td>
         <td>{{ linha[1]|safe }}</td>
       </tr>
       {% endfor %}
-    </table>
-
-    <br><br>
-  </body>
-</html>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

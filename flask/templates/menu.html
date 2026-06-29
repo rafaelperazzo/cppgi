@@ -1,67 +1,54 @@
-{% extends "BASE.html" %}
+{% extends "layout.html" %}
 
-{%block content%}
-<div class="alert alert-primary" role="alert">
-    <h2>Plataforma Yoko - Eventos</h2>
+{% block title %}Início{% endblock %}
+
+{% block content %}
+<div class="alert-info">
+  <h2 class="text-xl font-bold">Plataforma Yoko - Eventos</h2>
+</div>
+
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <div class="card">
+    <h5 class="text-base font-semibold text-slate-800">Submissão de trabalho</h5>
+    <p class="mt-1 text-sm text-slate-600">Submeta seu trabalho para um dos eventos abertos</p>
+    <a class="mt-3 inline-block text-brand-700 hover:underline" href="{{ url_for('submissao') }}">Submeter trabalho</a>
+    {% for edital in editais %}
+      <div class="alert-success mt-3">
+        <b>{{ edital[1] }} (até: {{ edital[2] }})</b>
+      </div>
+    {% endfor %}
   </div>
-<div class="row">
-    <div class="col-sm-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Submissão de trabalho</h5>
-          <p class="card-text">Submeta seu trabalho para um dos eventos abertos</p>
-          <a href="{{url_for('submissao')}}">Submeter trabalho</a>
-          {%for edital in editais%}
-            <div class="alert alert-success" role="alert">
-                <b>{{edital[1]}} (até: {{edital[2]}})</b>
-            </div>
-          {%endfor%}
-        </div>
-      </div>
+
+  <div class="card">
+    <h5 class="text-base font-semibold text-slate-800">Minhas Submissões</h5>
+    <p class="mt-1 text-sm text-slate-600">Consulte seus trabalhos enviados, certificados, avaliações, etc...</p>
+    <a class="mt-3 inline-block text-brand-700 hover:underline" href="{{ url_for('meusProjetos') }}">Meus trabalhos submetidos</a>
+  </div>
+
+  <div class="card">
+    <h5 class="text-base font-semibold text-slate-800">Senha</h5>
+    <p class="mt-1 text-sm text-slate-600">Recupere sua senha de acesso.</p>
+    <a class="mt-3 inline-block text-brand-700 hover:underline" href="{{ url_for('esqueciMinhaSenha') }}">Esqueci/Não sei minha senha</a>
+  </div>
+
+  <div class="card">
+    <h5 class="text-base font-semibold text-slate-800">Moderador de Sessões</h5>
+    <p class="mt-1 text-sm text-slate-600">Consulte as salas, trabalhos e certificados de moderador de sessões</p>
+    <div class="mt-3 flex flex-col gap-1">
+      {% for edital in editais %}
+        <a class="text-brand-700 hover:underline" href="{{ url_for('avaliador', edital=edital[0]) }}">Moderador - {{ edital[1] }}</a>
+      {% endfor %}
     </div>
-    <div class="col-sm-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Minhas Submissões</h5>
-          <p class="card-text">Consulte seus trabalhos enviados, certificados, avaliações, etc...</p>
-          <a href="{{url_for('meusProjetos')}}">Meus trabalhos submetidos</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Senha</h5>
-          <p class="card-text">Recupere sua senha de acesso.</p>
-          <a href="{{url_for('esqueciMinhaSenha')}}">Esqueci/Não sei minha senha</a>
-        </div>
-      </div>
-    </div>
+  </div>
+
+  <div class="card">
+    <h5 class="text-base font-semibold text-slate-800">Gestor do Sistema</h5>
+    <p class="mt-1 text-sm text-slate-600">Administre editais, avaliações, salas, datas, etc...</p>
+    <a class="mt-3 inline-block text-brand-700 hover:underline" href="{{ url_for('root') }}">Módulo Gestor</a>
+  </div>
 </div>
 
-<div class="row">
-    <div class="col-sm-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Moderador de Sessões</h5>
-          <p class="card-text">Consulte as salas, trabalhos e certificados de moderador de sessões</p>
-          {%for edital in editais%}
-            <a href="{{url_for('avaliador',edital=edital[0])}}">Moderador - {{edital[1]}}</a>
-          {%endfor%}
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-3">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">Gestor do Sistema</h5>
-          <p class="card-text">Administre editais, avaliações, salas, datas, etc...</p>
-          <a href="{{url_for('root')}}">Módulo Gestor</a>
-        </div>
-      </div>
-    </div>
+<div class="mt-4 rounded-md border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600">
+  Desenvolvido por: <i>Prof. Rafael Perazzo B Mota, DC, UFRPE</i>
 </div>
-<div class="alert alert-secondary" role="alert">
-    <small>Desenvolvido por: <i>Prof. Rafael Perazzo B Mota, DC, UFRPE</i></small>
-</div>
-{%endblock%}
+{% endblock %}

@@ -26,3 +26,4 @@ backup.sh
 flask/documentos/*
 *.doc
 *.docx
+.tailwindcli

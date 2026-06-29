@@ -1,48 +1,26 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>{{ titulo }}</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}{{ titulo }}{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-</style>
-  </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>ORGANIZAÇÃO PARA AVALIADORES</b></h1></p></center>
-    <h2>{{nome_edital}}</h2>
-    <hr><br>
+{% block page_header %}
+<h1 class="page-title">ORGANIZAÇÃO PARA AVALIADORES</h1>
+<h2 class="page-subtitle">{{nome_edital}}</h2>
+{% endblock %}
 
-    <table style="width:100%">
-      <caption><h2>SESSÕES ORAIS/POSTERS</h2></caption>
-      <tr>
-      <th>LISTA DE SESSÕES</th>
-      </tr>
+{% block content %}
+<div class="table-wrapper">
+  <table class="table-base">
+    <caption class="mb-2 text-left text-lg font-semibold text-slate-800">SESSÕES ORAIS/POSTERS</caption>
+    <thead>
+      <tr><th>LISTA DE SESSÕES</th></tr>
+    </thead>
+    <tbody>
       {% for dia,sala in linhas %}
-          
         <tr>
-          <td><a href="/cppgi/apresentacoes?edital={{edital}}&data={{dia}}&sala={{sala}}">{{dia}} - {{sala}}</a></td>
+          <td><a class="text-brand-700 hover:underline" href="/cppgi/apresentacoes?edital={{edital}}&data={{dia}}&sala={{sala}}">{{dia}} - {{sala}}</a></td>
         </tr>
-          
       {% endfor %}
-    </table>
-    <hr>
-  </body>
-</html>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

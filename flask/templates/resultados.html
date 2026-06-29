@@ -1,131 +1,55 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>{{ titulo }}</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}{{ titulo }}{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-p.aprovado {
-  color: green;
-}
+{% block page_header %}
+<h1 class="page-title">RESULTADOS</h1>
+<h2 class="page-subtitle">{{nome_edital}}</h2>
+<h3 class="mt-1 text-slate-600">RESULTADO DA CHAMADA PARA TRABALHOS DO {{nome_edital}}</h3>
+{% endblock %}
 
-p.indefinido {
-  color: orange;
-}
+{% block content %}
+{% macro tabela_resultados(linhas, titulo) %}
+<div class="table-wrapper mb-6">
+  <table class="table-base">
+    <caption class="mb-2 text-left text-lg font-semibold text-slate-800">{{ titulo }}</caption>
+    <thead>
+      <tr><th>Modalidade</th><th>ID</th><th>Grande Área</th><th>Título</th><th>Situação</th><th>Local</th><th>Data</th></tr>
+    </thead>
+    <tbody>
+      {% for linha in linhas %}
+      <tr>
+        <td>{{ linha[5] }}</td>
+        <td>{{ linha[0] }}</td>
+        <td>{{ linha[1] }}</td>
+        <td>{{ linha[3] }}</td>
+        <td class="text-center">
+          {% if linha[4]==1 %}
+              <p class="font-semibold text-brand-700">APROVADO</p>
+          {% else %}
+              <p class="font-semibold text-red-600">NÃO APROVADO</p>
+          {% endif %}
+        </td>
+        <td>{{linha[7]}}</td>
+        <td>{{linha[8]}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
 
-p.reprovado {
-  color: red;
-}
-</style>
-  </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>RESULTADOS</b></h1></p></center>
-    <h2>{{nome_edital}}</h2>
-    <h3>
-
-      RESULTADO DA CHAMADA PARA TRABALHOS DO {{nome_edital}}
-
-    </h3>
-    <hr><br>
-    <h3>
-      Prezados autores, se atentem aos seguintes informes importantes:<br>
-    </h3>
-<p>    
-  
+<p class="mb-4">
   Prezados autores, se atentem aos seguintes informes importantes:<br>
-<!--• As salas de apresentação sairão na lista de divulgação final dos resultados dos trabalhos
-aprovados após recurso;<br>
-• Os autores com trabalhos reprovados podem submeter recurso no link disponibilizado no forms e/ou site do
-evento a partir do dia 15/09/2022 até o dia 16/09/2022;<br>-->
-• Verifiquem as sugestões feitas pelos avaliadores, e façam as alterações que forem cabíveis para a versão
-final, esta será solicitada posteriormente por meio dos canais oficiais do evento;<br>
-• Para os pesquisadores e bolsistas que não apresentarão o trabalho em nosso evento, mas que já submeteram
-os resultados da pesquisa em outro evento similar ao CONPESQ, enviar em um link do forms e/ou site do
-evento em justificativa de ausência.<br>
-  </p>
-    <hr>
-    
+  • Verifiquem as sugestões feitas pelos avaliadores, e façam as alterações que forem cabíveis para a versão
+  final, esta será solicitada posteriormente por meio dos canais oficiais do evento;<br>
+  • Para os pesquisadores e bolsistas que não apresentarão o trabalho em nosso evento, mas que já submeteram
+  os resultados da pesquisa em outro evento similar ao CONPESQ, enviar em um link do forms e/ou site do
+  evento em justificativa de ausência.
+</p>
 
-    <table style="width:100%">
-      <caption><h2>Apresentações Orais</h2></caption>
-      <tr>
-      <th>Modalidade</th><th>ID</th><th>Grande Área</th><!--<th>Autores</th>-->
-      <th>Título</th><th>Situação</th><th>Local</th><th>Data</th>
-      </tr>
-      {% for linha in oral %}
-      <tr>
-        <td>{{ linha[5] }}</td>
-        <td>{{ linha[0] }}</td>
-        <td>{{ linha[1] }}</td>
-        <!-- <td>{{ linha[2] }}</td> -->
-        <td>{{ linha[3] }}</td>
-        <td><center>{% if linha[4]==1 %}
-                        <p class="aprovado">APROVADO</p>
-                    {% else %}
-                        <p class="reprovado">NÃO APROVADO</p>
-                    {% endif %}
-            </center></td>
-        <td>{{linha[7]}}</td>
-        <td>{{linha[8]}}</td>
-      </tr>
-      {% endfor %}
-    </table>
+{{ tabela_resultados(oral, "Apresentações Orais") }}
+{{ tabela_resultados(poster, "Apresentações em Poster") }}
 
-    <hr><br>
-
-    <table style="width:100%">
-      <caption><h2>Apresentações em Poster</h2></caption>
-      <tr>
-        <th>Modalidade</th><th>ID</th><th>Grande Área</th>
-        <th>Título</th><th>Situação</th><th>Local</th><th>Data</th>
-      </tr>
-      {% for linha in poster %}
-      <tr>
-        <td>{{ linha[5] }}</td>
-        <td>{{ linha[0] }}</td>
-        <td>{{ linha[1] }}</td>
-        <!-- <td>{{ linha[2] }}</td> -->
-        <td>{{ linha[3] }}</td>
-        <td><center>{% if linha[4]==1 %}
-                        <p class="aprovado">APROVADO</p>
-                    {% else %}
-                        <p class="reprovado">NÃO APROVADO</p>
-                    {% endif %}
-            </center></td>
-        <td>{{linha[7]}}</td>
-        <td>{{linha[8]}}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <br>
-     <div align="right">
-      Juazeiro do Norte, {{data}}
-    </div>
-    <br><br>
-    <!--<center><img src="{{ url_for('static', filename='assinatura_rafael.png')}}" width="254" height="49" alt=""></center>
-    <center>___________________________________</center><br>
-    <center>RAFAEL PERAZZO BARBOSA MOTA</center><br>
-    <center>COORDENADOR DE PESQUISA</center><br>
-    <center>SIAPE: 1570709</center> -->
-    
-
-  </body>
-</html>
+<p class="mt-6 text-right">Juazeiro do Norte, {{data}}</p>
+{% endblock %}

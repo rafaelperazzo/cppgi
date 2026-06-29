@@ -1,188 +1,161 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ titulo }}</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}{{ titulo }}{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-</style>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-  </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
-    <hr>
-    <center><p><b><h1>PÁGINA ADMINISTRATIVA</b></h1></p></center>
-    <h2>{{nome_edital}}</h2>
-    <hr><br>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong>{{message}}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-    {% endif %}
-    {% endwith %}
-    <div>
-      <a href="{{url_for('root')}}"><button type="button" class="btn btn-outline-primary">Voltar</button></a>
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">PÁGINA ADMINISTRATIVA</h2>
+<h3 class="mt-1 text-slate-600">{{nome_edital}}</h3>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
     </div>
-    <h2>DURANTE O PERÍODO DE AVALIAÇÃO</h2>
-    <table class="table">
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<a href="{{url_for('root')}}" class="btn-outline mb-4 inline-block">Voltar</a>
+
+<h2 class="mb-2 text-lg font-semibold text-slate-800">DURANTE O PERÍODO DE AVALIAÇÃO</h2>
+<div class="table-wrapper mb-6">
+  <table class="table-base">
+    <thead><tr><th>Recurso</th><th>Descrição</th></tr></thead>
+    <tbody>
       <tr>
-      <th>Recurso</th><th>Descrição</th>
-      </tr>
-      <tr>
-        <td><a href="{{url_for('estatisticas',edital=edital)}}">Estatísticas das avaliações</a></td>
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('estatisticas',edital=edital)}}">Estatísticas das avaliações</a></td>
         <td>Página de acompanhamento das avaliações dos trabalhos submetidos</td>
       </tr>
       <tr>
-        <td><a href="{{url_for('editalProjeto',edital=edital)}}">Lista de trabalhos submetidos</a></td>
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('editalProjeto',edital=edital)}}">Lista de trabalhos submetidos</a></td>
         <td>Página de acompanhamento dos trabalhos submetidos e inclusão de avaliadores.</td>
       </tr>
       <tr>
-        <td><a href="{{url_for('email_solicitar_avaliacao')}}">Enviar e-mails para avaliadores</a> </td>
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('email_solicitar_avaliacao')}}">Enviar e-mails para avaliadores</a></td>
         <td>Envio dos pedidos de avalição para avaliadores</td>
       </tr>
       <tr>
-        <td><a href="{{url_for('listar_consultores_edital',edital=edital)}}">Listar todos os pedidos de avaliação</a> </td>
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('listar_consultores_edital',edital=edital)}}">Listar todos os pedidos de avaliação</a></td>
         <td>Verificar todos os pedidos de avaliação</td>
       </tr>
       <tr>
-        <td><a href="{{url_for('parcial',edital=edital)}}">Atualizar status das submissões avaliadas</a> </td>
+        <td><a class="text-brand-700 hover:underline" href="{{url_for('parcial',edital=edital)}}">Atualizar status das submissões avaliadas</a></td>
         <td>Atualizar situação das submissões (se quantidade de avaliações for maior do que 3, atualizar)</td>
       </tr>
-    </table>
-    
-    <hr>
-    {%if mostrar_pos_avaliacao%}
-        <h2>APÓS O PERÍODO DE AVALIAÇÃO</h2>
-        <table class="table">
-          
-          <tr>
-          <th>Recurso</th><th>Descrição</th>
-          </tr>
+    </tbody>
+  </table>
+</div>
+
+{%if mostrar_pos_avaliacao%}
+    <h2 class="mb-2 text-lg font-semibold text-slate-800">APÓS O PERÍODO DE AVALIAÇÃO</h2>
+    <div class="table-wrapper">
+      <table class="table-base">
+        <thead><tr><th>Recurso</th><th>Descrição</th></tr></thead>
+        <tbody>
             <tr>
-              <td><a href="{{url_for('resultados',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">RESULTADO</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('resultados',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">RESULTADO</a></td>
               <td>Processar resultados.</td>
-            </tr>  
-            <tr bgcolor="yellow">
+            </tr>
+            <tr class="bg-amber-100">
               <td>
-                <a href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">** 1) Calcular médias **</a>
+                <a class="font-semibold text-amber-800 hover:underline" href="{{url_for('premiacao',edital=edital)}}" onclick="return confirm('Tem certeza ?')">** 1) Calcular médias **</a>
                 </td>
               <td>Calcula as médias dos trabalhos escritos e marca os candidatos a premiação.</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalhos aprovados</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('local_apresentacao',edital=edital)}}">Listar trabalhos aprovados</a></td>
               <td>Listar trabalhos aprovados</td>
             </tr>
-            <tr bgcolor="yellow">
-              <td><a href="{{url_for('listar_salas',edital=edital)}}">** 2) Sessões de apresentações **</a></td>
+            <tr class="bg-amber-100">
+              <td><a class="font-semibold text-amber-800 hover:underline" href="{{url_for('listar_salas',edital=edital)}}">** 2) Sessões de apresentações **</a></td>
               <td>Listar e cadastrar sessões</td>
             </tr>
-            <tr bgcolor="yellow">
+            <tr class="bg-amber-100">
               <td>
-                <a href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
+                <a class="font-semibold text-amber-800 hover:underline" href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
                   ** 3) Distribuição automática de salas **</a>
               </td>
               <td>Distribuição automática das salas. Desfaz qualquer alteração manual feita anteriormente.</td>
             </tr>
-            <tr bgcolor="#92f906">
+            <tr class="bg-brand-100">
               <td>
-                <a href="{{url_for('cadastrar_usuario',operacao=0)}}">
+                <a class="font-semibold text-brand-800 hover:underline" href="{{url_for('cadastrar_usuario',operacao=0)}}">
                   ** Cadastrar avaliador de sessão oral/poster **</a>
               </td>
               <td>Cadastro de avaliador de sessão oral/poster</td>
             </tr>
-            <tr bgcolor="yellow">
+            <tr class="bg-amber-100">
               <td>
-                <a href="{{url_for('avaliador_sala_listar',edital=edital)}}">
+                <a class="font-semibold text-amber-800 hover:underline" href="{{url_for('avaliador_sala_listar',edital=edital)}}">
                   ** 4) Atribuir avaliador para sala **</a>
               </td>
               <td>Listar atribuições de avaliadores por sala</td>
             </tr>
             <tr>
               <td>
-                <a href="{{url_for('links_avaliadores',edital=edital)}}">
+                <a class="text-brand-700 hover:underline" href="{{url_for('links_avaliadores',edital=edital)}}">
                   Listar avaliadores cadastrados e os links com as instruções</a>
               </td>
               <td>Links dos avaliadores de sessões orais e posters</td>
             </tr>
             <tr>
               <td>
-                  <a href="{{url_for('programacao',edital=edital)}}">Programação Geral</a>
+                  <a class="text-brand-700 hover:underline" href="{{url_for('programacao',edital=edital)}}">Programação Geral</a>
               </td>
               <td>Programação após a distribuição automática</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('organizacao',edital=edital)}}">LISTAGEM DE SESSÕES ORAIS E POSTERS</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('organizacao',edital=edital)}}">LISTAGEM DE SESSÕES ORAIS E POSTERS</a></td>
               <td>Links de todas as sessões que devem ser avaliadas.</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('mapa',edital=edital)}}">MAPA GERAL DE APRESENTAÇÕES</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('mapa',edital=edital)}}">MAPA GERAL DE APRESENTAÇÕES</a></td>
               <td>Listagem geral de todas as apresentações, por sala e dia</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('mapaavaliadores',edital=edital)}}">MAPA DE AVALIADORES</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('mapaavaliadores',edital=edital)}}">MAPA DE AVALIADORES</a></td>
               <td>Listagem geral de todos os avaliadores atribuídos às salas</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('notasApresentacoes',edital=edital)}}">CALCULAR NOTAS DAS APRESENTAÇÕES</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('notasApresentacoes',edital=edital)}}">CALCULAR NOTAS DAS APRESENTAÇÕES</a></td>
               <td>PROCESSAR NOTAS DAS APRESENTAÇÕES</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
               <td>Envia os e-mails com as instruções de apresentação para os apresentadores</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
               <td>Envia os e-mails para os moderadores de sessões, com as instruções para avaliação das apresentações</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('premiados',edital=edital)}}">LISTA DE TRABALHOS PREMIADOS</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('premiados',edital=edital)}}">LISTA DE TRABALHOS PREMIADOS</a></td>
               <td>VER LISTA DE TRABALHOS PREMIADOS</td>
             </tr>
             <tr>
-              <td><a href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('emailInstrucoes',edital=edital)}}">ENVIAR E-MAIL AS INSTRUÇÕES DE ENVIO DAS APRESENTAÇÕES</a></td>
               <td>Envia os e-mails com as instruções de apresentação para os apresentadores</td>
             </tr>
             {%if mostrar_pos_evento%}
               <tr>
-                <td><a href="{{url_for('solicitarVersaoFinal',edital=edital)}}">SOLICITAR VERSÃO FINAL PARA OS APRESENTADORES</a></td>
+                <td><a class="text-brand-700 hover:underline" href="{{url_for('solicitarVersaoFinal',edital=edital)}}">SOLICITAR VERSÃO FINAL PARA OS APRESENTADORES</a></td>
                 <td>Envia os e-mails com a solicitação da versão final para os apresentadores</td>
               </tr>
               <tr>
-                <td><a href="{{url_for('enviarCertificados',edital=edital)}}">ENVIAR E-MAIL OS LINKS DOS CERTIFICADOS PARA OS APRESENTADORES</a></td>
+                <td><a class="text-brand-700 hover:underline" href="{{url_for('enviarCertificados',edital=edital)}}">ENVIAR E-MAIL OS LINKS DOS CERTIFICADOS PARA OS APRESENTADORES</a></td>
                 <td>Envia os e-mails com os links dos certificados para os apresentadores</td>
               </tr>
               <tr>
-                <td><a href="{{url_for('demaisCertificados',edital=edital)}}">DEMAIS CERTIFICADOS</a></td>
+                <td><a class="text-brand-700 hover:underline" href="{{url_for('demaisCertificados',edital=edital)}}">DEMAIS CERTIFICADOS</a></td>
                 <td>Lista dos demais certificados</td>
               </tr>
-              
             {%endif%}
-        </table>
-      {%endif%}
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+        </tbody>
+      </table>
+    </div>
+  {%endif%}
+{% endblock %}

@@ -1,65 +1,38 @@
-<!DOCTYPE html>
-<html>
-  <head>
-	  <style>
-    div {
-      background-color: lightgrey;
-      width: 500px;
-      border: 5px solid black;
-      padding: 50px;
-      margin: 20px;
-    }
-table {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-    border: 1px solid #dddddd;
-    text-align: left;
-    padding: 8px;
-}
+{% block title %}Meus Pareceres - APRESENTAÇÃO{% endblock %}
 
-tr:nth-child(even) {
-    background-color: #dddddd;
-}
-</style>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Meus Pareceres - APRESENTAÇÃO</title>
-  </head>
-  <body>
-    <h1><b>Meus Pareceres - APRESENTAÇÃO</b></h1>
-    <hr>
-    {% if total>0 %}
-    <H3>{{titulo}}</h3>
-    {% else %}
-    Acesso negado e/ou Não existem avaliações disponíveis.
-    {% endif %}
-    <hr>
-    {% for linha in linhas %}
-      <h3>Parecer: {{linha[0]}}</h3>
-      <table>
-        <th>Item de Avaliação</th><th>Nota</th>
-        <tr>
-          <td>(A)Apresentação clara e organizada;(0 a 25)</td><td>{{linha[1]}}</td>
-        </tr>
-        <tr>
-          <td>(B)Domínio do conteúdo na apresentação; (0 a 25)</td><td>{{linha[2]}}</td>
-        </tr>
-        <tr>
-          <td>(C)Utilização adequada do tempo; (0 a 25)</td><td>{{linha[3]}}</td>
-        </tr>
-        <tr>
-          <td>(D)Apresentação da revisão de literatura e dos resultados. (0 a 25)</td><td>{{linha[4]}}</td>
-        </tr>
+{% block page_header %}
+<h1 class="page-title">Meus Pareceres - APRESENTAÇÃO</h1>
+{% endblock %}
+
+{% block content %}
+{% if total>0 %}
+<h3 class="text-lg font-semibold text-slate-800">{{titulo}}</h3>
+{% else %}
+<p>Acesso negado e/ou Não existem avaliações disponíveis.</p>
+{% endif %}
+
+{% for linha in linhas %}
+  <div class="card mt-4">
+    <h3 class="text-lg font-semibold text-slate-800">Parecer: {{linha[0]}}</h3>
+    <div class="table-wrapper mt-2">
+      <table class="table-base">
+        <thead>
+          <tr><th>Item de Avaliação</th><th>Nota</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>(A) Apresentação clara e organizada; (0 a 25)</td><td>{{linha[1]}}</td></tr>
+          <tr><td>(B) Domínio do conteúdo na apresentação; (0 a 25)</td><td>{{linha[2]}}</td></tr>
+          <tr><td>(C) Utilização adequada do tempo; (0 a 25)</td><td>{{linha[3]}}</td></tr>
+          <tr><td>(D) Apresentação da revisão de literatura e dos resultados. (0 a 25)</td><td>{{linha[4]}}</td></tr>
+        </tbody>
       </table>
-      <b>Total:</b> {{linha[5]}}<br>
-      <b>Comentários:</b> <br> <div>{{linha[6]}} </div><br>
-
-      <b>Data da avaliação:</b> {{linha[7]}}<br>
-      <hr>
-    {% endfor %}
-
-  </body>
-</html>
+    </div>
+    <p class="mt-2"><b>Total:</b> {{linha[5]}}</p>
+    <p class="mt-2"><b>Comentários:</b></p>
+    <div class="rounded-md border border-slate-200 bg-slate-100 p-4">{{linha[6]}}</div>
+    <p class="mt-2"><b>Data da avaliação:</b> {{linha[7]}}</p>
+  </div>
+{% endfor %}
+{% endblock %}

@@ -1,50 +1,36 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ titulo }}</title>
-    
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+{% extends "layout.html" %}
 
+{% block title %}{{ titulo }}{% endblock %}
 
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">LISTA DE AVALIADORES</h2>
+{% endblock %}
 
+{% block content %}
+<div class="alert-warning">
+    <strong><h3 class="text-lg font-bold">{{edital}} - {{nome_longo}}</h3></strong>
+</div>
+<a href="{{url_for('admin',edital=edital)}}" class="btn-outline mb-4 inline-block">Voltar para página anterior</a>
 
-  </head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
-    <hr>
-    <center><p><b><h1>LISTA DE AVALIADORES</b></h1></p></center>
-
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong><h3>{{edital}} - {{nome_longo}}</h3></strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <a href="{{url_for('admin',edital=edital)}}"><button type="button" class="btn btn-outline-primary">Voltar para página anterior</button></a> 
-        <table class="table">
-            <thead>
-                <th>Nome</th>
-                <th>E-mail</th>
-                <th>Link Avaliador</th>
-            </thead>
-            <tbody>
-                {% for linha in linhas %}
-                    <tr>
-                        <td>{{linha[5]}}</td>
-                        <td>{{linha[2]}}</td>
-                        <td><a href="{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}" target="_blank">{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}</a></td>
-                    </tr>
-                {%endfor%}
-            </tbody>
-
-        </table>
-
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+<div class="table-wrapper">
+    <table class="table-base">
+        <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Link Avaliador</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for linha in linhas %}
+                <tr>
+                    <td>{{linha[5]}}</td>
+                    <td>{{linha[2]}}</td>
+                    <td><a class="text-brand-700 hover:underline" href="{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}" target="_blank">{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}</a></td>
+                </tr>
+            {%endfor%}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

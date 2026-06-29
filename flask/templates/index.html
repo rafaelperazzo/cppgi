@@ -1,61 +1,46 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ titulo }}</title>
-    <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
+{% extends "layout.html" %}
 
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
+{% block title %}{{ titulo }}{% endblock %}
 
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
-</style>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+{% block page_header %}
+<h1 class="page-title">{{ titulo }}</h1>
+<h2 class="page-subtitle">Lista de editais cadastrados</h2>
+{% endblock %}
 
-<script type = "text/javascript">
-    function salvar(formulario) {
-        document.getElementById(formulario).submit(); 
-    }
-    function addForm() {
-        const f = document.createElement("form");
-        f.setAttribute('method', "post");
-        f.setAttribute('action', "submit.php");
-        f.setAttribute('class', "form-control");
-
-        const nome_curto = document.createElement("input");
-        nome_curto.setAttribute('type', "text");
-        nome_curto.setAttribute('name', "nome_curto");
-        nome_curto.setAttribute('class', "form-control");
-
-        const i = document.createElement("input");
-        i.setAttribute('type', "text");
-        i.setAttribute('name', "nome");
-        i.setAttribute('class', "form-control");
-
-        const s = document.createElement("input");
-        s.setAttribute('type', "submit");
-        s.setAttribute('value', "Salvar");
-        s.setAttribute('class', "btn");
-
-        f.appendChild(nome_curto);
-        f.appendChild(i);
-        f.appendChild(s);
-
-        document.body.appendChild(f);
-    }
-</script>  
+{% block head_extra %}
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+function salvar(formulario) {
+    document.getElementById(formulario).submit();
+}
+function addForm() {
+    const f = document.createElement("form");
+    f.setAttribute('method', "post");
+    f.setAttribute('action', "submit.php");
+    f.setAttribute('class', "form-control");
+
+    const nome_curto = document.createElement("input");
+    nome_curto.setAttribute('type', "text");
+    nome_curto.setAttribute('name', "nome_curto");
+    nome_curto.setAttribute('class', "form-control");
+
+    const i = document.createElement("input");
+    i.setAttribute('type', "text");
+    i.setAttribute('name', "nome");
+    i.setAttribute('class', "form-control");
+
+    const s = document.createElement("input");
+    s.setAttribute('type', "submit");
+    s.setAttribute('value', "Salvar");
+    s.setAttribute('class', "btn");
+
+    f.appendChild(nome_curto);
+    f.appendChild(i);
+    f.appendChild(s);
+
+    document.body.appendChild(f);
+}
+</script>
 <script>
     $(document).ready(function(){
         $("#result").hide();
@@ -70,129 +55,101 @@ tr:nth-child(even) {
             },"text");
         });
     });
-    </script>
+</script>
+{% endblock %}
 
-</head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
-    <hr>
-    <center><p><b><h1>LISTA DE EDITAIS CADASTRADOS</b></h1></p></center>
-    <div id="result" class="alert alert-warning alert-dismissible fade show" role="alert">
-        <p id="mensagem"></p>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong>{{message}}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-    {% endif %}
-    {% endwith %}
-    
-    <nav class="navbar navbar-expand-lg bg-light">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="#">Menu</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('cadastrar_edital')}}">Cadastrar Novo Edital</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('email_solicitar_avaliacao')}}">Enviar E-mail para os avaliadores</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('cadastrar_usuario',operacao=0)}}">Cadastrar Novo Usuário</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('cadastrar_usuario',operacao=1)}}">Listar Usuários</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{url_for('meusProjetos')}}">Minhas Submissões</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-    </nav>    
-    <table class="table">
-            <thead>
-                <th>id</th>
-                <th style="width: 10%">Nome curto</th>
-                <th style="width: 35%">Nome longo do edital<BR>Período<BR>Local</th>
-                <th>
-                        Deadline Submissão
-                    <BR>Deadline Avaliação
-                    <BR>Deadline versão final
-                    <BR>Deadline Apresentação
-                </th>
-                <th style="width: 15%">ISBN</th>
-                <th style="width: 15%">Situação</th>
-                <th>Aval,Mod,Apr,Part,De,Con</th>
-            </thead>
-            <tbody>
-                {% for linha in linhas %}
-                    <tr>
-                        <form action="{{url_for('salvar_edital',operacao=0)}}" method="POST" id="form_{{linha[0]}}">
-                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
-                            <td>
-                                <a href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required" value="{{linha[4]}}">                                
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required" value="{{linha[1]}}">
-                                <input type="text" class="form-control form-control-sm" id="periodo" name="periodo" placeholder="PERÍODO" required="required" value="{{linha[15]}}">
-                                <input type="text" class="form-control form-control-sm" id="local" name="local" placeholder="LOCAL" required="required" value="{{linha[16]}}">
-                            </td>
-                            <td> 
-                                <input class="form-control-sm" type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}"  onblur="//salvar('form_{{linha[0]}}');" required="required">
-                                <input class="form-control-sm" type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}"  onblur="//salvar('form_{{linha[0]}}');" required="required">
-                                <input type="datetime-local" class="form-control-sm" id="deadline_final" name="deadline_final" value="{{linha[6]}}"  onblur="//salvar('form_{{linha[0]}}');" required="required">
-                                <input type="datetime-local" class="form-control-sm" id="deadline_apresentacao" name="deadline_apresentacao" value="{{linha[5]}}"  onblur="//salvar('form_{{linha[0]}}');" required="required">
-                            </td>
-                            
-                            <td>
-                                <input type="text" class="form-control form-control-sm" id="isbn" name="isbn" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[7]}}">                                
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">                                
-                                <p><a href="{{url_for('ver_imagem',qual=linha[14])}}" target="_blank">{{linha[14]}}</a></p>
-                                <p><a href="{{url_for('ver_imagem',qual=linha[10])}}" target="_blank">{{linha[10]}}</a></p>
-                                <p><a href="{{url_for('ver_imagem',qual=linha[9])}}" target="_blank">{{linha[9]}}</a></p>
-                                <p><a href="{{url_for('ver_imagem',qual=linha[11])}}" target="_blank">{{linha[11]}}</a></p>
-                                <p><a href="{{url_for('ver_imagem',qual=linha[12])}}" target="_blank">{{linha[12]}}</a></p>
-                                <p><a href="{{url_for('ver_imagem',qual=linha[13])}}" target="_blank">{{linha[13]}}</a></p>
-                            </td>
-                        </form>
-                            <td>
-                                <form action="{{url_for('salvar_edital',operacao=1)}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data">
-                                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <input class="form-control form-control-sm" name="avaliador" type="file">
-                                    <input class="form-control form-control-sm" name="moderador" type="file">
-                                    <input class="form-control form-control-sm" name="apresentador" type="file">
-                                    <input class="form-control form-control-sm" name="participante" type="file">
-                                    <input class="form-control form-control-sm" name="demais" type="file">
-                                    <input class="form-control form-control-sm" name="convidado" type="file">
-                                    <input class="btn btn-success" type="submit" name="enviar" value="salvar">
-                                    <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
-                                </form>
-                            </td>
-                    </tr>
-                {%endfor%}
-            </tbody>
-        </table>
+{% block content %}
+<div id="result" class="alert-warning">
+  <p id="mensagem"></p>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+<nav class="mb-4 flex flex-wrap gap-2 rounded-md border border-slate-200 bg-white p-3">
+  <a class="btn-outline" href="{{url_for('cadastrar_edital')}}">Cadastrar Novo Edital</a>
+  <a class="btn-outline" href="{{url_for('email_solicitar_avaliacao')}}">Enviar E-mail para os avaliadores</a>
+  <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=0)}}">Cadastrar Novo Usuário</a>
+  <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=1)}}">Listar Usuários</a>
+  <a class="btn-outline" href="{{url_for('meusProjetos')}}">Minhas Submissões</a>
+</nav>
+
+<div class="table-wrapper breakout-90">
+  <table class="table-base table-fixed">
+    <thead>
+      <tr>
+        <th class="w-[5%]">id</th>
+        <th class="w-[9%]">Nome curto</th>
+        <th class="w-[18%]">Nome longo do edital<br>Período<br>Local</th>
+        <th class="w-[15%]">
+          Deadline Submissão
+          <br>Deadline Avaliação
+          <br>Deadline versão final
+          <br>Deadline Apresentação
+        </th>
+        <th class="w-[7%]">ISBN</th>
+        <th class="w-[9%]">Situação</th>
+        <th class="w-[16%]">Aval,Mod,Apr,Part,De,Con</th>
+        <th class="w-[21%]">Arquivos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in linhas %}
+        <tr>
+          <form action="{{url_for('salvar_edital',operacao=0)}}" method="POST" id="form_{{linha[0]}}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
+            <td>
+              <a class="text-brand-700 hover:underline" href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
+            </td>
+            <td>
+              <input type="text" class="form-input" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required" value="{{linha[4]}}">
+            </td>
+            <td>
+              <div class="flex flex-col gap-1">
+                <input type="text" class="form-input" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required" value="{{linha[1]}}">
+                <input type="text" class="form-input" id="periodo" name="periodo" placeholder="PERÍODO" required="required" value="{{linha[15]}}">
+                <input type="text" class="form-input" id="local" name="local" placeholder="LOCAL" required="required" value="{{linha[16]}}">
+              </div>
+            </td>
+            <td>
+              <div class="flex flex-col gap-1">
+                <input class="form-input" type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
+                <input class="form-input" type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
+                <input type="datetime-local" class="form-input" id="deadline_final" name="deadline_final" value="{{linha[6]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
+                <input type="datetime-local" class="form-input" id="deadline_apresentacao" name="deadline_apresentacao" value="{{linha[5]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
+              </div>
+            </td>
+            <td>
+              <input type="text" class="form-input" id="isbn" name="isbn" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[7]}}">
+            </td>
+            <td>
+              <input type="text" class="form-input" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">
+            </td>
+            <td>
+              <div class="flex flex-col gap-1">
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[14])}}" target="_blank">{{linha[14]}}</a>
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[10])}}" target="_blank">{{linha[10]}}</a>
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[9])}}" target="_blank">{{linha[9]}}</a>
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[11])}}" target="_blank">{{linha[11]}}</a>
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[12])}}" target="_blank">{{linha[12]}}</a>
+                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[13])}}" target="_blank">{{linha[13]}}</a>
+              </div>
+            </td>
+          </form>
+          <td>
+            <form action="{{url_for('salvar_edital',operacao=1)}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data" class="flex flex-col gap-1">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input class="form-input" name="avaliador" type="file">
+              <input class="form-input" name="moderador" type="file">
+              <input class="form-input" name="apresentador" type="file">
+              <input class="form-input" name="participante" type="file">
+              <input class="form-input" name="demais" type="file">
+              <input class="form-input" name="convidado" type="file">
+              <input class="btn-primary cursor-pointer" type="submit" name="enviar" value="salvar">
+              <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
+            </form>
+          </td>
+        </tr>
+      {%endfor%}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

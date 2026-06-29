@@ -1,33 +1,32 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>MAPA DE APRESENTAÇÕES</title>
+{% extends "layout.html" %}
+
+{% block title %}MAPA DE APRESENTAÇÕES{% endblock %}
+
+{% block head_extra %}
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
 <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
-<script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>  
+<script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/buttons/1.7.0/js/dataTables.buttons.min.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.html5.min.js"></script>
 <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.print.min.js"></script>
-</head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MAPA DE APRESENTAÇÕES</b></h1></p></center>
-    <h2>{{nome_edital}}</h2>
-    <hr><br>
+{% endblock %}
 
-    <table border="1" id="mapa" class="display" style="width:100%">
-      <caption><h2>MAPA DE APRESENTAÇÕES</h2></caption>
-      <thead>
-        <tr>
-        <th colspan="3">LOCAL-DATA-TOTAL</th><th>TRABALHOS</th>
-        </tr>
+{% block page_header %}
+<h1 class="page-title">MAPA DE APRESENTAÇÕES</h1>
+<h2 class="page-subtitle">{{nome_edital}}</h2>
+{% endblock %}
+
+{% block content %}
+<div class="table-wrapper">
+  <table border="1" id="mapa" class="table-base display" style="width:100%">
+    <caption class="mb-2 text-lg font-semibold text-slate-800">MAPA DE APRESENTAÇÕES</caption>
+    <thead>
+      <tr>
+      <th colspan="3">LOCAL-DATA-TOTAL</th><th>TRABALHOS</th>
+      </tr>
     </thead>
     <tbody>
       {% for linha in linhas %}
@@ -41,37 +40,36 @@
           </td>
         </tr>
         {% endfor %}
-    </tbody>  
-    </table>
-    <script>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
 
-      $(document).ready(function() {
-          $('#mapa2').DataTable( {
-            dom: 'Bfrtip',
-            buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
-            ],
-            "paging": false,
-            "order": [[ 1, "asc" ]],
-            "language": {
-            "search": "Procurar",
-            "lengthMenu": "Mostrando _MENU_ linhas por página",
-            "zeroRecords": "Nenhum registro encontrado!",
-            "info": "Mostrando página _PAGE_ de _PAGES_",
-            "infoEmpty": "Nenhum registro disponível",
-            paginate: {
-            first:      "Primeira",
-            previous:   "Anterior",
-            next:       "Próximo",
-            last:       "Anterior"
-        },
-            "infoFiltered": "(filtrado de um total de _MAX_ registros)"
-           }
-          });
-      } );
-
-    </script>
-    
-
-  </body>
-</html>
+{% block scripts_extra %}
+<script>
+  $(document).ready(function() {
+      $('#mapa2').DataTable( {
+        dom: 'Bfrtip',
+        buttons: [
+        'copy', 'csv', 'excel', 'pdf', 'print'
+        ],
+        "paging": false,
+        "order": [[ 1, "asc" ]],
+        "language": {
+        "search": "Procurar",
+        "lengthMenu": "Mostrando _MENU_ linhas por página",
+        "zeroRecords": "Nenhum registro encontrado!",
+        "info": "Mostrando página _PAGE_ de _PAGES_",
+        "infoEmpty": "Nenhum registro disponível",
+        paginate: {
+        first:      "Primeira",
+        previous:   "Anterior",
+        next:       "Próximo",
+        last:       "Anterior"
+    },
+        "infoFiltered": "(filtrado de um total de _MAX_ registros)"
+       }
+      });
+  } );
+</script>
+{% endblock %}

@@ -1,217 +1,146 @@
-<!DOCTYPE html>
+{% extends "layout.html" %}
 
-<html>
-  <head>
-	  <style>
+{% block title %}Lista de trabalhos aprovados{% endblock %}
 
-p.aprovado {
-  color: black;
-  background: green;
-}
-
-p.indefinido {
-  color: black;
-  background: orange;
-}
-
-p.reprovado {
-  color: white;
-  background: red;
-}
-
-.column {
-  float: left;
-  width: 45%;
-  padding: 5px;
-}
-
-/* Clearfix (clear floats) */
-.row::after {
-  content: "";
-  clear: both;
-  display: table;
-}
-</style>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+{% block head_extra %}
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script>
-$(document).ready(function(){
- $("#myInput").on("keyup", function() {
-   var value = $(this).val().toLowerCase();
-   $("#myTable tr").filter(function() {
-     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-   });
- });
-});
-</script>
-
-<script>
-  $(document).ready(function(){
-      $("#txtNovos").on("keyup", function() {
-        var value = $(this).val().toLowerCase();
-        $("#tabelaNovos tr").filter(function() {
-          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+    $(document).ready(function(){
+        $("#txtNovos").on("keyup", function() {
+          var value = $(this).val().toLowerCase();
+          $("#tabelaNovos tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+          });
         });
-      });
-      
-  });
-</script>
 
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Propostas submetidas a edital</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script>
-        $(document).ready(function(){
-            $("input").on("change", function(event){
-                event.preventDefault();
-                var form_id = $(this).get(0).form.id;
-                var formValues= $('#' + form_id).serialize();
-                var str = form_id.split("_");
-                var id_projeto = str[1]; 
-                $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
-                    console.log(data);
-                },"text");
-            });
-            $("select").on("change", function(event){
-                event.preventDefault();
-                var form_id = $(this).get(0).form.id;
-                var formValues= $('#' + form_id).serialize();
-                var str = form_id.split("_");
-                var id_projeto = str[1]; 
-                $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
-                    console.log(data);
-                },"text");
-            });
+        $("input").on("change", function(event){
+            event.preventDefault();
+            var form_id = $(this).get(0).form.id;
+            var formValues= $('#' + form_id).serialize();
+            var str = form_id.split("_");
+            var id_projeto = str[1];
+            $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
+                console.log(data);
+            },"text");
         });
-    </script>
-  </head>
-  <body>
-    <center><img src="{{raiz}}{{ url_for('static', filename='brasao_uniao.png')}}" width="120" height="130" alt=""></center>
-    <center>
-    MINISTÉRIO DA EDUCAÇÃO<br>
-    UNIVERSIDADE FEDERAL DO CARIRI<br>
-    PRÓ-REITORIA DE PESQUISA, INOVAÇÃO E PÓS-GRADUAÇÃO<br>
-    COORDENADORIA DE PESQUISA <br>
-    </center>
-    
-    <div class="alert alert-dark" role="alert">
-      <h1>Propostas submetidas ao Edital</h1>
-    </div>
-    
-    <h3>{{ descricao }} </h3>
+        $("select").on("change", function(event){
+            event.preventDefault();
+            var form_id = $(this).get(0).form.id;
+            var formValues= $('#' + form_id).serialize();
+            var str = form_id.split("_");
+            var id_projeto = str[1];
+            $.post("{{url_for('salvar_local_data')}}", formValues, function(data){
+                console.log(data);
+            },"text");
+        });
+    });
+</script>
+{% endblock %}
 
-              <div class="alert alert-dark" role="alert">
-                <h1>LISTA DE TRABALHOS APROVADOS</h1>
-              </div>
-              <div>
-                <a href="{{url_for('admin',edital=edital)}}"><button type="button" class="btn btn-outline-primary">Voltar</button></a>
-              </div>
-              {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                  {% for message in messages %}
-                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                      <strong>{{message}}</strong>
-                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                  {% endfor %}
-                {% endif %}
-              {% endwith %}
-              <input id="txtNovos" type="text" placeholder="Procurar.."><br>
-              <table class="table table-striped">
-                <thead>
-                <th>ID</th>
-                <th>Nome</th>
-                <th>Grande Área</th>
-                <th>Título</th>
-                <th style="width: 10%">Tipo de apresentação</th>
-                <th style="width: 10%">Tipo de trabalho</th>
-                <th style="width: 10%">Data de apresentação</th>
-                <th>Local de apresentação</th>
-                <th>Média 1</th>
-                <th>Média 2</th>
-                <th style="width: 15%">Obs</th>
-                <th>Apresentou</th>
-              </thead>
-              <tbody id="tabelaNovos">
-                {% for linha in novos %}
-                  <tr>
-                    <form action="{{url_for('salvar_local_data')}}" method="POST" id="form_{{linha[0]}}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                      <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
-                      
-                      <td><a href="{{url_for('enviar_arquivo',filename=linha[11])}}">{{linha[0]}}</a></td>
-                      <td>
-                        {{linha[1]}}
-                      </td>
-                      <td>
-                        {{linha[2]}}
-                      </td>
-                      <td>
-                        {{linha[3]}}
-                      </td>
-                      <td>
-                        <select class="form-select" id="categoria" name="categoria">
-                          {%if linha[6]==0 %}
-                            <option value="{{linha[6]}}">Apresentação Oral</option>
-                          {%else%}
-                            <option value="{{linha[6]}}">Poster</option>
-                          {%endif%}
-                          <option value="0">Apresentação Oral</option>
-                          <option value="1">Poster</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select class="form-select" id="modalidade" name="modalidade">
-                          {%if linha[7]==0 %}
-                            <option value="{{linha[7]}}">Resumo Simples</option>
-                          {%elif linha[7]==1%}
-                            <option value="{{linha[7]}}">Resumo Expandido</option>
-                          {%else%}
-                            <option value="{{linha[7]}}">Trabalho Completo</option>
-                          {%endif%}
-                          <option value="0">Resumo Simples</option>
-                          <option value="1">Resumo Expandido</option>
-                          <option value="2">Trabalho Completo</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input class="form-control" type="datetime-local" id="data_apresentacao" name="data_apresentacao" value="{{linha[4]}}">
-                      </td>
-                      <td>
-                        <input class="form-control" type="text" id="local_apresentacao" name="local_apresentacao" value="{{linha[5]}}">
-                      </td>
-                      <td>
-                        {{'%0.2f'| format(linha[8]|float)}}
-                      </td>
-                      <td>
-                        {{'%0.2f'| format(linha[9]|float)}}
-                      </td>
-                      <td>
-                        <input class="form-control" type="text" id="obs" name="obs" value="{{linha[10]}}">
-                      </td>
-                      <td>
-                        <select class="form-select" id="apresentou" name="apresentou">
-                          {%if linha[12]==0 %}
-                            <option value="{{linha[12]}}">Não</option>
-                          {%elif linha[12]==1%}
-                            <option value="{{linha[12]}}">Sim</option>
-                          {%else%}
-                            <option value="{{linha[12]}}">Justificou</option>
-                          {%endif%}
-                          <option value="0">Não</option>
-                          <option value="1">Sim</option>
-                          <option value="2">Justificou</option>
-                        </select>
-                      </td>
-                    </form>
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-              Total: {{total_novos}} trabalhos aprovados.
+{% block page_header %}
+<h1 class="page-title">LISTA DE TRABALHOS APROVADOS</h1>
+<h2 class="page-subtitle">{{ descricao }}</h2>
+{% endblock %}
 
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+{% block content %}
+<a href="{{url_for('admin',edital=edital)}}" class="btn-outline mb-4 inline-block">Voltar</a>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert-warning">
+        <strong>{{message}}</strong>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<input id="txtNovos" type="text" placeholder="Procurar.." class="form-input mb-4 max-w-xs">
+
+<div class="table-wrapper">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Grande Área</th>
+        <th>Título</th>
+        <th>Tipo de apresentação</th>
+        <th>Tipo de trabalho</th>
+        <th>Data de apresentação</th>
+        <th>Local de apresentação</th>
+        <th>Média 1</th>
+        <th>Média 2</th>
+        <th>Obs</th>
+        <th>Apresentou</th>
+      </tr>
+    </thead>
+    <tbody id="tabelaNovos">
+      {% for linha in novos %}
+        <tr>
+          <form action="{{url_for('salvar_local_data')}}" method="POST" id="form_{{linha[0]}}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
+
+            <td><a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=linha[11])}}">{{linha[0]}}</a></td>
+            <td>{{linha[1]}}</td>
+            <td>{{linha[2]}}</td>
+            <td>{{linha[3]}}</td>
+            <td>
+              <select class="form-select" id="categoria" name="categoria">
+                {%if linha[6]==0 %}
+                  <option value="{{linha[6]}}">Apresentação Oral</option>
+                {%else%}
+                  <option value="{{linha[6]}}">Poster</option>
+                {%endif%}
+                <option value="0">Apresentação Oral</option>
+                <option value="1">Poster</option>
+              </select>
+            </td>
+            <td>
+              <select class="form-select" id="modalidade" name="modalidade">
+                {%if linha[7]==0 %}
+                  <option value="{{linha[7]}}">Resumo Simples</option>
+                {%elif linha[7]==1%}
+                  <option value="{{linha[7]}}">Resumo Expandido</option>
+                {%else%}
+                  <option value="{{linha[7]}}">Trabalho Completo</option>
+                {%endif%}
+                <option value="0">Resumo Simples</option>
+                <option value="1">Resumo Expandido</option>
+                <option value="2">Trabalho Completo</option>
+              </select>
+            </td>
+            <td>
+              <input class="form-input" type="datetime-local" id="data_apresentacao" name="data_apresentacao" value="{{linha[4]}}">
+            </td>
+            <td>
+              <input class="form-input" type="text" id="local_apresentacao" name="local_apresentacao" value="{{linha[5]}}">
+            </td>
+            <td>{{'%0.2f'| format(linha[8]|float)}}</td>
+            <td>{{'%0.2f'| format(linha[9]|float)}}</td>
+            <td>
+              <input class="form-input" type="text" id="obs" name="obs" value="{{linha[10]}}">
+            </td>
+            <td>
+              <select class="form-select" id="apresentou" name="apresentou">
+                {%if linha[12]==0 %}
+                  <option value="{{linha[12]}}">Não</option>
+                {%elif linha[12]==1%}
+                  <option value="{{linha[12]}}">Sim</option>
+                {%else%}
+                  <option value="{{linha[12]}}">Justificou</option>
+                {%endif%}
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+                <option value="2">Justificou</option>
+              </select>
+            </td>
+          </form>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+Total: {{total_novos}} trabalhos aprovados.
+{% endblock %}

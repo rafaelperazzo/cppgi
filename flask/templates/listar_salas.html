@@ -1,15 +1,9 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ titulo }}</title>
-    
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+{% extends "layout.html" %}
 
+{% block title %}{{ titulo }}{% endblock %}
 
+{% block head_extra %}
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
 <script>
     $(document).ready(function(){
         $("input").on("change", function(event){
@@ -17,103 +11,103 @@
             var form_id = $(this).get(0).form.id;
             var formValues= $('#' + form_id).serialize();
             var str = form_id.split("_");
-            var id_avaliacao = str[1]; 
+            var id_avaliacao = str[1];
             $.post("{{url_for('salvar_salas')}}", formValues, function(data){
                 //console.log(data);
             },"text");
         });
-        
+
         $("select").on("change", function(event){
             event.preventDefault();
             var form_id = $(this).get(0).form.id;
             var formValues= $('#' + form_id).serialize();
             var str = form_id.split("_");
-            var id_avaliacao = str[1]; 
+            var id_avaliacao = str[1];
             $.post("{{url_for('salvar_salas')}}", formValues, function(data){
                 //console.log(data);
             },"text");
         });
     });
 </script>
-</head>
-  <body>
-    <center><img src="{{ url_for('static', filename='cabecalho.png')}}" width="100" height="150" alt=""></center>
-    <center><b>Ministério da Educação<br>
-            Universidade Federal do Cariri<br>
-            Plataforma Yoko - Eventos</b></center><br><hr>
-    <center><p><b><h1>MÓDULO ADMIN</b></h1></p></center>
-    <hr>
-    <center><p><b><h1>LISTA DE SESSÕES</b></h1></p></center>
-    
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong>{{message}}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-    {% endif %}
-    {% endwith %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <p><strong>{{nome_longo}}</strong></p>
-        </div>
-        <a href="{{url_for('cadastrar_salas',edital=edital)}}"><button type="button" class="btn btn-outline-primary">Cadastrar nova sessão</button></a> 
-        <a href="{{url_for('admin',edital=edital)}}"><button type="button" class="btn btn-outline-primary">Voltar</button></a> 
-        <table class="table">
-            <thead>
-                <th>ID</th>
-                <th>Dia</th>
-                <th>Início</th>
-                <th>Fim</th>
-                <th>Tempo de cada slot</th>
-                <th>Tipo de sessão</th>
-                <th>Salas</th>
-                <th>Remover</th>
-            </thead>
-            <tbody>
-                {% for linha in sessoes %}
-                    <tr>
-                        <form action="{{url_for('salvar_salas')}}" id="form_{{linha[0]}}" method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <input type="hidden" name="id_salas" id="id_salas" value="{{linha[0]}}">
-                            <td>{{linha[0]}}</td>
-                            <td>
-                                <input type="date" class="form-control" id="dia" name="dia" value="{{linha[3]}}">
-                            </td>
-                            <td>
-                                <input type="time" class="form-control" id="inicio" name="inicio" value="{{linha[4]}}">
-                            </td>
-                            <td>
-                                <input type="time" class="form-control" id="fim" name="fim" value="{{linha[5]}}">
-                            </td>
-                            <td>
-                                <input type="number" class="form-control" id="slot" name="slot" value="{{linha[6]}}">
-                            </td>
-                            <td>
-                                <select class="form-select" id="tipo" name="tipo">
-                                    {%if linha[2]==0 %}
-                                        <option value="{{linha[2]}}">Apresentação Oral</option>
-                                    {%else%}
-                                        <option value="{{linha[2]}}">Poster</option>
-                                    {%endif%}
-                                    <option value="0">Apresentação Oral</option>
-                                    <option value="1">Poster</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control" id="salas" name="salas" value="{{linha[7]}}">
-                            </td>
-                            <td><a href="{{url_for('remover_salas',id_salas=linha[0])}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
-                                <img src="{{url_for('static',filename='delete.png')}}"></a></td>
-                        </form>
-                    </tr>
-                {%endfor%}
-            </tbody>
+{% endblock %}
 
-        </table>
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">LISTA DE SESSÕES</h2>
+{% endblock %}
 
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
-  </body>
-</html>
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+<div class="alert-warning">
+    <p><strong>{{nome_longo}}</strong></p>
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+  <a href="{{url_for('cadastrar_salas',edital=edital)}}" class="btn-outline">Cadastrar nova sessão</a>
+  <a href="{{url_for('admin',edital=edital)}}" class="btn-outline">Voltar</a>
+</div>
+
+<div class="table-wrapper">
+    <table class="table-base">
+        <thead>
+            <tr>
+              <th>ID</th>
+              <th>Dia</th>
+              <th>Início</th>
+              <th>Fim</th>
+              <th>Tempo de cada slot</th>
+              <th>Tipo de sessão</th>
+              <th>Salas</th>
+              <th>Remover</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for linha in sessoes %}
+                <tr>
+                    <form action="{{url_for('salvar_salas')}}" id="form_{{linha[0]}}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="id_salas" id="id_salas" value="{{linha[0]}}">
+                        <td>{{linha[0]}}</td>
+                        <td>
+                            <input type="date" class="form-input" id="dia" name="dia" value="{{linha[3]}}">
+                        </td>
+                        <td>
+                            <input type="time" class="form-input" id="inicio" name="inicio" value="{{linha[4]}}">
+                        </td>
+                        <td>
+                            <input type="time" class="form-input" id="fim" name="fim" value="{{linha[5]}}">
+                        </td>
+                        <td>
+                            <input type="number" class="form-input" id="slot" name="slot" value="{{linha[6]}}">
+                        </td>
+                        <td>
+                            <select class="form-select" id="tipo" name="tipo">
+                                {%if linha[2]==0 %}
+                                    <option value="{{linha[2]}}">Apresentação Oral</option>
+                                {%else%}
+                                    <option value="{{linha[2]}}">Poster</option>
+                                {%endif%}
+                                <option value="0">Apresentação Oral</option>
+                                <option value="1">Poster</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="form-input" id="salas" name="salas" value="{{linha[7]}}">
+                        </td>
+                        <td><a href="{{url_for('remover_salas',id_salas=linha[0])}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
+                            <img src="{{url_for('static',filename='delete.png')}}"></a></td>
+                    </form>
+                </tr>
+            {%endfor%}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
