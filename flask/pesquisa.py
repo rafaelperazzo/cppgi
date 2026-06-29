@@ -3525,5 +3525,5 @@ if __name__ == "__main__":
     api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
     api.add_resource(Trabalhos,'/api/trabalhos/<id_edital>/<apresentacao>')
     api.add_resource(Apresentador,'/api/apresentador/<id_submissao>')
-    serve(app, host='0.0.0.0', port=80, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
+    serve(app, host='0.0.0.0', port=8090, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
 
