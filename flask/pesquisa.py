@@ -38,7 +38,7 @@ import boto3
 import time
 
 #WORKING_DIR='/home/perazzo/cppgi/'
-WORKING_DIR='/app/'
+WORKING_DIR=''
 config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
 SERVER_URL = config['DEFAULT']['server']
 
