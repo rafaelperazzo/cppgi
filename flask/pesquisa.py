@@ -1202,7 +1202,7 @@ def meusProjetos():
         editalProjeto.local_apresentacao,
         DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y'),
         CASE
-        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 09:00'
+        WHEN HOUR(editalProjeto.data_apresentacao) >= 6 AND HOUR(editalProjeto.data_apresentacao) < 12 THEN 'Manhã - 08:00'
         WHEN HOUR(editalProjeto.data_apresentacao) >= 12 AND HOUR(editalProjeto.data_apresentacao) < 18 THEN 'Tarde - 14:00'
         WHEN HOUR(editalProjeto.data_apresentacao) >= 18 AND HOUR(editalProjeto.data_apresentacao) < 24 THEN 'Noite - 18:30'
         ELSE 'Indefinido'
@@ -1616,6 +1616,8 @@ def distribuir(local,turno,uas,trabalhos):
                 update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                #Turno[0] na linha abaixo indica que todos os trabalho começam no primeiro horário
+                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
@@ -1630,6 +1632,7 @@ def distribuir(local,turno,uas,trabalhos):
                 update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
+                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
                 atualizar(update)
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
@@ -1731,21 +1734,21 @@ def programacao():
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             
-            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR><hr>')
+            final_oral = """select local_apresentacao, GROUP_CONCAT(id,concat_ws(' - ',IF(premiacao=1,'(*)',''),ua,"<span style='color:red'>",area_cnpq,subarea_cnpq,"</span>",IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua,id SEPARATOR '<BR><BR><hr>')
 
                         FROM editalProjeto
 
                         WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY local_apresentacao,data_apresentacao,ua """
+                        ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
-            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua SEPARATOR '<BR><BR>')
+            final_poster = """select local_apresentacao, GROUP_CONCAT(id,' ',concat_ws(' - ',ua,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),'<b>',DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),'</b>','<i>',titulo,'</i>',nome) ORDER BY local_apresentacao,data_apresentacao,ua,id SEPARATOR '<BR><BR>')
 
                         FROM editalProjeto
 
                         WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=""" + edital + """ GROUP BY local_apresentacao
 
-                        ORDER BY local_apresentacao,data_apresentacao,ua """
+                        ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
             linhas,total = executarSelect(final_oral)
             poster,total_poster = executarSelect(final_poster)
@@ -1781,7 +1784,7 @@ def mapa():
         FROM editalProjeto
         WHERE situacao=1 and valendo=1 and tipo=""" + edital + """ GROUP BY local_apresentacao,
         date(data_apresentacao) 
-        ORDER BY local_apresentacao,date(data_apresentacao)
+        ORDER BY local_apresentacao,date(data_apresentacao),id
         """
         linhas,total = executarSelect(consulta)
         return(render_template('mapa.html',linhas=linhas,nome_edital=nome_edital))
