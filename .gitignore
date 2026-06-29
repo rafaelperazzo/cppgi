@@ -1,3 +1,6 @@
+*.docx
+*.doc
+*.odt
 *.hcl
 .env
 encryption/*
