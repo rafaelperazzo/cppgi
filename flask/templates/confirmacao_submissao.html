@@ -1,41 +1,193 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Confirmação de submissão de trabalho</title>
   </head>
-  <body>
-    <h1 style="text-align: center;"><b>CONFIRMAÇÃO DE SUBMISSÃO DE TRABALHO</b></h1>
-    <h2>{{evento}}</h2>
-    <hr>
-    <h3>Dados de acesso ao sistema</h3>
-    <p>Link: <a href="{{link}}">{{link}}</a></p>
-    <p>Usuário: {{usuario}}</p>
-    <p>Senha: {{senha}}</p>
-    <hr>
-    <h3>Dados da submissão</h3>
-    <p><b>ID da submissão: </b>{{id_projeto}}<b><br>
-      </b></p>
-    <p><b>Autor(es)</b>: {{proponente}}</p>
-    <p><b>Titulo</b>: {{titulo_projeto}}</p>
-    <p><b>Tipo de apresentação</b>:
-      {% if tipo_apresentacao==0 %}
-      APRESENTAÇÃO ORAL
-      {% else %}
-      APRESENTAÇÃO EM POSTER
-      {% endif %}
-    </p>
-    <p><b>Resumo</b>: {{resumo_projeto}}</p>
+  <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:100%;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
 
-    <hr>
-    <p><br>
-    </p>
-    <p>Um e-mail de confirmação foi enviado para: {{email_proponente}}</p>
-    <p>Quaisquer dúvidas, enviar e-mail para atendimento.prpi@ufca.edu.br.</p>
-    <h2 style="text-align: center;"><a href="https://conpesq.ufca.edu.br">https://conpesq.ufca.edu.br</a></h2>
-    <p><br>
-    </p>
-    <p><br>
-    </p>
+            <!-- Cabeçalho -->
+            <tr>
+              <td align="center" style="background-color:#059669;padding:28px 24px;">
+                <h1 style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#ffffff;">CONFIRMAÇÃO DE SUBMISSÃO DE TRABALHO</h1>
+                <p style="margin:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#d1fae5;">{{evento}}</p>
+              </td>
+            </tr>
+
+            <!-- Dados de acesso -->
+            <tr>
+              <td style="padding:24px 24px 8px 24px;">
+                <h2 style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1e293b;">Dados de acesso ao sistema</h2>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ecfdf5;border-left:4px solid #059669;border-radius:4px;">
+                  <tr>
+                    <td style="padding:14px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#065f46;line-height:1.6;">
+                      <b>Link</b>: <a href="{{link}}" style="color:#047857;">{{link}}</a><br>
+                      <b>Usuário</b>: {{usuario}}<br>
+                      <b>Senha</b>: {{senha}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Dados da submissão -->
+            <tr>
+              <td style="padding:16px 24px 8px 24px;">
+                <h2 style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1e293b;">Dados da submissão</h2>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:4px;border-collapse:collapse;overflow:hidden;">
+
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;width:170px;vertical-align:top;">ID da submissão</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{id_projeto}}</td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Autor(es)</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{proponente}}</td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Orientador(a)</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{orientador}}</td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Unidade Acadêmica</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{unidade_academica}}</td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Título</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{titulo_projeto}}</td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Vínculo</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if vinculo==0 %}GRADUAÇÃO
+                      {% elif vinculo==1 %}PÓS-GRADUAÇÃO
+                      {% elif vinculo==2 %}ENSINO MÉDIO
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Categoria</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if categoria_trabalho==1 %}INICIAÇÃO CIENTÍFICA - PIBIC/PIBIC-Af
+                      {% elif categoria_trabalho==2 %}DESENVOLVIMENTO TECNOLÓGICO E INOVAÇÃO - PIBITI
+                      {% elif categoria_trabalho==3 %}INICIAÇÃO CIENTÍFICA PARA O ENSINO MÉDIO - PIBIC-EM
+                      {% elif categoria_trabalho==4 %}PÓS-GRADUAÇÃO
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Tipo de trabalho</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if tipo_trabalho==0 %}RESUMO SIMPLES - APRESENTAÇÃO PÔSTER PRESENCIAL
+                      {% elif tipo_trabalho==2 %}TRABALHO COMPLETO - APRESENTAÇÃO ORAL ONLINE
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Tipo de apresentação</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if tipo_apresentacao==0 %}APRESENTAÇÃO ORAL
+                      {% else %}APRESENTAÇÃO EM POSTER
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Grande Área</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if grande_area=='Ciências da Vida' %}CIÊNCIAS DA VIDA
+                      {% elif grande_area=='Ciências Exatas, Tecnológicas e Multidisciplinar' %}CIÊNCIAS EXATAS, DA TERRA, ENGENHARIAS E MULTIDISCIPLINAR
+                      {% elif grande_area=='Humanidades' %}CIÊNCIAS HUMANAS E SOCIAIS, LETRAS E ARTES
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Área CNPq</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{area_cnpq}}</td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Sub-Área CNPq</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{subarea_cnpq}}</td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">ODS</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if ods=='01' %}ERRADICAÇÃO DA POBREZA
+                      {% elif ods=='02' %}FOME ZERO E AGRICULTURA SUSTENTÁVEL
+                      {% elif ods=='03' %}SAUDE E BEM ESTAR
+                      {% elif ods=='04' %}EDUCAÇÃO DE QUALIDADE
+                      {% elif ods=='05' %}IGUALDADE DE GÊNERO
+                      {% elif ods=='06' %}ÁGUA POTÁVEL E SANEAMENTO
+                      {% elif ods=='07' %}ENERGIA LIMPA E ACESSÍVEL
+                      {% elif ods=='08' %}TRABALHO DECENTE E CRESCIMENTO ECONÔMICO
+                      {% elif ods=='09' %}INDUSTRIA, INOVAÇÃO E INFRAESTRUTURA
+                      {% elif ods=='10' %}REDUÇÃO DAS DESIGUALDADES
+                      {% elif ods=='11' %}CIDADES E COMUNIDADES SUSTENTÁVEIS
+                      {% elif ods=='12' %}CONSUMO E PRODUÇÃO RESPONSÁVEIS
+                      {% elif ods=='13' %}AÇÃO CONTRA A MUDANÇA GLOBAL DO CLIMA
+                      {% elif ods=='14' %}VIDA NA ÁGUA
+                      {% elif ods=='15' %}VIDA TERRESTRE
+                      {% elif ods=='16' %}PAZ, JUSTIÇA E INSTITUIÇÕES EFICAZES
+                      {% elif ods=='17' %}PARCERIAS E MEIOS DE IMPLEMENTAÇÃO
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Resumo</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{resumo_projeto}}</td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Necessidade de acessibilidade</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if acessibilidade==1 %}SIM
+                      {% else %}NÃO
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% if acessibilidade==1 %}
+                  <tr style="background-color:#f8fafc;">
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Descrição da necessidade</td>
+                    <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">{{descricao_acessibilidade}}</td>
+                  </tr>
+                  <tr style="background-color:#ffffff;">
+                    <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#334155;vertical-align:top;">Língua de apresentação</td>
+                    <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b;vertical-align:top;">
+                      {% if lingua==1 %}LIBRAS - LÍNGUA BRASILEIRA DE SINAIS
+                      {% else %}PORTUGUÊS
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endif %}
+                </table>
+              </td>
+            </tr>
+
+            <!-- Botão / rodapé -->
+            <tr>
+              <td align="center" style="padding:24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" style="border-radius:6px;background-color:#059669;">
+                      <a href="https://conpesq.ufca.edu.br" style="display:inline-block;padding:10px 24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:6px;">ACESSAR O EVENTO</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:16px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#64748b;">
+                  Um e-mail de confirmação foi enviado para: {{email_proponente}}
+                </p>
+                <p style="margin:4px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#64748b;">
+                  Quaisquer dúvidas, enviar e-mail para atendimento.prpi@ufca.edu.br.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>

@@ -2,7 +2,7 @@
 #CPPGI 2024
 from fileinput import filename
 import re
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
 from flask import request,url_for,send_from_directory,redirect,flash,session
@@ -87,6 +87,7 @@ SITE = SERVER_URL + "/cppgi/uploads/"
 IMAGENS_URL = SERVER_URL + "/cppgi/static/"
 DECLARACOES_DIR = WORKING_DIR + 'pdfs/'
 ROOT_SITE = SERVER_URL
+SERVER_HOST = urlparse(SERVER_URL).netloc
 CPPGI_SITE = ROOT_SITE + '/cppgi/'
 USUARIO_SITE = ROOT_SITE + "/cppgi/usuario"
 ATTACHMENTS_DIR = WORKING_DIR + 'uploads/'
@@ -517,7 +518,7 @@ def home():
 def submissao():
     editaisAbertos = getEditaisAbertos()
     subareas_cnpq = getSubAreasCNPQ()
-    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO,subareas_cnpq=subareas_cnpq))
+    return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO,subareas_cnpq=subareas_cnpq,root_site=ROOT_SITE))
 
 @app.route("/declaracao", methods=['GET', 'POST'])
 def declaracao():
@@ -600,6 +601,20 @@ def cadastrarProjeto():
     subarea_cnpq = str(request.form['subarea_cnpq'])
     anais_permissao = int(request.form['anais'])
     
+    #Pegando o orientador
+    orientador = str(request.form['orientador'])
+    orientador = orientador.upper()
+    if orientador !='N/A':
+        nome = nome + ', ' + orientador
+
+    #Pegando unidade academica
+    unidade_academica = str(request.form['unidade_academica'])
+    unidade_academica = unidade_academica.upper()
+
+    #Pegando a ODS
+    ods = str(request.form['ods'])
+    ods = ods.upper()
+    
     #Acessibilidade
     acessibilidade = 0
     if 'acessibilidade' in request.form:
@@ -630,10 +645,10 @@ def cadastrarProjeto():
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
     consulta = """INSERT INTO editalProjeto
-    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto,acessibilidade,descricao_acessibilidade,lingua,categoria_trabalho)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
+    (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,arquivo_projeto,arquivo_plano1,arquivo_plano2,anais,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,idProjeto,acessibilidade,descricao_acessibilidade,lingua,categoria_trabalho,unidade,ods)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
 
-    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado,acessibilidade,descricao_acessibilidade,lingua, categoria_trabalho)
+    valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado,acessibilidade,descricao_acessibilidade,lingua,categoria_trabalho,unidade_academica,ods)
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
@@ -656,11 +671,11 @@ def cadastrarProjeto():
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = "pesquisa.prpi@ufca.edu.br"
-    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos')
+    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica)
     msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
-    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos'))
+    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica))
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
@@ -1991,7 +2006,7 @@ def processar_emails_versao_final(linhas,edital):
             arquivo = str(linha[6])
             autores = str(linha[7])
             if (arquivo=="0"):
-                texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores,prazo=prazo)
+                texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores,prazo=prazo,cppgi_site=CPPGI_SITE)
                 if PRODUCAO==1:
                     msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
                 else:
@@ -2135,7 +2150,7 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
                 app.logger.error("[LINK_DA_SALA]Erro ao gerar o link da sala: " + str(e))
                 link = "INDEFINIDO"
             try:
-                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_da_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao)                
+                texto_email = render_template('email_instrucoes.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,cpf=cpf,senha=senha,nome_longo=nome_longo,apresentacao=apresentacao,prazo_apresentacao=prazo_apresentacao,data_apresentacao=data_apresentacao,local_apresentacao=local_da_apresentacao,link=link,avaliadores=avaliadores,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal,deadline_versao_final=deadline_versao_final,deadline_apresentacao=deadline_apresentacao,hora_sessao=hora_sessao,cppgi_site=CPPGI_SITE)
             except Exception as e:
                 logging.error("[render_template]Erro ao gerar o link da sala: " + str(e))
             if PRODUCAO==1:
@@ -2222,7 +2237,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             email_avaliador = str(linha[2])
             sala = str(linha[3])
             sala_link = str(linha[4])
-            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link)
+            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link,server_host=SERVER_HOST)
             if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             else:
@@ -2872,6 +2887,36 @@ def enviar_email_avaliadores():
     AND DATEDIFF(NOW(),a.data_envio)>=1 
     AND tipo in (SELECT id from editais WHERE deadline_avaliacao>now())
     """
+    consulta = """
+        SELECT 
+            e.id,
+            e.titulo,
+            e.resumo,
+            a.avaliador,
+            a.link,
+            a.id,
+            a.enviado,
+            a.token,
+            e.categoria,
+            e.tipo, 
+            DATEDIFF(NOW(), a.data_envio) AS enviados,
+            DATE_FORMAT(ed.deadline_avaliacao, '%d/%m/%Y') AS deadline_avaliacao,
+            ed.nome,
+            e.modalidade 
+        FROM 
+            editalProjeto AS e
+        INNER JOIN 
+            avaliacoes AS a ON e.id = a.idProjeto
+        INNER JOIN 
+            editais AS ed ON e.tipo = ed.id
+        WHERE 
+            e.valendo = 1 
+            AND e.situacao = -1 
+            AND a.finalizado = 0 
+            AND a.aceitou != 0 
+            AND DATEDIFF(NOW(), a.data_envio) >= 1 
+            AND e.tipo IN (SELECT id FROM editais WHERE deadline_avaliacao > NOW())
+    """
     linhas,total = executarSelect(consulta)
     for linha in linhas:
         titulo = str(linha[1])
@@ -2879,11 +2924,16 @@ def enviar_email_avaliadores():
         link = str(linha[4])
         token = str(linha[7])
         email_avaliador = str(linha[3])
+        modalidade = 0
+        try:
+            modalidade = int(linha[13])
+        except:
+            modalidade = 0   
         link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
         deadline = str(linha[11])
         nome_longo = str(linha[12])
         with app.app_context():
-            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
+            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 if PRODUCAO==1:
@@ -2914,6 +2964,30 @@ def enviarPedidoAvaliacao(id):
     AND a.finalizado=0 AND e.id=""" + str(id) + """ 
     ORDER BY a.id DESC
     """
+    consulta = """
+        SELECT 
+            e.id, 
+            e.titulo, 
+            e.resumo, 
+            a.avaliador, 
+            a.link, 
+            a.id, 
+            a.enviado, 
+            a.token, 
+            e.categoria, 
+            e.tipo,
+            e.modalidade
+        FROM 
+            editalProjeto AS e
+        INNER JOIN 
+            avaliacoes AS a ON e.id = a.idProjeto
+        WHERE 
+            e.valendo = 1 
+            AND a.finalizado = 0 
+            AND e.id = """ + str(id) + """ 
+        ORDER BY 
+            a.id DESC
+    """
     linhas,total = executarSelect(consulta)
     logging.debug("Enviado pedido de avaliacao para: " + str(total))
     
@@ -2923,12 +2997,17 @@ def enviarPedidoAvaliacao(id):
         link = str(linha[4])
         token = str(linha[7])
         email_avaliador = str(linha[3])
+        modalidade = 0
+        try:
+            modalidade = int(linha[10])
+        except:
+            modalidade = 0   
         app.logger.debug(email_avaliador)
         link_recusa = ROOT_SITE + "/cppgi/recusarConvite?token=" + token
         deadline = obterColunaUnica('editais',"DATE_FORMAT(deadline_avaliacao,'%d/%m/%Y')",'id',str(linha[9]))
         nome_longo = obterColunaUnica('editais','nome','id',str(linha[9]))
         with app.app_context():
-            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline)
+            texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
             msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
             try:
                 if PRODUCAO==1:
