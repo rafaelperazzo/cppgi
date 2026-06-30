@@ -87,6 +87,25 @@
     }
   }
 
+  function seTipoTrabalho() {
+    var tipoTrabalho = document.getElementById('tipo_trabalho').value;
+    if (tipoTrabalho == '0') {
+      document.getElementById('tipo_apresentacao').value = '1';
+    }
+    else if (tipoTrabalho == '2') {
+      document.getElementById('tipo_apresentacao').value = '0';
+    }
+  }
+
+  function seOrientadorVazio() {
+    var campoOrientador = document.getElementById('orientador');
+    if (campoOrientador.value.trim() == '') {
+      if (confirm('O trabalho realmente não tem orientador?')) {
+        campoOrientador.value = 'N/A';
+      }
+    }
+  }
+
   </script>
   <script>
       $(document).ready(function(){
@@ -119,7 +138,7 @@
           return;
         }
         cpf = cpf.replace(/[^\d]+/g,'');
-        axios.get('https://sci01-ter-jne.ufca.edu.br/pesquisa/indicacao/' + cpf)
+        axios.get('{{ root_site }}/pesquisa/indicacao/' + cpf)
           .then(function (response) {
 
             let total = response.data.length;
@@ -203,6 +222,26 @@
     </div>
   </div>
 
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div>
+      <label class="form-label">Orientador(a)</label>
+      <input class="form-input" name="orientador" id="orientador" required="required" type="text" placeholder="Nome completo do(a) orientador(a)" onblur="seOrientadorVazio();">
+    </div>
+    <div>
+      <label class="form-label">Unidade Acadêmica</label>
+      <select class="form-select" name="unidade_academica" id="unidade_academica" required="required">
+        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
+        <option value="CCT">CCT</option>
+        <option value="CCSA">CCSA</option>
+        <option value="CCAB">CCAB</option>
+        <option value="IISCA">IISCA</option>
+        <option value="FAMED">FAMED</option>
+        <option value="IFE">IFE</option>
+        <option value="OUTRO">OUTRO</option>
+      </select>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
     <div>
       <label class="form-label">Vínculo</label>
@@ -249,30 +288,23 @@
     </div>
     <div>
       <label class="form-label">Tipo de trabalho</label>
-      <select class="form-select" name="tipo_trabalho" required="required">
+      <select class="form-select" name="tipo_trabalho" id="tipo_trabalho" required="required" onchange="seTipoTrabalho()">
         <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
-        <option value="1">Resumo Expandido</option>
-        <option value="2">Trabalho completo</option>
+        <option value="0">Resumo Simples - apresentação pôster presencial</option>
+        <option value="2">Trabalho completo - apresentação oral online</option>
       </select>
     </div>
     <div>
       <label class="form-label">Categoria</label>
       <select class="form-select" name="categoria_trabalho" required="required">
         <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
-        <option value="1">Iniciação Científica</option>
-        <option value="2">Desenvolvimento Tecnológico e Inovação</option>
-        <option value="3">Ensino Médio</option>
+        <option value="1">Iniciação Científica - PIBIC/PIBIC-Af </option>
+        <option value="2">Desenvolvimento Tecnológico e Inovação - PIBITI</option>
+        <option value="3">Iniciação Científica para o Ensino Médio - PIBIC-EM</option>
         <option value="4">Pós-Graduação</option>
       </select>
     </div>
-    <div>
-      <label class="form-label">Tipo de apresentação</label>
-      <select class="form-select" name="tipo_apresentacao" required="required">
-        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
-        <option value="0">Apresentação Oral</option>
-        <option value="1">Apresentação em Poster</option>
-      </select>
-    </div>
+    <input type="hidden" name="tipo_apresentacao" id="tipo_apresentacao" value="">
     <div>
       <label class="form-label">Grande Área</label>
       <select class="form-select" name="grande_area" required="required">
@@ -280,6 +312,29 @@
         <option value="Ciências da Vida">Ciências da Vida</option>
         <option value="Ciências Exatas, Tecnológicas e Multidisciplinar">Ciências Exatas, da Terra, Engenharias e Multidisciplinar</option>
         <option value="Humanidades">Ciências Humanas e Sociais, Letras e Artes</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label">ODS</label>
+      <select class="form-select" name="ods" id="ods" required="required">
+        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
+        <option value="01">ERRADICAÇÃO DA POBREZA</option>
+        <option value="02">FOME ZERO E AGRICULTURA SUSTENTÁVEL</option>
+        <option value="03">SAUDE E BEM ESTAR</option>
+        <option value="04">EDUCAÇÃO DE QUALIDADE</option>
+        <option value="05">IGUALDADE DE GÊNERO</option>
+        <option value="06">ÁGUA POTÁVEL E SANEAMENTO</option>
+        <option value="07">ENERGIA LIMPA E ACESSÍVEL</option>
+        <option value="08">TRABALHO DECENTE E CRESCIMENTO ECONÔMICO</option>
+        <option value="09">INDUSTRIA, INOVAÇÃO E INFRAESTRUTURA</option>
+        <option value="10">REDUÇÃO DAS DESIGUALDADES</option>
+        <option value="11">CIDADES E COMUNIDADES SUSTENTÁVEIS</option>
+        <option value="12">CONSUMO E PRODUÇÃO RESPONSÁVEIS</option>
+        <option value="13">AÇÃO CONTRA A MUDANÇA GLOBAL DO CLIMA</option>
+        <option value="14">VIDA NA ÁGUA</option>
+        <option value="15">VIDA TERRESTRE</option>
+        <option value="16">PAZ, JUSTIÇA E INSTITUIÇÕES EFICAZES</option>
+        <option value="17">PARCERIAS E MEIOS DE IMPLEMENTAÇÃO</option>
       </select>
     </div>
   </div>
