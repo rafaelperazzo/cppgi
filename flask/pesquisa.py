@@ -97,14 +97,6 @@ CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 
-if PRODUCAO == 1:
-    sentry_sdk.init(
-        dsn="https://b96c982e39a941aaf2182fe38a76b33f@o4509464537333760.ingest.de.sentry.io/4511654650118224",
-        # Add data like request headers and IP for users,
-        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-        send_default_pii=True,
-    )
-
 app = Flask(__name__)
 csrf = CSRFProtect(app)
 api = Api(app)
