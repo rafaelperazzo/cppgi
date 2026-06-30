@@ -3309,6 +3309,72 @@ def remover_salas(id_salas):
     edital = obterColunaUnica('salas','edital','id',id_salas)
     return(redirect(url_for('listar_salas',edital=edital)))
 
+@app.route("/submissoes/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def listar_submissoes(edital):
+    consulta = """
+    SELECT
+        ep.id,
+        ep.ua,
+        ep.nome,
+        ep.siape,
+        ep.email,
+        ep.titulo,
+        ep.categoria,
+        ep.modalidade,
+        ep.categoria_trabalho,
+        ep.area_cnpq,
+        ep.lingua,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'id',            av.id,
+                'avaliador',     av.avaliador,
+                'nome_avaliador',av.nome_avaliador,
+                'c1', av.c1, 'c2', av.c2, 'c3', av.c3,
+                'c4', av.c4, 'c5', av.c5, 'c6', av.c6,
+                'c7', av.c7, 'c8', av.c8, 'c9', av.c9,
+                'recomendacao',  av.recomendacao,
+                'finalizado',    av.finalizado,
+                'aceitou',       av.aceitou
+            ) ORDER BY av.id
+        ) AS avaliacoes
+    FROM editalProjeto ep
+    LEFT JOIN avaliacoes av ON av.idProjeto = ep.id
+    WHERE ep.tipo = %s
+      AND ep.valendo = 1
+    GROUP BY ep.id
+    ORDER BY ep.ua, ep.id
+    """
+    linhas, total = executarSelect2(consulta, valores=(edital,))
+    projetos = []
+    for linha in linhas:
+        projeto = list(linha)
+        avs = json.loads(linha[-1]) if linha[-1] else []
+        projeto[-1] = [av for av in avs if av and av.get('id') is not None]
+        projetos.append(projeto)
+    nome_longo = obterColunaUnica('editais', 'nome_longo', 'id', edital)
+    return render_template('submissoes.html', projetos=projetos, edital=edital, nome_longo=nome_longo)
+
+@app.route("/salvar_submissao", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_submissao():
+    id_projeto       = request.form['id_projeto']
+    categoria        = request.form['categoria']
+    modalidade       = request.form['modalidade']
+    categoria_trabalho = request.form['categoria_trabalho']
+    consulta = """UPDATE editalProjeto
+                  SET categoria='%s', modalidade='%s', categoria_trabalho='%s'
+                  WHERE id=%s""" % (categoria, modalidade, categoria_trabalho, id_projeto)
+    atualizar(consulta)
+    return "OK"
+
+@app.route("/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def remover_submissao(id_projeto, edital):
+    atualizar("DELETE FROM editalProjeto WHERE id=%s" % id_projeto)
+    flash(u"Submissão removida com sucesso!")
+    return redirect(url_for('listar_submissoes', edital=edital))
+
 @app.route("/local_apresentacao/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 def local_apresentacao(edital):
