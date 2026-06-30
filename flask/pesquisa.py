@@ -75,9 +75,36 @@ try:
 except:
     AWS_S3_SECRET_KEY = ""
 
+try:
+    INSTITUICAO = config['DEFAULT']['INSTITUICAO']
+except:
+    INSTITUICAO = "Universidade Federal do Cariri"
+
+try:
+    SIGLA = config['DEFAULT']['SIGLA']
+except:
+    SIGLA = "UFCA"
+
+try:
+    SUPORTE = config['DEFAULT']['SUPORTE']
+except:
+    SUPORTE = "atendimento.prpi@ufca.edu.br"
+
+try:
+    REMETENTE = config['DEFAULT']['REMETENTE']
+except:
+    REMETENTE = "pesquisa.prpi@ufca.edu.br"
+
+try:
+    NAO_RESPONDA = config['DEFAULT']['NAO-RESPONDA']
+except:
+    NAO_RESPONDA = "NAO-RESPONDA@ufca.edu.br"
+
 s3 = boto3.client('s3', region_name=AWS_REGION,
                   aws_access_key_id=AWS_S3_KEY_ID,
                   aws_secret_access_key=AWS_S3_SECRET_KEY)
+
+
 
 from waitress import serve
 UPLOAD_FOLDER = WORKING_DIR + 'uploads/'
@@ -111,14 +138,18 @@ csrf = CSRFProtect(app)
 api = Api(app)
 CORS(app)
 
+@app.context_processor
+def inject_institucional():
+    return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE)
+
 auth = HTTPBasicAuth()
 mail = Mail(app)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
-app.config['MAIL_USERNAME'] = 'pesquisa.prpi@ufca.edu.br'
+app.config['MAIL_USERNAME'] = REMETENTE
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_DEFAULT_SENDER'] = 'pesquisa.prpi@ufca.edu.br'
+app.config['MAIL_DEFAULT_SENDER'] = REMETENTE
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['CURRICULOS_FOLDER'] = CURRICULOS_DIR
@@ -680,9 +711,9 @@ def cadastrarProjeto():
     idTrabalho = int(ultimo_id[0])
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
-    email2 = "pesquisa.prpi@ufca.edu.br"
+    email2 = REMETENTE
     texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica)
-    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
+    msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
     return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica))
@@ -832,7 +863,7 @@ def enviarAvaliacao():
             e = sys.exc_info()[0]
             logging.error(e)
             logging.error("[AVALIACAO] ERRO ao gravar a avaliação: " + token)
-            return("Não foi possível gravar a avaliação. Favor entrar contactar pesquisa.prpi@ufca.edu.br.")
+            return("Não foi possível gravar a avaliação. Favor entrar contactar " + REMETENTE + ".")
         data_agora = getData()
         consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + token + "\""
         linhas = consultar(consulta)
@@ -840,7 +871,7 @@ def enviarAvaliacao():
             descricaoEdital = str(linha[1])
         #Enviando e-mail para o avaliador com o link
         texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
-        msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
+        msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
         t = threading.Thread(target=enviar_email,args=(msg,))
         t.start()
         return(redirect(url_for('getDeclaracaoAvaliador',token=token)))
@@ -1372,12 +1403,12 @@ def enviarMinhaSenha():
                 usuario = str(linhas[0])
                 senha = str(linhas[1])
                 texto_mensagem = "Usuario: " + usuario + "\nSenha: " + senha + "\n" + USUARIO_SITE
-                msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
+                msg = Message(reply_to=NAO_RESPONDA,subject = "Plataforma Yoko - Lembrete de senha",recipients=[email],body=texto_mensagem)
                 if PRODUCAO==1:
                     mail.send(msg)
                 return(render_template('login.html',mensagem='Senha enviada para o email: ' + email))
             else:
-                return(render_template('login.html',mensagem=u'E-mail não cadastrado. Envie e-mail para atendimento.prpi@ufca.edu.br para solicitar sua senha.'))
+                return(render_template('login.html',mensagem=u'E-mail não cadastrado. Envie e-mail para ' + SUPORTE + u' para solicitar sua senha.'))
         else:
             return("OK")
     else:
@@ -2018,9 +2049,9 @@ def processar_emails_versao_final(linhas,edital):
             if (arquivo=="0"):
                 texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores,prazo=prazo,cppgi_site=CPPGI_SITE)
                 if PRODUCAO==1:
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to=NAO_RESPONDA,html=texto_email)
                 else:
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
                 try:
                     mail.send(msg)
                 except Exception as e:
@@ -2095,7 +2126,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
                 jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',edital)
                 if (jaMandouVersaoFinal=='0') or (jaMandouOlink=='0'):    
                     texto_email = render_template('email_data_local.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,local=local,data=data,avaliadores=avaliadores,link=link,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal)
-                    msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                    msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
                     try:
                         if PRODUCAO==1:
                             mail.send(msg)
@@ -2164,9 +2195,9 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             except Exception as e:
                 logging.error("[render_template]Erro ao gerar o link da sala: " + str(e))
             if PRODUCAO==1:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
             else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -2222,8 +2253,8 @@ def emailPosEvento():
                 email_autor = str(linha[0])
                 texto_email = render_template('email_pos_evento.html',evento=nome_edital,nome_longo=nome_longo)
                 subject = "AGRADECIMENTOS"
-                msg = Message(subject = subject,bcc=[email_autor],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
-                #msg = Message(subject = subject,bcc=["rafaelperazzo@gmail.com"],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = subject,bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
+                #msg = Message(subject = subject,bcc=["rafaelperazzo@gmail.com"],reply_to=NAO_RESPONDA,html=texto_email)
                 try:
                     if PRODUCAO==1:
                         mail.send(msg)
@@ -2249,9 +2280,9 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             sala_link = str(linha[4])
             texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link,server_host=SERVER_HOST)
             if PRODUCAO==1:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
             else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafaelperazzo@gmail.com'],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -2769,10 +2800,10 @@ def processar_emails_certificados(linhas,edital,app):
                 app.logger.debug(titulo)
                 texto_email = render_template('certificado_submissao.html',id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,link=link,evento=nome_longo)
                 if PRODUCAO==1:
-                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
+                    msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=[email],html=texto_email)
                     mail.send(msg)
                 else:
-                    msg = Message(reply_to="NAO-RESPONDA@ufca.edu.br",subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=['rafaelperazzo@gmail.com'],html=texto_email)
+                    msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] CERTIFICADO DE APRESENTAÇÃO DE TRABALHO",recipients=['rafaelperazzo@gmail.com'],html=texto_email)
                     mail.send(msg)
                     app.logger.debug('E-mail com certificado enviado!')
                     break
@@ -2944,7 +2975,7 @@ def enviar_email_avaliadores():
         nome_longo = str(linha[12])
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
-            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -3018,7 +3049,7 @@ def enviarPedidoAvaliacao(id):
         nome_longo = obterColunaUnica('editais','nome','id',str(linha[9]))
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
-            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to="NAO-RESPONDA@ufca.edu.br",html=texto_email)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)

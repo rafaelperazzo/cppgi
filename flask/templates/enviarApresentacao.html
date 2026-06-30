@@ -10,7 +10,7 @@
 <form name="frmCadastroVersaoFinal" action="/cppgi/cadastrarLinkApresentacao" method="POST" class="mx-auto max-w-2xl flex flex-col gap-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-  <p class="text-center text-sm italic text-slate-500">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail atendimento.prpi@ufca.edu.br para correção(ões).</p>
+  <p class="text-center text-sm italic text-slate-500">Sistema Experimental. Quaisquer erros ou problemas podem ser reportados ao e-mail {{SUPORTE}} para correção(ões).</p>
   <input type="hidden" id="idTrabalho" name="idTrabalho" value="{{idTrabalho}}">
 
   <hr class="border-slate-200">
@@ -24,13 +24,13 @@
   <div class="flex items-start gap-2">
     <input type="checkbox" id="termo" name="termo" value="aceito" required="required" class="mt-1">
     <label for="termo" class="text-sm text-slate-600">
-      AUTORIZO o uso de minha imagem em todo e qualquer material, entre fotos e documentos, para ser utilizada pela Universidade Federal do Cariri (UFCA),
+      AUTORIZO o uso de minha imagem em todo e qualquer material, entre fotos e documentos, para ser utilizada pela {{INSTITUICAO}} ({{SIGLA}}),
       sejam esses destinados à divulgação ao público em geral.
       A presente autorização é concedida a título gratuito, abrangendo o uso e veiculação da imagem acima mencionada em todo território nacional e no
       exterior, das seguintes formas: (I) outdoor; (II) busdoor; folhetos em geral (encartes, mala direta, catálogo etc.); (III) folder de apresentação;
       (IV) anúncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mídia eletrônica (painéis, vídeo-tapes, televisão,
       cinema, programa para rádio, entre outros); (IX) redes sociais (Facebook, Twitter, YouTube, Instagram, entre outros), X) artigos, capítulos de livros,
-      (XI) vídeos e demais produtos oriundos da UFCA. Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a
+      (XI) vídeos e demais produtos oriundos da {{SIGLA}}. Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a
       ser reclamado a título de direitos conexos à minha imagem ou a qualquer outro, e assino a presente autorização.
     </label>
   </div>
