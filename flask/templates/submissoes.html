@@ -42,7 +42,7 @@
     <a href="{{url_for('admin', edital=edital)}}" class="btn-outline">Voltar</a>
 </div>
 
-<div class="table-wrapper">
+<div class="table-wrapper breakout-90">
     <table class="table-base">
         <thead>
             <tr>
@@ -55,7 +55,7 @@
                 <th>Modalidade</th>
                 <th>Cat. Trabalho</th>
                 <th>Avaliações</th>
-                <th>Remover</th>
+                <th>Ações</th>
             </tr>
         </thead>
         <tbody>
@@ -158,10 +158,11 @@
                     </td>
 
                 </form>
-                <td>
+                <td class="whitespace-nowrap">
+                    <a href="{{url_for('editar_submissao', id_projeto=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Editar</a>
                     <a href="{{url_for('remover_submissao', id_projeto=linha[0], edital=edital)}}"
                        onclick="return confirm('Remover esta submissão? Esta ação não pode ser desfeita.')">
-                        <img src="{{url_for('static', filename='delete.png')}}">
+                        <img src="{{url_for('static', filename='delete.png')}}" class="inline">
                     </a>
                 </td>
             </tr>

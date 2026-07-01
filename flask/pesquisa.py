@@ -3375,6 +3375,72 @@ def remover_submissao(id_projeto, edital):
     flash(u"Submissão removida com sucesso!")
     return redirect(url_for('listar_submissoes', edital=edital))
 
+@app.route("/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def editar_submissao(id_projeto):
+    if request.method == 'POST':
+        csrf.protect()
+        nome     = removerAspas(request.form['nome'])
+        siape    = request.form['siape'].replace('.','').replace('-','')
+        email    = request.form['email']
+        titulo   = removerAspas(request.form['titulo'].upper())
+        palavras = removerAspas(request.form['palavras'])
+        resumo   = removerAspas(request.form['resumo'])
+        ua       = request.form['ua']
+        unidade  = request.form['unidade']
+        vinculo  = request.form['vinculo']
+        tipo_vinculo = request.form.get('tipo_vinculo', '-1')
+        fomento  = request.form.get('fomento', '-1')
+        area_cnpq    = request.form['area_cnpq']
+        subarea_cnpq = request.form['subarea_cnpq']
+        categoria    = request.form['categoria']
+        modalidade   = request.form['modalidade']
+        categoria_trabalho = request.form['categoria_trabalho']
+        ods          = request.form['ods']
+        anais        = request.form['anais']
+        acessibilidade = request.form.get('acessibilidade', '0')
+        descricao_acessibilidade = removerAspas(request.form.get('descricao_acessibilidade', ''))
+        lingua       = request.form.get('lingua', '0')
+        matriculas   = request.form.get('matriculas', '')
+        consulta = """UPDATE editalProjeto SET
+            nome='%s', siape='%s', email='%s', titulo='%s', palavras='%s', resumo='%s',
+            ua='%s', unidade='%s', vinculo='%s', tipo_vinculo='%s', fomento='%s',
+            area_cnpq='%s', subarea_cnpq='%s', categoria='%s', modalidade='%s',
+            categoria_trabalho='%s', ods='%s', anais='%s', acessibilidade='%s',
+            descricao_acessibilidade='%s', lingua='%s', matriculas='%s'
+            WHERE id=%s""" % (nome, siape, email, titulo, palavras, resumo,
+                              ua, unidade, vinculo, tipo_vinculo, fomento,
+                              area_cnpq, subarea_cnpq, categoria, modalidade,
+                              categoria_trabalho, ods, anais, acessibilidade,
+                              descricao_acessibilidade, lingua, matriculas, id_projeto)
+        atualizar(consulta)
+        edital = obterColunaUnica('editalProjeto', 'tipo', 'id', id_projeto)
+        flash(u"Submissão atualizada com sucesso!")
+        return redirect(url_for('listar_submissoes', edital=edital))
+
+    consulta = """SELECT id, tipo, ua, nome, siape, email, titulo, palavras, resumo,
+        categoria, modalidade, categoria_trabalho, area_cnpq, subarea_cnpq,
+        vinculo, tipo_vinculo, fomento, ods, anais, acessibilidade,
+        descricao_acessibilidade, lingua, unidade, matriculas
+        FROM editalProjeto WHERE id=%s""" % id_projeto
+    linhas, total = executarSelect(consulta)
+    if total == 0:
+        flash(u"Submissão não encontrada.")
+        return redirect(url_for('admin'))
+    p = linhas[0]
+    projeto = {
+        'id': p[0], 'tipo': p[1], 'ua': p[2], 'nome': p[3], 'siape': p[4],
+        'email': p[5], 'titulo': p[6], 'palavras': p[7], 'resumo': p[8],
+        'categoria': str(p[9]), 'modalidade': str(p[10]), 'categoria_trabalho': str(p[11]),
+        'area_cnpq': str(p[12]), 'subarea_cnpq': str(p[13]), 'vinculo': str(p[14]),
+        'tipo_vinculo': str(p[15]), 'fomento': str(p[16]), 'ods': str(p[17]),
+        'anais': str(p[18]), 'acessibilidade': str(p[19]),
+        'descricao_acessibilidade': p[20] or '', 'lingua': str(p[21]),
+        'unidade': str(p[22]), 'matriculas': p[23] or ''
+    }
+    subareas_cnpq = getSubAreasCNPQ()
+    return render_template('editarSubmissao.html', projeto=projeto, subareas_cnpq=subareas_cnpq)
+
 @app.route("/local_apresentacao/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 def local_apresentacao(edital):

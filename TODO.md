@@ -2,9 +2,9 @@
 
 ## Submissões
 
-- [ ] Ajustar largura do template `submissoes.html` assim como está em `editalProjeto.html`
+- [x] Ajustar largura do template `submissoes.html` assim como está em `editalProjeto.html`, ocupando 90% da página.
 
-- [ ] Implementar edição dos dados do projeto
+- [x] Implementar edição dos dados do projeto
   - Adicionar botão "Editar" na coluna de ações da tabela de `submissoes.html` (ao lado do botão de remoção)
   - Criar rota `GET/POST /editar_submissao/<id_projeto>` em `pesquisa.py`
   - Criar template `editarSubmissao.html`

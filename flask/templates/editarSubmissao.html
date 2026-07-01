@@ -1,0 +1,253 @@
+{% extends "layout.html" %}
+
+{% block title %}Editar Submissão #{{projeto.id}}{% endblock %}
+
+{% block head_extra %}
+<script>
+  function seGraduacao() {
+    if (document.getElementById('vinculo').value == '0') {
+      document.getElementById('div_tipo_vinculo').style.visibility = 'visible';
+    } else {
+      document.getElementById('tipo_vinculo').value = '-1';
+      document.getElementById('fomento').value = '-1';
+      document.getElementById('div_tipo_vinculo').style.visibility = 'hidden';
+      document.getElementById('div_fomento').style.visibility = 'hidden';
+    }
+  }
+  function seBolsista() {
+    if (document.getElementById('tipo_vinculo').value == '1') {
+      document.getElementById('div_fomento').style.visibility = 'visible';
+    } else {
+      document.getElementById('fomento').value = '-1';
+      document.getElementById('div_fomento').style.visibility = 'hidden';
+    }
+  }
+  function seAcessibilidade() {
+    if (document.getElementById('acessibilidade').value == '1') {
+      document.getElementById('div_descricao_acessibilidade').style.visibility = 'visible';
+      document.getElementById('div_lingua').style.visibility = 'visible';
+    } else {
+      document.getElementById('div_descricao_acessibilidade').style.visibility = 'hidden';
+      document.getElementById('div_lingua').style.visibility = 'hidden';
+    }
+  }
+  window.addEventListener('DOMContentLoaded', function() {
+    seGraduacao();
+    seBolsista();
+    seAcessibilidade();
+  });
+</script>
+{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">EDITAR SUBMISSÃO #{{projeto.id}}</h2>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning"><strong>{{message}}</strong></div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a href="{{url_for('listar_submissoes', edital=projeto.tipo)}}" class="btn-outline">Voltar</a>
+</div>
+
+<form action="{{url_for('editar_submissao', id_projeto=projeto.id)}}" method="POST" class="flex flex-col gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="alert-info"><h2 class="text-lg font-bold">DADOS PESSOAIS</h2></div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">CPF/SIAPE</label>
+            <input class="form-input" name="siape" required type="text" value="{{projeto.siape}}">
+        </div>
+        <div>
+            <label class="form-label">Autores</label>
+            <input class="form-input" name="nome" required type="text" value="{{projeto.nome}}">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">E-mail</label>
+            <input class="form-input" name="email" required type="email" value="{{projeto.email}}">
+        </div>
+        <div>
+            <label class="form-label">Matrículas dos demais autores</label>
+            <input class="form-input" name="matriculas" type="text" value="{{projeto.matriculas}}">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">Unidade Acadêmica</label>
+            <select class="form-select" name="unidade" required>
+                {% for ua in ['CCT','CCSA','CCAB','IISCA','FAMED','IFE','OUTRO'] %}
+                <option value="{{ua}}" {% if projeto.unidade == ua %}selected{% endif %}>{{ua}}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Vínculo</label>
+            <select class="form-select" id="vinculo" name="vinculo" required onchange="seGraduacao()">
+                <option value="0" {% if projeto.vinculo == '0' %}selected{% endif %}>Graduação</option>
+                <option value="1" {% if projeto.vinculo == '1' %}selected{% endif %}>Pós-Graduação</option>
+                <option value="2" {% if projeto.vinculo == '2' %}selected{% endif %}>Ensino Médio</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div id="div_tipo_vinculo">
+            <label class="form-label">Tipo de Vínculo</label>
+            <select class="form-select" id="tipo_vinculo" name="tipo_vinculo" onchange="seBolsista()">
+                <option value="-1" {% if projeto.tipo_vinculo == '-1' %}selected{% endif %}>Não se aplica</option>
+                <option value="1"  {% if projeto.tipo_vinculo == '1'  %}selected{% endif %}>Bolsista</option>
+                <option value="0"  {% if projeto.tipo_vinculo == '0'  %}selected{% endif %}>Voluntário</option>
+            </select>
+        </div>
+        <div id="div_fomento">
+            <label class="form-label">Agência de fomento</label>
+            <select class="form-select" id="fomento" name="fomento">
+                <option value="-1" {% if projeto.fomento == '-1' %}selected{% endif %}>Não se aplica</option>
+                <option value="0"  {% if projeto.fomento == '0'  %}selected{% endif %}>UFCA</option>
+                <option value="1"  {% if projeto.fomento == '1'  %}selected{% endif %}>CNPq</option>
+                <option value="2"  {% if projeto.fomento == '2'  %}selected{% endif %}>FUNCAP</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="alert-info"><h2 class="text-lg font-bold">DADOS DO TRABALHO</h2></div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+            <label class="form-label">Tipo de trabalho / Modalidade</label>
+            <select class="form-select" name="modalidade" required>
+                <option value="0" {% if projeto.modalidade == '0' %}selected{% endif %}>Resumo Simples</option>
+                <option value="2" {% if projeto.modalidade == '2' %}selected{% endif %}>Trabalho Completo</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Apresentação</label>
+            <select class="form-select" name="categoria" required>
+                <option value="0" {% if projeto.categoria == '0' %}selected{% endif %}>Apresentação Oral</option>
+                <option value="1" {% if projeto.categoria == '1' %}selected{% endif %}>Poster</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Categoria</label>
+            <select class="form-select" name="categoria_trabalho" required>
+                <option value="1" {% if projeto.categoria_trabalho == '1' %}selected{% endif %}>IC - PIBIC/PIBIC-Af</option>
+                <option value="2" {% if projeto.categoria_trabalho == '2' %}selected{% endif %}>PIBITI</option>
+                <option value="3" {% if projeto.categoria_trabalho == '3' %}selected{% endif %}>PIBIC-EM</option>
+                <option value="4" {% if projeto.categoria_trabalho == '4' %}selected{% endif %}>Pós-Graduação</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Grande Área</label>
+            <select class="form-select" name="ua" required>
+                <option value="Ciências da Vida"                                         {% if projeto.ua == 'Ciências da Vida' %}selected{% endif %}>Ciências da Vida</option>
+                <option value="Ciências Exatas, Tecnológicas e Multidisciplinar"         {% if projeto.ua == 'Ciências Exatas, Tecnológicas e Multidisciplinar' %}selected{% endif %}>Ciências Exatas, Tecnológicas e Multidisciplinar</option>
+                <option value="Humanidades"                                               {% if projeto.ua == 'Humanidades' %}selected{% endif %}>Humanidades</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+            <label class="form-label">Área CNPq</label>
+            <select class="form-select" name="area_cnpq" required>
+                {% for area in ['CIÊNCIAS EXATAS E DA TERRA','ENGENHARIAS','CIÊNCIAS DA SAÚDE','CIÊNCIAS AGRÁRIAS','CIÊNCIAS SOCIAIS APLICADAS','CIÊNCIAS HUMANAS','LINGÜÍSTICA, LETRAS E ARTES','MULTIDISCIPLINAR'] %}
+                <option value="{{area}}" {% if projeto.area_cnpq == area %}selected{% endif %}>{{area}}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Sub-Área CNPq</label>
+            <select class="form-select" name="subarea_cnpq" required>
+                <option value="{{projeto.subarea_cnpq}}" selected>{{projeto.subarea_cnpq}}</option>
+                {% for linha in subareas_cnpq %}
+                {% if linha[1] != projeto.subarea_cnpq %}
+                <option value="{{linha[1]}}">{{linha[1]}}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div>
+        <label class="form-label">ODS</label>
+        <select class="form-select" name="ods" required>
+            {% set ods_list = [
+                ('01','ERRADICAÇÃO DA POBREZA'),('02','FOME ZERO E AGRICULTURA SUSTENTÁVEL'),
+                ('03','SAUDE E BEM ESTAR'),('04','EDUCAÇÃO DE QUALIDADE'),
+                ('05','IGUALDADE DE GÊNERO'),('06','ÁGUA POTÁVEL E SANEAMENTO'),
+                ('07','ENERGIA LIMPA E ACESSÍVEL'),('08','TRABALHO DECENTE E CRESCIMENTO ECONÔMICO'),
+                ('09','INDUSTRIA, INOVAÇÃO E INFRAESTRUTURA'),('10','REDUÇÃO DAS DESIGUALDADES'),
+                ('11','CIDADES E COMUNIDADES SUSTENTÁVEIS'),('12','CONSUMO E PRODUÇÃO RESPONSÁVEIS'),
+                ('13','AÇÃO CONTRA A MUDANÇA GLOBAL DO CLIMA'),('14','VIDA NA ÁGUA'),
+                ('15','VIDA TERRESTRE'),('16','PAZ, JUSTIÇA E INSTITUIÇÕES EFICAZES'),
+                ('17','PARCERIAS E MEIOS DE IMPLEMENTAÇÃO')
+            ] %}
+            {% for val, label in ods_list %}
+            <option value="{{val}}" {% if projeto.ods == val %}selected{% endif %}>{{val}} - {{label}}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label class="form-label">Título</label>
+        <textarea class="form-textarea h-20" name="titulo" required maxlength="200">{{projeto.titulo}}</textarea>
+    </div>
+
+    <div>
+        <label class="form-label">Palavras-chave</label>
+        <input class="form-input" name="palavras" required type="text" value="{{projeto.palavras}}">
+    </div>
+
+    <div>
+        <label class="form-label">Resumo</label>
+        <textarea class="form-textarea h-32" name="resumo" required maxlength="15000">{{projeto.resumo}}</textarea>
+    </div>
+
+    <div class="alert-info"><h2 class="text-lg font-bold">PUBLICAÇÃO NOS ANAIS</h2></div>
+    <div>
+        <label class="form-label">Autoriza publicação nos anais?</label>
+        <select class="form-select" name="anais" required>
+            <option value="1" {% if projeto.anais == '1' %}selected{% endif %}>Sim</option>
+            <option value="0" {% if projeto.anais == '0' %}selected{% endif %}>Não</option>
+        </select>
+    </div>
+
+    <div class="alert-info"><h2 class="text-lg font-bold">ACESSIBILIDADE</h2></div>
+    <div>
+        <label class="form-label">Possui deficiência ou necessidade específica?</label>
+        <select class="form-select" id="acessibilidade" name="acessibilidade" required onchange="seAcessibilidade()">
+            <option value="0" {% if projeto.acessibilidade == '0' %}selected{% endif %}>Não</option>
+            <option value="1" {% if projeto.acessibilidade == '1' %}selected{% endif %}>Sim</option>
+        </select>
+    </div>
+    <div id="div_descricao_acessibilidade">
+        <label class="form-label">Descrição da necessidade</label>
+        <textarea class="form-textarea h-20" id="descricao_acessibilidade" name="descricao_acessibilidade">{{projeto.descricao_acessibilidade}}</textarea>
+    </div>
+    <div id="div_lingua">
+        <label class="form-label">Língua de apresentação</label>
+        <select class="form-select" id="lingua" name="lingua">
+            <option value="0" {% if projeto.lingua == '0' %}selected{% endif %}>Português</option>
+            <option value="1" {% if projeto.lingua == '1' %}selected{% endif %}>Libras</option>
+        </select>
+    </div>
+
+    <div class="flex gap-3 mt-2">
+        <input class="btn-secondary cursor-pointer" type="submit" value="Salvar alterações">
+        <a href="{{url_for('listar_submissoes', edital=projeto.tipo)}}" class="btn-outline">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
