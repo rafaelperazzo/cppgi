@@ -3343,7 +3343,7 @@ def listar_submissoes(edital):
     WHERE ep.tipo = %s
       AND ep.valendo = 1
     GROUP BY ep.id
-    ORDER BY ep.ua, ep.id
+    ORDER BY ep.ua, ep.modalidade, ep.id
     """
     linhas, total = executarSelect2(consulta, valores=(edital,))
     projetos = []
@@ -3358,13 +3358,9 @@ def listar_submissoes(edital):
 @app.route("/salvar_submissao", methods=['POST'])
 @auth.login_required(role=['admin'])
 def salvar_submissao():
-    id_projeto       = request.form['id_projeto']
-    categoria        = request.form['categoria']
-    modalidade       = request.form['modalidade']
-    categoria_trabalho = request.form['categoria_trabalho']
-    consulta = """UPDATE editalProjeto
-                  SET categoria='%s', modalidade='%s', categoria_trabalho='%s'
-                  WHERE id=%s""" % (categoria, modalidade, categoria_trabalho, id_projeto)
+    id_projeto = request.form['id_projeto']
+    modalidade = request.form['modalidade']
+    consulta = "UPDATE editalProjeto SET modalidade='%s' WHERE id=%s" % (modalidade, id_projeto)
     atualizar(consulta)
     return "OK"
 

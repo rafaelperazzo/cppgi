@@ -36,6 +36,7 @@
 
 <div class="alert-info mb-4">
     <p><strong>{{nome_longo}}</strong></p>
+    <p class="mt-1 text-sm">Total de submissões: <strong>{{projetos|length}}</strong></p>
 </div>
 
 <div class="mb-4 flex flex-wrap gap-2">
@@ -49,11 +50,8 @@
                 <th>ID</th>
                 <th>UA</th>
                 <th>Nome</th>
-                <th>SIAPE/CPF</th>
                 <th>Título</th>
-                <th>Categoria</th>
                 <th>Modalidade</th>
-                <th>Cat. Trabalho</th>
                 <th>Avaliações</th>
                 <th>Ações</th>
             </tr>
@@ -68,22 +66,7 @@
                     <td>{{linha[0]}}</td>
                     <td>{{linha[1]}}</td>
                     <td>{{linha[2]}}</td>
-                    <td>{{linha[3]}}</td>
                     <td>{{linha[5]}}</td>
-
-                    <td>
-                        <select class="form-select editavel" name="categoria">
-                            {% if linha[6]|string == '0' %}
-                                <option value="0" selected>Apresentação Oral</option>
-                            {% elif linha[6]|string == '1' %}
-                                <option value="1" selected>Poster</option>
-                            {% else %}
-                                <option value="{{linha[6]}}" selected>{{linha[6]}}</option>
-                            {% endif %}
-                            <option value="0">Apresentação Oral</option>
-                            <option value="1">Poster</option>
-                        </select>
-                    </td>
 
                     <td>
                         <select class="form-select editavel" name="modalidade">
@@ -100,58 +83,47 @@
                     </td>
 
                     <td>
-                        <select class="form-select editavel" name="categoria_trabalho">
-                            {% set ct = linha[8]|string %}
-                            {% if ct == '1' %}
-                                <option value="1" selected>IC - PIBIC/PIBIC-Af</option>
-                            {% elif ct == '2' %}
-                                <option value="2" selected>PIBITI</option>
-                            {% elif ct == '3' %}
-                                <option value="3" selected>PIBIC-EM</option>
-                            {% elif ct == '4' %}
-                                <option value="4" selected>Pós-Graduação</option>
-                            {% else %}
-                                <option value="{{linha[8]}}" selected>{{linha[8]}}</option>
-                            {% endif %}
-                            <option value="1">IC - PIBIC/PIBIC-Af</option>
-                            <option value="2">PIBITI</option>
-                            <option value="3">PIBIC-EM</option>
-                            <option value="4">Pós-Graduação</option>
-                        </select>
-                    </td>
-
-                    <td>
                         {% if linha[11] %}
                         <table class="text-xs w-full border-collapse">
                             <thead>
                                 <tr>
                                     <th class="px-1 py-0.5 text-left font-semibold text-slate-600 border border-slate-200">Avaliador</th>
-                                    <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Rec.</th>
-                                    <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Final.</th>
+                                    <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Recomendado</th>
                                     <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Aceitou</th>
                                 </tr>
                             </thead>
                             <tbody>
                             {% for av in linha[11] %}
-                            <tr>
-                                <td class="px-1 py-0.5 border border-slate-200">{{av.nome_avaliador}}</td>
+                            {% if av.aceitou != 0 %}
+                            <tr class="{% if av.recomendacao == 1 %}bg-green-100{% elif av.recomendacao == 0 %}bg-red-100{% else %}bg-yellow-100{% endif %}">
+                                <td class="px-1 py-0.5 border border-slate-200">
+                                    {% if av.nome_avaliador == 'NAO INFORMADO' %}{{av.avaliador}}{% else %}{{av.nome_avaliador}}{% endif %}
+                                </td>
                                 <td class="px-1 py-0.5 text-center border border-slate-200">
                                     {% if av.recomendacao == 1 %}Sim
                                     {% elif av.recomendacao == 0 %}Não
                                     {% else %}-{% endif %}
                                 </td>
                                 <td class="px-1 py-0.5 text-center border border-slate-200">
-                                    {% if av.finalizado == 1 %}Sim{% else %}Não{% endif %}
-                                </td>
-                                <td class="px-1 py-0.5 text-center border border-slate-200">
-                                    {% if av.aceitou == 1 %}Sim
-                                    {% elif av.aceitou == 0 %}Não
-                                    {% else %}-{% endif %}
+                                    {% if av.aceitou == 1 %}Sim{% else %}-{% endif %}
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                             </tbody>
                         </table>
+                        {% set rec_sim = linha[11] | selectattr('recomendacao', 'equalto', 1) | list | length %}
+                        {% set rec_nao = linha[11] | selectattr('recomendacao', 'equalto', 0) | list | length %}
+                        {% set diff = rec_sim - rec_nao %}
+                        <a href="{{url_for('avaliacoesNegadas', edital=edital, id=linha[0])}}" class="btn-outline text-xs w-full mt-1 block text-center">+ Avaliador</a>
+                        <div class="mt-1 px-1 py-0.5 text-sm font-semibold text-center
+                            {% if diff > 0 %}bg-green-100 text-green-800
+                            {% elif diff < 0 %}bg-red-100 text-red-800
+                            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {% if diff > 0 %}<strong>APROVADO</strong>
+                            {% elif diff < 0 %}<strong>NÃO APROVADO</strong>
+                            {% else %}<strong>INDEFINIDO</strong>{% endif %}
+                        </div>
                         {% else %}
                         <span class="text-slate-400 text-xs">Sem avaliações</span>
                         {% endif %}
@@ -159,6 +131,7 @@
 
                 </form>
                 <td class="whitespace-nowrap">
+                    <a href="{{url_for('listar_consultores', id_projeto=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Detalhes</a>
                     <a href="{{url_for('editar_submissao', id_projeto=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Editar</a>
                     <a href="{{url_for('remover_submissao', id_projeto=linha[0], edital=edital)}}"
                        onclick="return confirm('Remover esta submissão? Esta ação não pode ser desfeita.')">
