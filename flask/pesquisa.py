@@ -786,7 +786,8 @@ def getPaginaAvaliacao():
             if naoEstaFinalizado(tokenAvaliacao):
                 consulta = "UPDATE avaliacoes SET aceitou=1 WHERE token=\"" + tokenAvaliacao + "\""
                 atualizar(consulta)
-                return render_template('avaliacao.html',arquivos=links)
+                modalidade = obterColunaUnica('editalProjeto','modalidade','id',idProjeto)
+                return render_template('avaliacao.html',arquivos=links,modalidade=modalidade)
             else:
                 logging.debug("[AVALIACAO] Tentativa de reavaliar projeto")
                 return("Projeto já foi avaliado! Não é possível modificar a avaliação!")
@@ -808,12 +809,6 @@ def enviarAvaliacao():
         c6 = str(request.form['c6'])
         c7 = str(request.form['c7'])
         c8 = str(request.form['c8'])
-        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
-        total = float((100*total)/80)
-        if total>=70:
-            recomendacao = "1"
-        else:
-            recomendacao = "0"
         identificado = str(request.form['identificado'])
         consulta = """
         SELECT id FROM avaliacoes WHERE token="%s"
@@ -821,6 +816,16 @@ def enviarAvaliacao():
         ids,total = executarSelect(consulta)
         id_avaliacao = str(ids[0][0])
         id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
+        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
+        if modalidade == '1':
+            total = float((100*total)/40)
+        else:
+            total = float((100*total)/80)
+        if total>=70:
+            recomendacao = "1"
+        else:
+            recomendacao = "0"
         titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
         avaliador = obterColunaUnica('avaliacoes','avaliador','id',id_avaliacao)
         edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
