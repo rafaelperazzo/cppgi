@@ -110,17 +110,26 @@
             ('G', 'Análise e resultados;', 'c7'),
             ('H', 'Conclusão', 'c8'),
           ] %}
+          {% set criterios_desabilitados = ['c1', 'c4', 'c6', 'c8'] %}
           {% for letra, descricao, campo in criterios %}
+          {% set desabilitado = modalidade == '1' and campo in criterios_desabilitados %}
           <tr>
             <td>{{ letra }}</td>
             <td>{{ descricao }} <b>(Máximo 10 pontos)</b></td>
             <td>
-              <select class="form-select" name="{{ campo }}" required="required">
+              <select class="form-select" {% if desabilitado %}disabled{% else %}name="{{ campo }}"{% endif %} required="required">
+                {% if desabilitado %}
+                <option selected="selected" value="0">N/A</option>
+                {% else %}
                 <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
                 {% for i in range(11) %}
                   <option value="{{ i }}">{{ i }}</option>
                 {% endfor %}
+                {% endif %}
               </select>
+              {% if desabilitado %}
+              <input type="hidden" name="{{ campo }}" value="0">
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

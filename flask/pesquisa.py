@@ -786,7 +786,8 @@ def getPaginaAvaliacao():
             if naoEstaFinalizado(tokenAvaliacao):
                 consulta = "UPDATE avaliacoes SET aceitou=1 WHERE token=\"" + tokenAvaliacao + "\""
                 atualizar(consulta)
-                return render_template('avaliacao.html',arquivos=links)
+                modalidade = obterColunaUnica('editalProjeto','modalidade','id',idProjeto)
+                return render_template('avaliacao.html',arquivos=links,modalidade=modalidade)
             else:
                 logging.debug("[AVALIACAO] Tentativa de reavaliar projeto")
                 return("Projeto já foi avaliado! Não é possível modificar a avaliação!")
@@ -808,12 +809,6 @@ def enviarAvaliacao():
         c6 = str(request.form['c6'])
         c7 = str(request.form['c7'])
         c8 = str(request.form['c8'])
-        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
-        total = float((100*total)/80)
-        if total>=70:
-            recomendacao = "1"
-        else:
-            recomendacao = "0"
         identificado = str(request.form['identificado'])
         consulta = """
         SELECT id FROM avaliacoes WHERE token="%s"
@@ -821,6 +816,16 @@ def enviarAvaliacao():
         ids,total = executarSelect(consulta)
         id_avaliacao = str(ids[0][0])
         id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
+        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
+        if modalidade == '1':
+            total = float((100*total)/40)
+        else:
+            total = float((100*total)/80)
+        if total>=70:
+            recomendacao = "1"
+        else:
+            recomendacao = "0"
         titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
         avaliador = obterColunaUnica('avaliacoes','avaliador','id',id_avaliacao)
         edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
@@ -3308,6 +3313,134 @@ def remover_salas(id_salas):
     atualizar(consulta)
     edital = obterColunaUnica('salas','edital','id',id_salas)
     return(redirect(url_for('listar_salas',edital=edital)))
+
+@app.route("/submissoes/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def listar_submissoes(edital):
+    consulta = """
+    SELECT
+        ep.id,
+        ep.ua,
+        ep.nome,
+        ep.siape,
+        ep.email,
+        ep.titulo,
+        ep.categoria,
+        ep.modalidade,
+        ep.categoria_trabalho,
+        ep.area_cnpq,
+        ep.lingua,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'id',            av.id,
+                'avaliador',     av.avaliador,
+                'nome_avaliador',av.nome_avaliador,
+                'c1', av.c1, 'c2', av.c2, 'c3', av.c3,
+                'c4', av.c4, 'c5', av.c5, 'c6', av.c6,
+                'c7', av.c7, 'c8', av.c8, 'c9', av.c9,
+                'recomendacao',  av.recomendacao,
+                'finalizado',    av.finalizado,
+                'aceitou',       av.aceitou
+            ) ORDER BY av.id
+        ) AS avaliacoes
+    FROM editalProjeto ep
+    LEFT JOIN avaliacoes av ON av.idProjeto = ep.id
+    WHERE ep.tipo = %s
+      AND ep.valendo = 1
+    GROUP BY ep.id
+    ORDER BY ep.ua, ep.modalidade, ep.id
+    """
+    linhas, total = executarSelect2(consulta, valores=(edital,))
+    projetos = []
+    for linha in linhas:
+        projeto = list(linha)
+        avs = json.loads(linha[-1]) if linha[-1] else []
+        projeto[-1] = [av for av in avs if av and av.get('id') is not None]
+        projetos.append(projeto)
+    nome_longo = obterColunaUnica('editais', 'nome_longo', 'id', edital)
+    return render_template('submissoes.html', projetos=projetos, edital=edital, nome_longo=nome_longo)
+
+@app.route("/salvar_submissao", methods=['POST'])
+@auth.login_required(role=['admin'])
+def salvar_submissao():
+    id_projeto = request.form['id_projeto']
+    modalidade = request.form['modalidade']
+    consulta = "UPDATE editalProjeto SET modalidade='%s' WHERE id=%s" % (modalidade, id_projeto)
+    atualizar(consulta)
+    return "OK"
+
+@app.route("/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
+@auth.login_required(role=['admin'])
+def remover_submissao(id_projeto, edital):
+    atualizar("DELETE FROM editalProjeto WHERE id=%s" % id_projeto)
+    flash(u"Submissão removida com sucesso!")
+    return redirect(url_for('listar_submissoes', edital=edital))
+
+@app.route("/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+def editar_submissao(id_projeto):
+    if request.method == 'POST':
+        csrf.protect()
+        nome     = removerAspas(request.form['nome'])
+        siape    = request.form['siape'].replace('.','').replace('-','')
+        email    = request.form['email']
+        titulo   = removerAspas(request.form['titulo'].upper())
+        palavras = removerAspas(request.form['palavras'])
+        resumo   = removerAspas(request.form['resumo'])
+        ua       = request.form['ua']
+        unidade  = request.form['unidade']
+        vinculo  = request.form['vinculo']
+        tipo_vinculo = request.form.get('tipo_vinculo', '-1')
+        fomento  = request.form.get('fomento', '-1')
+        area_cnpq    = request.form['area_cnpq']
+        subarea_cnpq = request.form['subarea_cnpq']
+        categoria    = request.form['categoria']
+        modalidade   = request.form['modalidade']
+        categoria_trabalho = request.form['categoria_trabalho']
+        ods          = request.form['ods']
+        anais        = request.form['anais']
+        acessibilidade = request.form.get('acessibilidade', '0')
+        descricao_acessibilidade = removerAspas(request.form.get('descricao_acessibilidade', ''))
+        lingua       = request.form.get('lingua', '0')
+        matriculas   = request.form.get('matriculas', '')
+        consulta = """UPDATE editalProjeto SET
+            nome='%s', siape='%s', email='%s', titulo='%s', palavras='%s', resumo='%s',
+            ua='%s', unidade='%s', vinculo='%s', tipo_vinculo='%s', fomento='%s',
+            area_cnpq='%s', subarea_cnpq='%s', categoria='%s', modalidade='%s',
+            categoria_trabalho='%s', ods='%s', anais='%s', acessibilidade='%s',
+            descricao_acessibilidade='%s', lingua='%s', matriculas='%s'
+            WHERE id=%s""" % (nome, siape, email, titulo, palavras, resumo,
+                              ua, unidade, vinculo, tipo_vinculo, fomento,
+                              area_cnpq, subarea_cnpq, categoria, modalidade,
+                              categoria_trabalho, ods, anais, acessibilidade,
+                              descricao_acessibilidade, lingua, matriculas, id_projeto)
+        atualizar(consulta)
+        edital = obterColunaUnica('editalProjeto', 'tipo', 'id', id_projeto)
+        flash(u"Submissão atualizada com sucesso!")
+        return redirect(url_for('listar_submissoes', edital=edital))
+
+    consulta = """SELECT id, tipo, ua, nome, siape, email, titulo, palavras, resumo,
+        categoria, modalidade, categoria_trabalho, area_cnpq, subarea_cnpq,
+        vinculo, tipo_vinculo, fomento, ods, anais, acessibilidade,
+        descricao_acessibilidade, lingua, unidade, matriculas
+        FROM editalProjeto WHERE id=%s""" % id_projeto
+    linhas, total = executarSelect(consulta)
+    if total == 0:
+        flash(u"Submissão não encontrada.")
+        return redirect(url_for('admin'))
+    p = linhas[0]
+    projeto = {
+        'id': p[0], 'tipo': p[1], 'ua': p[2], 'nome': p[3], 'siape': p[4],
+        'email': p[5], 'titulo': p[6], 'palavras': p[7], 'resumo': p[8],
+        'categoria': str(p[9]), 'modalidade': str(p[10]), 'categoria_trabalho': str(p[11]),
+        'area_cnpq': str(p[12]), 'subarea_cnpq': str(p[13]), 'vinculo': str(p[14]),
+        'tipo_vinculo': str(p[15]), 'fomento': str(p[16]), 'ods': str(p[17]),
+        'anais': str(p[18]), 'acessibilidade': str(p[19]),
+        'descricao_acessibilidade': p[20] or '', 'lingua': str(p[21]),
+        'unidade': str(p[22]), 'matriculas': p[23] or ''
+    }
+    subareas_cnpq = getSubAreasCNPQ()
+    return render_template('editarSubmissao.html', projeto=projeto, subareas_cnpq=subareas_cnpq)
 
 @app.route("/local_apresentacao/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])

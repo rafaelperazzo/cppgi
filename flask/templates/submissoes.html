@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+
+{% block title %}Submissões{% endblock %}
+
+{% block head_extra %}
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+    $(document).ready(function(){
+        $("select.editavel").on("change", function(event){
+            event.preventDefault();
+            var form_id = $(this).get(0).form.id;
+            var formValues = $('#' + form_id).serialize();
+            $.post("{{url_for('salvar_submissao')}}", formValues, function(data){
+                //console.log(data);
+            }, "text");
+        });
+    });
+</script>
+{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">SUBMISSÕES</h2>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="alert-info mb-4">
+    <p><strong>{{nome_longo}}</strong></p>
+    <p class="mt-1 text-sm">Total de submissões: <strong>{{projetos|length}}</strong></p>
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a href="{{url_for('admin', edital=edital)}}" class="btn-outline">Voltar</a>
+</div>
+
+<div class="table-wrapper breakout-90">
+    <table class="table-base">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>UA</th>
+                <th>Nome</th>
+                <th>Título</th>
+                <th>Modalidade</th>
+                <th>Avaliações</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for linha in projetos %}
+            <tr>
+                <form action="{{url_for('salvar_submissao')}}" id="form_{{linha[0]}}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="id_projeto" value="{{linha[0]}}">
+
+                    <td>{{linha[0]}}</td>
+                    <td>{{linha[1]}}</td>
+                    <td>{{linha[2]}}</td>
+                    <td>{{linha[5]}}</td>
+
+                    <td>
+                        <select class="form-select editavel" name="modalidade">
+                            {% if linha[7]|string == '0' %}
+                                <option value="0" selected>Resumo Simples</option>
+                            {% elif linha[7]|string == '2' %}
+                                <option value="2" selected>Trabalho Completo</option>
+                            {% else %}
+                                <option value="{{linha[7]}}" selected>{{linha[7]}}</option>
+                            {% endif %}
+                            <option value="0">Resumo Simples</option>
+                            <option value="2">Trabalho Completo</option>
+                        </select>
+                    </td>
+
+                    <td>
+                        {% if linha[11] %}
+                        <table class="text-xs w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="px-1 py-0.5 text-left font-semibold text-slate-600 border border-slate-200">Avaliador</th>
+                                    <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Recomendado</th>
+                                    <th class="px-1 py-0.5 text-center font-semibold text-slate-600 border border-slate-200">Aceitou</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for av in linha[11] %}
+                            {% if av.aceitou != 0 %}
+                            <tr class="{% if av.recomendacao == 1 %}bg-green-100{% elif av.recomendacao == 0 %}bg-red-100{% else %}bg-yellow-100{% endif %}">
+                                <td class="px-1 py-0.5 border border-slate-200">
+                                    {% if av.nome_avaliador == 'NAO INFORMADO' %}{{av.avaliador}}{% else %}{{av.nome_avaliador}}{% endif %}
+                                </td>
+                                <td class="px-1 py-0.5 text-center border border-slate-200">
+                                    {% if av.recomendacao == 1 %}Sim
+                                    {% elif av.recomendacao == 0 %}Não
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td class="px-1 py-0.5 text-center border border-slate-200">
+                                    {% if av.aceitou == 1 %}Sim{% else %}-{% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        {% set rec_sim = linha[11] | selectattr('recomendacao', 'equalto', 1) | list | length %}
+                        {% set rec_nao = linha[11] | selectattr('recomendacao', 'equalto', 0) | list | length %}
+                        {% set diff = rec_sim - rec_nao %}
+                        <a href="{{url_for('avaliacoesNegadas', edital=edital, id=linha[0])}}" class="btn-outline text-xs w-full mt-1 block text-center">+ Avaliador</a>
+                        <div class="mt-1 px-1 py-0.5 text-sm font-semibold text-center
+                            {% if diff > 0 %}bg-green-100 text-green-800
+                            {% elif diff < 0 %}bg-red-100 text-red-800
+                            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {% if diff > 0 %}<strong>APROVADO</strong>
+                            {% elif diff < 0 %}<strong>NÃO APROVADO</strong>
+                            {% else %}<strong>INDEFINIDO</strong>{% endif %}
+                        </div>
+                        {% else %}
+                        <span class="text-slate-400 text-xs">Sem avaliações</span>
+                        {% endif %}
+                    </td>
+
+                </form>
+                <td class="whitespace-nowrap">
+                    <a href="{{url_for('listar_consultores', id_projeto=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Detalhes</a>
+                    <a href="{{url_for('editar_submissao', id_projeto=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Editar</a>
+                    <a href="{{url_for('remover_submissao', id_projeto=linha[0], edital=edital)}}"
+                       onclick="return confirm('Remover esta submissão? Esta ação não pode ser desfeita.')">
+                        <img src="{{url_for('static', filename='delete.png')}}" class="inline">
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
