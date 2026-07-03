@@ -255,7 +255,7 @@ def enviar_email(msg):
 
 def atualizar(consulta):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-    conn.autocommit(True)
+    conn.autocommit = True
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
@@ -272,7 +272,7 @@ def atualizar(consulta):
 
 def inserir(consulta,valores):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-    conn.autocommit(True)
+    conn.autocommit = True
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
@@ -506,17 +506,12 @@ def upload_e_apaga(arquivo):
     """
     Upload e apaga o arquivo
     """
-    separados = arquivo.split("/")
-    nome_arquivo = separados[1]
-    pasta = 'cppgi/' + separados[0] + "/"
-    destino = pasta + nome_arquivo
-    origem = arquivo
+    origem = ATTACHMENTS_DIR + arquivo
+    destino = 'cppgi/' + UPLOAD_FOLDER + arquivo
     #Faz o upload do arquivo para o S3
     if PRODUCAO == 1:
         thread_s3_upload = threading.Thread(target=upload_s3, args=(origem,destino,))
         thread_s3_upload.start()
-    else:
-        os.remove(origem)
 
 def esperar(arquivo):
     # Espera o tempo definido em segundos
@@ -597,8 +592,6 @@ def declaracaoOrientador():
     bolsistas = resultados[1]
     data_agora = getData()
     return render_template('orientador.html',texto=texto_declaracao,data=data_agora,identificador=texto_declaracao[0],bolsistas=bolsistas)
-
-
 
 @app.route("/cadastrarProjeto", methods=['POST'])
 def cadastrarProjeto():

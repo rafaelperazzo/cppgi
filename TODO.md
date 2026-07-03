@@ -13,3 +13,10 @@
   - Revisar/formatar os dados exibidos na célula de avaliações
   - Adicionar botão de edição por linha de avaliação → rota `GET/POST /edicao_avaliacao/<id_avaliacao>` + template `edicaoAvaliacao.html`
   - Adicionar botão de remoção por linha de avaliação → rota `GET /remover_avaliacao_submissao/<id_avaliacao>/<edital>`
+
+## Testes
+
+- [x] Teste de submissão
+- [x] Teste de inserir avaliador para uma submissão
+- [x] Teste de abrir formulário de avaliação
+- [x] Teste de enviar avaliação
