@@ -2457,23 +2457,25 @@ def gerarCertificadoAvaliador():
     qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
 
     #Recuperando template
-    background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-    
-    #Gerando certificado em PDF
     try:
+        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+
+        #Gerando certificado em PDF
         pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
     except Exception as e:
         app.logger.error('Erro gerando certificado apresentador')
-    finally:
-        consulta = """
-        SELECT id,username FROM usuarios_salas WHERE username='%s' AND edital=%s AND compareceu=1
-        """ %(session['username'],session['edital'])
-        linhas,total = executarSelect(consulta)
-        if total>0:
-            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
-        else:
-            flash("Nenhuma avaliação foi realizada até o momento!")
-            return(redirect(url_for('avaliador',edital=session['edital'])))
+        app.logger.error(str(e))
+        return ("Erro ao gerar certificado", 500)
+
+    consulta = """
+    SELECT id,username FROM usuarios_salas WHERE username='%s' AND edital=%s AND compareceu=1
+    """ %(session['username'],session['edital'])
+    linhas,total = executarSelect(consulta)
+    if total>0:
+        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
+    else:
+        flash("Nenhuma avaliação foi realizada até o momento!")
+        return(redirect(url_for('avaliador',edital=session['edital'])))
 
 def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, output_pdf,tamanho,titulo="TITULO",tamanho2=30):
    
