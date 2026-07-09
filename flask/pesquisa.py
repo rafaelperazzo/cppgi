@@ -939,13 +939,13 @@ def getDeclaracaoAvaliador():
         
         #Gerando certificado em PDF
         try:
-            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
             pdfkit.from_string(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado avaliador')
             app.logger.error(str(e))
-        finally:
-            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
+            return ("Erro ao gerar certificado", 500)
+
+        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
@@ -2651,7 +2651,6 @@ def certificadoIndividual(id_certificado):
             background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
 
             #Gerando certificado em PDF
-            app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
             pdfkit.from_string(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado demais')
@@ -2988,7 +2987,6 @@ def enviar_email_avaliadores():
             except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
                 logging.error(str(e))
-                return("Erro! Verifique o log!")
 
 """
 Envia solicitação para os avaliadores dos trabalhos escritos
