@@ -2589,15 +2589,17 @@ def baixarCertificado(id_projeto):
         qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
 
         #Recuperando template
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-        #Gerando certificado em PDF
         try:
+            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+
+            #Gerando certificado em PDF
             pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
             app.logger.error(str(e))
-        finally:
-            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
+            return ("Erro ao gerar certificado", 500)
+
+        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/demaisCertificados/<edital>", methods=['GET'])
 def demaisCertificados(edital):
@@ -2641,18 +2643,20 @@ def certificadoIndividual(id_certificado):
         qrcode = pyqrcode.create(qrcode_url)
         qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
         qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
-
-        #Recuperando template
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
         
-        #Gerando certificado em PDF
+        #Recuperando template
         try:
+            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+
+            #Gerando certificado em PDF
             app.logger.error(CERTIFICADOS_TEMPLATE_DIR + template)
             pdfkit.from_string(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
         except Exception as e:
             app.logger.error('Erro gerando certificado demais')
-        finally:
-            return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
+            app.logger.error(str(e))
+            return ("Erro ao gerar certificado", 500)
+
+        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/confirmar", methods=['GET', 'POST'])
 @auth.login_required(role=['avaliador','admin'])
