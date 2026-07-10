@@ -21,7 +21,7 @@ docker-compose logs -f cppgi
   effect on container restart, no image rebuild required (rebuild only needed for `requirements.txt`/`Dockerfile`
   changes).
 - The app entrypoint is `flask/pesquisa.py`, served via `waitress` on port 80 inside the container, mounted under
-  the `/cppgi` URL prefix. `flask/wsgi.py` is the alternate WSGI entrypoint (adds `pesquisa` to `sys.path`).
+  the `/cppgi` URL prefix.
 - Local runtime config lives in `flask/config.ini` (gitignored; copy from `config.ini.sample`) and
   `flask/senhas.pass` (gitignored, not present in sample form — a 3-line file: app password, Gmail SMTP password,
   Flask session secret key, read line-by-line by `pesquisa.py` and the cron scripts).
@@ -39,7 +39,7 @@ running Flask test client (`app.test_client()`) against the real MySQL database 
 there's no mocking layer. HTTP Basic Auth credentials for tests come from `config['DEFAULT']['usuario']` /
 `['senha']` in `config.ini`.
 
-`flask/teste.py` and `flask/modules/teste*.py` are ad hoc manual scratch scripts, not part of the pytest suite.
+`flask/teste.py` is an ad hoc manual scratch script, not part of the pytest suite.
 
 ## Architecture
 
@@ -72,8 +72,6 @@ Key pieces inside `pesquisa.py`:
 - `auditoria.py`, `atualizar_email.py`, `atualizar_tokens.py`, `calcular_lattes.py` — standalone maintenance
   scripts (user provisioning/audits, Lattes-CV scoring) run manually or via cron, each re-reading
   `senhas.pass`/`config.ini` independently rather than sharing app state.
-- `flask/modules/` — supporting library code: `funcoes.py` (general helpers), `scoreLattes.py`/`scorerun.py`
-  (Lattes CV scoring engine), `odtEdit.py`/`dec.py` (ODT document templating), `Bounds.py`/`Weights.py`.
 
 **Templates & static assets**: `flask/templates/` (Jinja2, named after routes/concepts, e.g.
 `certificado_avaliador.html`, `avaliacao.html`) and `flask/static/` (a built React app's static bundle alongside
