@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}Jobs agendados{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">JOBS AGENDADOS</h1>
+<h2 class="page-subtitle">Status atual dos agendamentos automáticos (APScheduler)</h2>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<a href="{{url_for('root')}}" class="btn-outline mb-4 inline-block">Voltar</a>
+
+{% if jobs %}
+<div class="table-wrapper">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Job</th>
+        <th>Status</th>
+        <th>Próxima execução</th>
+        <th>Janela de validade</th>
+        <th>Agendamento (cron)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td>{{job.nome}}</td>
+        <td>
+          {% if job.ativo %}<strong class="text-emerald-700">LIGADO</strong>{% else %}<strong class="text-red-700">DESLIGADO</strong>{% endif %}
+        </td>
+        <td>
+          {% if job.proxima_execucao %}{{job.proxima_execucao.strftime('%d/%m/%Y %H:%M')}}{% else %}-{% endif %}
+        </td>
+        <td>
+          {% if job.inicio %}{{job.inicio.strftime('%d/%m/%Y %H:%M')}}{% else %}sem início definido{% endif %}
+          até
+          {% if job.fim %}{{job.fim.strftime('%d/%m/%Y %H:%M')}}{% else %}sem fim definido{% endif %}
+        </td>
+        <td>{{job.trigger}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert-info">Nenhum job agendado no momento.</div>
+{% endif %}
+{% endblock %}
