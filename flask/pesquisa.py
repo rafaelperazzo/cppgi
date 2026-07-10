@@ -2940,6 +2940,13 @@ def job_enviar_email_avaliadores():
         logging.error("JOB AGENDADO enviar_email_avaliadores FALHOU")
         logging.error(str(e))
 
+def obterDeadlineAvaliacaoUltimoEdital():
+    consulta = "SELECT deadline_avaliacao FROM editais ORDER BY id DESC LIMIT 1"
+    linhas,total = executarSelect(consulta)
+    if total > 0:
+        return linhas[0][0]
+    return None
+
 """
 Envia solicitação para os avaliadores dos trabalhos escritos
 """
@@ -3751,6 +3758,7 @@ if __name__ == "__main__":
             hour=7,
             minute=0,
             timezone='America/Fortaleza',
+            end_date=obterDeadlineAvaliacaoUltimoEdital(),
         )
         scheduler.start()
 

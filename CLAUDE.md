@@ -63,7 +63,9 @@ Key pieces inside `pesquisa.py`:
   scheduling presentations into rooms/time slots for an `edital` (call for submissions/event edition).
 - `flask_apscheduler.APScheduler` (`scheduler`, initialized near the Flask-Mail setup): runs
   `job_enviar_email_avaliadores` (wrapping `enviar_email_avaliadores`, also reachable manually via
-  `/emailSolicitarAvaliacao`) on a cron trigger (Mon/Fri 07:00 America/Fortaleza). The job is only registered and
+  `/emailSolicitarAvaliacao`) on a cron trigger (Mon/Fri 07:00 America/Fortaleza), capped by an `end_date` equal to
+  `deadline_avaliacao` of the most recent `edital` (`obterDeadlineAvaliacaoUltimoEdital()`, `ORDER BY id DESC LIMIT
+  1`) — the job stops firing once that edition's evaluation deadline passes. The job is only registered and
   started inside the `if __name__ == "__main__":` block and only when `PRODUCAO==1`, so it doesn't run when
   `pesquisa.py` is imported (e.g. by `tests.py`) or in non-production config. Admins can toggle it on/off at
   runtime via `/toggleSchedulerAvaliadores` (linked from `admin.html`), which no-ops with a flash message if the
