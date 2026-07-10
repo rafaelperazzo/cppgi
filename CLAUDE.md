@@ -65,11 +65,21 @@ Key pieces inside `pesquisa.py`:
   `job_enviar_email_avaliadores` (wrapping `enviar_email_avaliadores`, also reachable manually via
   `/emailSolicitarAvaliacao`) on a cron trigger (Mon/Fri 07:00 America/Fortaleza), capped by an `end_date` equal to
   `deadline_avaliacao` of the most recent `edital` (`obterDeadlineAvaliacaoUltimoEdital()`, `ORDER BY id DESC LIMIT
-  1`) — the job stops firing once that edition's evaluation deadline passes. The job is only registered and
+  1`) — the job stops firing once that edition's evaluation deadline passes. The job is only registered/started at
+  all if the current time falls within the 35 days before that `deadline_avaliacao` (i.e. `deadline_avaliacao -
+  35 days <= now <= deadline_avaliacao`); outside that window `scheduler.add_job`/`scheduler.start()` are skipped
+  entirely for the process lifetime (re-evaluated only on the next restart). The job is only registered and
   started inside the `if __name__ == "__main__":` block and only when `PRODUCAO==1`, so it doesn't run when
   `pesquisa.py` is imported (e.g. by `tests.py`) or in non-production config. Admins can toggle it on/off at
   runtime via `/toggleSchedulerAvaliadores` (linked from `admin.html`), which no-ops with a flash message if the
-  job was never registered.
+  job was never registered. A second job, `job_solicitar_versao_final` (id `solicitar_versao_final`, wrapping
+  `/solicitarVersaoFinal/<edital>`'s logic via the shared `buscarPendentesVersaoFinal()` +
+  `processar_emails_versao_final()` helpers), runs on the same Mon/Fri 07:00 cadence but scoped to a declarative
+  trigger window — `start_date` = `deadline_avaliacao + 1 day` and `end_date` = `deadline_versao_final`, both of
+  the most recent `edital` (`obterUltimoEdital()`, `ORDER BY id DESC LIMIT 1`). Unlike the first job, this one is
+  always registered (when `PRODUCAO==1` and an edital exists); APScheduler itself computes no next-fire-time
+  outside the start/end window, so no manual pre-registration gate is needed. Both jobs share one
+  `scheduler.start()` call.
 
 **Other top-level `flask/*.py` modules**, all importing from `pesquisa.py` rather than being self-contained:
 - `app_api.py` — Flask-RESTful `Resource` classes (`Submissoes`, `Editais`, `Avaliacoes`, `Trabalhos`,
