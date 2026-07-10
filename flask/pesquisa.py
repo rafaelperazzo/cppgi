@@ -2995,6 +2995,27 @@ def toggle_scheduler_avaliadores():
         flash("Agendamento de e-mails para avaliadores DESLIGADO.")
     return(redirect(url_for('root')))
 
+NOMES_JOBS_AGENDADOS = {
+    'enviar_email_avaliadores': 'Envio de e-mails para avaliadores',
+    'solicitar_versao_final': 'Solicitação de versão final',
+}
+
+@app.route("/jobsAgendados")
+@auth.login_required(role=['admin'])
+def jobs_agendados():
+    jobs = []
+    for job in scheduler.get_jobs():
+        jobs.append({
+            'id': job.id,
+            'nome': NOMES_JOBS_AGENDADOS.get(job.id, job.id),
+            'ativo': job.next_run_time is not None,
+            'proxima_execucao': job.next_run_time,
+            'trigger': str(job.trigger),
+            'inicio': getattr(job.trigger, 'start_date', None),
+            'fim': getattr(job.trigger, 'end_date', None),
+        })
+    return(render_template('jobs_agendados.html', jobs=jobs))
+
 def enviarPedidoAvaliacao(id):
     gerarLinkAvaliacao()
     consulta = """
