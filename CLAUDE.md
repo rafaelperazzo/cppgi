@@ -61,6 +61,13 @@ Key pieces inside `pesquisa.py`:
   declarations.
 - Session/room-distribution logic (`distribuir`, `distribuirIgualmente`, `getSlots`, `getSessoesSalas`) for
   scheduling presentations into rooms/time slots for an `edital` (call for submissions/event edition).
+- `flask_apscheduler.APScheduler` (`scheduler`, initialized near the Flask-Mail setup): runs
+  `job_enviar_email_avaliadores` (wrapping `enviar_email_avaliadores`, also reachable manually via
+  `/emailSolicitarAvaliacao`) on a cron trigger (Mon/Fri 07:00 America/Fortaleza). The job is only registered and
+  started inside the `if __name__ == "__main__":` block and only when `PRODUCAO==1`, so it doesn't run when
+  `pesquisa.py` is imported (e.g. by `tests.py`) or in non-production config. Admins can toggle it on/off at
+  runtime via `/toggleSchedulerAvaliadores` (linked from `admin.html`), which no-ops with a flash message if the
+  job was never registered.
 
 **Other top-level `flask/*.py` modules**, all importing from `pesquisa.py` rather than being self-contained:
 - `app_api.py` — Flask-RESTful `Resource` classes (`Submissoes`, `Editais`, `Avaliacoes`, `Trabalhos`,

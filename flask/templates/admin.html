@@ -45,6 +45,17 @@
         <td>Envio dos pedidos de avalição para avaliadores</td>
       </tr>
       <tr>
+        <td>
+          <a class="text-brand-700 hover:underline" href="{{url_for('toggle_scheduler_avaliadores')}}" onclick="return confirm('Tem certeza ?')">
+            {% if scheduler_ativo %}Desligar{% else %}Ligar{% endif %} agendamento automático de e-mails para avaliadores
+          </a>
+        </td>
+        <td>
+          Agendamento automático (seg/sex 07:00) que envia lembretes de avaliação pendente. Status atual:
+          {% if scheduler_ativo %}<strong class="text-emerald-700">LIGADO</strong>{% else %}<strong class="text-red-700">DESLIGADO</strong>{% endif %}
+        </td>
+      </tr>
+      <tr>
         <td><a class="text-brand-700 hover:underline" href="{{url_for('listar_consultores_edital',edital=edital)}}">Listar todos os pedidos de avaliação</a></td>
         <td>Verificar todos os pedidos de avaliação</td>
       </tr>
