@@ -2001,6 +2001,14 @@ def processar_emails_versao_final(linhas,edital):
                 if PRODUCAO!=1:
                     break
 
+def buscarPendentesVersaoFinal(edital):
+    consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
+    users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users
+    WHERE editalProjeto.siape=users.username and situacao=1 and
+    valendo=1 and (arquivo_projeto_final='0' or arquivo_projeto_final like '%.pdf') and tipo=""" + str(edital)
+    linhas,total = executarSelect(consulta)
+    return(linhas)
+
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
 def solicitarVersaoFinal(edital):
     """
@@ -2011,11 +2019,7 @@ def solicitarVersaoFinal(edital):
     deadline_versao_final = obterColunaUnica('editais','deadline_versao_final','id',edital)
     if agora>deadline_versao_final:
         return("Prazo da versão final expirado!")
-    consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
-    users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users 
-    WHERE editalProjeto.siape=users.username and situacao=1 and 
-    valendo=1 and (arquivo_projeto_final='0' or arquivo_projeto_final like '%.pdf') and tipo=""" + edital
-    linhas,total=executarSelect(consulta)            
+    linhas = buscarPendentesVersaoFinal(edital)
     t = threading.Thread(target=processar_emails_versao_final,args=(linhas,edital,))
     t.start()
     flash("Solicitações enviadas com sucesso!")
@@ -2947,6 +2951,25 @@ def obterDeadlineAvaliacaoUltimoEdital():
         return linhas[0][0]
     return None
 
+def obterUltimoEdital():
+    consulta = "SELECT id, deadline_avaliacao, deadline_versao_final FROM editais ORDER BY id DESC LIMIT 1"
+    linhas,total = executarSelect(consulta)
+    if total > 0:
+        return linhas[0]
+    return None
+
+def job_solicitar_versao_final():
+    try:
+        ultimo_edital = obterUltimoEdital()
+        if ultimo_edital is None:
+            return
+        id_edital = ultimo_edital[0]
+        linhas = buscarPendentesVersaoFinal(id_edital)
+        processar_emails_versao_final(linhas,str(id_edital))
+    except Exception as e:
+        logging.error("JOB AGENDADO solicitar_versao_final FALHOU")
+        logging.error(str(e))
+
 """
 Envia solicitação para os avaliadores dos trabalhos escritos
 """
@@ -3750,16 +3773,38 @@ if __name__ == "__main__":
     api.add_resource(Apresentador,'/api/apresentador/<id_submissao>')
 
     if PRODUCAO == 1:
-        scheduler.add_job(
-            id='enviar_email_avaliadores',
-            func=job_enviar_email_avaliadores,
-            trigger='cron',
-            day_of_week='mon,fri',
-            hour=7,
-            minute=0,
-            timezone='America/Fortaleza',
-            end_date=obterDeadlineAvaliacaoUltimoEdital(),
-        )
+        deadline_avaliacao = obterDeadlineAvaliacaoUltimoEdital()
+        if deadline_avaliacao is not None:
+            inicio_avaliacao = deadline_avaliacao - datetime.timedelta(days=35)
+            agora = datetime.datetime.now()
+            if inicio_avaliacao <= agora <= deadline_avaliacao:
+                scheduler.add_job(
+                    id='enviar_email_avaliadores',
+                    func=job_enviar_email_avaliadores,
+                    trigger='cron',
+                    day_of_week='mon,fri',
+                    hour=7,
+                    minute=0,
+                    timezone='America/Fortaleza',
+                    end_date=deadline_avaliacao,
+                )
+
+        ultimo_edital = obterUltimoEdital()
+        if ultimo_edital is not None:
+            id_ultimo_edital, deadline_avaliacao_ultimo, deadline_versao_final_ultimo = ultimo_edital
+            inicio_versao_final = deadline_avaliacao_ultimo + datetime.timedelta(days=1)
+            scheduler.add_job(
+                id='solicitar_versao_final',
+                func=job_solicitar_versao_final,
+                trigger='cron',
+                day_of_week='mon,fri',
+                hour=7,
+                minute=0,
+                timezone='America/Fortaleza',
+                start_date=inicio_versao_final,
+                end_date=deadline_versao_final_ultimo,
+            )
+
         scheduler.start()
 
     serve(app, host='0.0.0.0', port=8090, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
