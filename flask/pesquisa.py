@@ -22,6 +22,7 @@ import numpy as np
 import pdfkit
 from flask_mail import Mail
 from flask_mail import Message
+from flask_apscheduler import APScheduler
 from flask_uploads import *
 from PIL import Image, ImageDraw, ImageFont
 import threading
@@ -172,6 +173,10 @@ app.config['SECRET_KEY'] = SESSION_SECRET_KEY
 app.config['MAIL_PASSWORD'] = GMAIL_PASSWORD
 mail = Mail(app)
 
+app.config['SCHEDULER_API_ENABLED'] = False
+scheduler = APScheduler()
+scheduler.init_app(app)
+
 #Flask-flask_uploads
 app.config['UPLOADED_DOCUMENTS_DEST'] = ATTACHMENTS_DIR
 app.config['UPLOADS_DEFAULT_DEST'] = ATTACHMENTS_DIR
@@ -180,68 +185,6 @@ anexos = UploadSet('documents',ALL)
 certificados = UploadSet('certificados', ALL, default_dest=lambda x: CERTIFICADOS_TEMPLATE_DIR)
 configure_uploads(app, (anexos,certificados))
 #patch_request_class(app)
-
-class TextWrapper(object):
-    """ Helper class to wrap text in lines, based on given text, font
-        and max allowed line width.
-    """
-
-    def __init__(self, text, font, max_width):
-        self.text = text
-        self.text_lines = [
-            ' '.join([w.strip() for w in l.split(' ') if w])
-            for l in text.split('\n')
-            if l
-        ]
-        self.font = font
-        self.max_width = max_width
-
-        self.draw = ImageDraw.Draw(
-            Image.new(
-                mode='RGB',
-                size=(100, 100)
-            )
-        )
-
-        self.space_width = self.draw.textsize(
-            text=' ',
-            font=self.font
-        )[0]
-
-    def get_text_width(self, text):
-        return self.draw.textsize(
-            text=text,
-            font=self.font
-        )[0]
-
-    def wrapped_text(self):
-        wrapped_lines = []
-        buf = []
-        buf_width = 0
-
-        for line in self.text_lines:
-            for word in line.split(' '):
-                word_width = self.get_text_width(word)
-
-                expected_width = word_width if not buf else \
-                    buf_width + self.space_width + word_width
-
-                if expected_width <= self.max_width:
-                    # word fits in line
-                    buf_width = expected_width
-                    buf.append(word)
-                else:
-                    # word doesn't fit in line
-                    wrapped_lines.append(' '.join(buf))
-                    buf = [word]
-                    buf_width = word_width
-
-            if buf:
-                wrapped_lines.append(' '.join(buf))
-                buf = []
-                buf_width = 0
-
-        return '\n'.join(wrapped_lines)
 
 def removerAspas(texto):
     resultado = texto.replace('"',' ')
@@ -2402,7 +2345,9 @@ def admin(edital):
     else:
         mostrar_pos_evento = False
     titulo = u"PÁGINA ADMINISTRATIVA"
-    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento))
+    job = scheduler.get_job('enviar_email_avaliadores')
+    scheduler_ativo = job is not None and job.next_run_time is not None
+    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo))
 
 @app.route("/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -2988,6 +2933,13 @@ def enviar_email_avaliadores():
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
                 logging.error(str(e))
 
+def job_enviar_email_avaliadores():
+    try:
+        enviar_email_avaliadores()
+    except Exception as e:
+        logging.error("JOB AGENDADO enviar_email_avaliadores FALHOU")
+        logging.error(str(e))
+
 """
 Envia solicitação para os avaliadores dos trabalhos escritos
 """
@@ -2998,7 +2950,21 @@ def email_solicitar_avaliacao():
     t.start()
     flash("Envio de e-mails iniciado!")
     return(redirect(url_for('root')))
-    
+
+@app.route("/toggleSchedulerAvaliadores")
+@auth.login_required(role=['admin'])
+def toggle_scheduler_avaliadores():
+    job = scheduler.get_job('enviar_email_avaliadores')
+    if job is None:
+        flash("Job de agendamento de e-mails para avaliadores não está registrado.")
+    elif job.next_run_time is None:
+        scheduler.resume_job('enviar_email_avaliadores')
+        flash("Agendamento de e-mails para avaliadores LIGADO.")
+    else:
+        scheduler.pause_job('enviar_email_avaliadores')
+        flash("Agendamento de e-mails para avaliadores DESLIGADO.")
+    return(redirect(url_for('root')))
+
 def enviarPedidoAvaliacao(id):
     gerarLinkAvaliacao()
     consulta = """
@@ -3775,5 +3741,18 @@ if __name__ == "__main__":
     api.add_resource(Avaliacoes,'/api/avaliacoes/<id_edital>/<modalidade>/<area>')
     api.add_resource(Trabalhos,'/api/trabalhos/<id_edital>/<apresentacao>')
     api.add_resource(Apresentador,'/api/apresentador/<id_submissao>')
+
+    if PRODUCAO == 1:
+        scheduler.add_job(
+            id='enviar_email_avaliadores',
+            func=job_enviar_email_avaliadores,
+            trigger='cron',
+            day_of_week='mon,fri',
+            hour=7,
+            minute=0,
+            timezone='America/Fortaleza',
+        )
+        scheduler.start()
+
     serve(app, host='0.0.0.0', port=8090, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port')
 

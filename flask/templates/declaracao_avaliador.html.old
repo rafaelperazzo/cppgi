@@ -1,8 +1,0 @@
-{% extends "declaracao_base.html" %}
-{% block title %}DECLARAÇÃO{% endblock %}
-
-{% block content %}
-    Declaramos, para os devidos fins, que <b> {{ nome }}</b>
-    avaliou o trabalho entitulado <b>{{titulo}}</b>, submetido
-    ao <b>{{ congresso }}</b> da Universidade Federal do Cariri (UFCA).
-{% endblock %}

@@ -52,7 +52,6 @@ docker-compose logs -f cppgi
   efeito após reiniciar o container, sem necessidade de rebuild da imagem (rebuild só é necessário ao alterar
   `requirements.txt`/`Dockerfile`).
 - Entrypoint da aplicação: `flask/pesquisa.py` (servido via `waitress`, prefixo `/cppgi`).
-  `flask/wsgi.py` é o entrypoint WSGI alternativo.
 
 ## Testes
 
