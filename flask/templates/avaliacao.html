@@ -14,7 +14,8 @@
        var c7 = parseInt(document.forms["frmAvaliacao"]["c7"].value);
        var c8 = parseInt(document.forms["frmAvaliacao"]["c8"].value);
        var total = c1+c2+c3+c4+c5+c6+c7+c8;
-       total = (100*total)/80;
+       var divisor = ("{{ modalidade }}" == "1") ? 40 : 80;
+       total = (100*total)/divisor;
        var totalStr = total.toString();
        document.getElementById("total").innerHTML = "<h3>Pontuação total: " + totalStr + "</h3>";
        if (total>=70) {
@@ -70,8 +71,8 @@
 <form name="frmAvaliacao" action="/cppgi/avaliar" method="POST" class="mt-4 flex flex-col gap-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-  <div class="alert-info"><h2 class="text-lg font-bold">TEXTO COMPLETO DO TRABALHO</h2></div>
-  <p>{{ arquivos }}</p>
+  <div class="alert-info"><h2 class="text-lg font-bold">CLIQUE AQUI PARA ACESSAR O ARQUIVO DO TRABALHO</h2></div>
+  <p>{{ arquivos|safe }}</p>
 
   <div class="alert-info">
     <div>
@@ -113,7 +114,7 @@
           {% set criterios_desabilitados = ['c1', 'c4', 'c6', 'c8'] %}
           {% for letra, descricao, campo in criterios %}
           {% set desabilitado = modalidade == '1' and campo in criterios_desabilitados %}
-          <tr>
+          <tr {% if desabilitado %}class="hidden"{% endif %}>
             <td>{{ letra }}</td>
             <td>{{ descricao }} <b>(Máximo 10 pontos)</b></td>
             <td>
