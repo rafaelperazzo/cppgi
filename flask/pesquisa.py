@@ -196,13 +196,16 @@ def enviar_email(msg):
         if PRODUCAO==1:
             mail.send(msg)
 
-def atualizar(consulta):
+def atualizar(consulta,valores=None):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.autocommit = True
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
-        cursor.execute(consulta)
+        if valores is None:
+            cursor.execute(consulta)
+        else:
+            cursor.execute(consulta,valores)
         conn.commit()
     except MySQLdb.Error as e:
         
@@ -413,8 +416,8 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
 
 @auth.get_user_roles
 def get_user_roles(user):
-    consulta = """SELECT roles FROM users WHERE username='""" + auth.username() + """'"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT roles FROM users WHERE username=%s"""
+    linhas,total = executarSelect(consulta,valores=(auth.username(),))
     if total>0:
         for linha in linhas:
             roles = str(linha[0])
@@ -629,8 +632,8 @@ def cadastrarProjeto():
     inserir(consulta,valores)
 
     #CRIANDO SENHA DE ACESSO
-    consulta = """SELECT username,password FROM users WHERE username='""" + identificacao + """'"""
-    resultados,total = executarSelect(consulta)
+    consulta = """SELECT username,password FROM users WHERE username=%s"""
+    resultados,total = executarSelect(consulta,valores=(identificacao,))
     usuario,senha = ('','')
     if (total==0): #Se o usuário ainda não for cadastrado
         usuario = identificacao
@@ -1013,13 +1016,16 @@ def quantidades(consulta):
     return (total)
 
 
-def executarSelect(consulta,tipo=0):
+def executarSelect(consulta,tipo=0,valores=None):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
     try:
         cursor.execute("SET SESSION group_concat_max_len = 6000")
-        cursor.execute(consulta)
+        if valores is None:
+            cursor.execute(consulta)
+        else:
+            cursor.execute(consulta,valores)
         total = cursor.rowcount
         if (tipo==0): #Retorna todas as linhas
             resultado = cursor.fetchall()
@@ -1271,8 +1277,8 @@ def usuario():
         return(render_template('login.html',mensagem=''))
 
 def getNome(username):
-    consulta = """SELECT nome FROM users WHERE username='""" + username + """'"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT nome FROM users WHERE username=%s"""
+    linhas,total = executarSelect(consulta,valores=(username,))
     for linha in linhas:
         return (str(linha[0]))
     return("INDEFINIDO")
@@ -1282,18 +1288,17 @@ def getNome(username):
 def avaliador(edital):
     session['edital'] = edital
     nome_edital = obterColunaUnica('editais','nome','id',edital)
-    consulta = """SELECT sala,data FROM usuarios_salas WHERE edital=""" + edital + """ and username='""" + str(session['username']) + """' ORDER BY data,sala"""
     consulta = """
-    SELECT 
+    SELECT
     usuarios_salas.sala,
-    usuarios_salas.data, 
+    usuarios_salas.data,
     sala_link.link
     FROM usuarios_salas
     INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
-    WHERE usuarios_salas.edital=%s and usuarios_salas.username='%s' 
+    WHERE usuarios_salas.edital=%s and usuarios_salas.username=%s
     ORDER BY usuarios_salas.data,usuarios_salas.sala
-    """ % (edital,str(session['username']))
-    linhas,total = executarSelect(consulta)
+    """
+    linhas,total = executarSelect(consulta,valores=(edital,str(session['username'])))
     nome_usuario = getNome(str(session['username']))
     registrar_acesso('/avaliador',request.remote_addr,str(session['username']))
     return(render_template('avaliador.html',linhas=linhas,nome_edital=nome_edital,root=CPPGI_SITE,edital=edital,usuario=session['username'],nome_usuario=nome_usuario,titulo=u'MÓDULO AVALIADOR'))
@@ -1337,8 +1342,8 @@ def enviarMinhaSenha():
         if ('email' in request.form):
             email = str(request.form['email'])
             #ENVIAR E-MAIL
-            consulta = """SELECT username,password FROM users WHERE email='""" + email + """' """
-            linhas,total = executarSelect(consulta,1)
+            consulta = """SELECT username,password FROM users WHERE email=%s"""
+            linhas,total = executarSelect(consulta,1,valores=(email,))
 
             if (total>0):
                 usuario = str(linhas[0])
@@ -1761,29 +1766,19 @@ def mapa():
     if 'edital' in request.args:
         edital = str(request.args.get('edital'))
         nome_edital = obterColunaUnica('editais','nome','id',edital)
-        consulta = """SELECT local_apresentacao,
-        DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
-        count(editalProjeto.id),
-        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'), 
-        sala_link.link,
-        (SELECT GROUP_CONCAT(users.nome SEPARATOR ', ') FROM usuarios_salas,users WHERE users.username=usuarios_salas.username and usuarios_salas.edital=""" + edital + """ and usuarios_salas.sala=local_apresentacao and usuarios_salas.data=DATE(data_apresentacao)) as avaliadores FROM editalProjeto,sala_link
-        WHERE situacao=1 and valendo=1 and sala_link.sala=local_apresentacao and sala_link.edital=tipo and
-        tipo=""" + edital + """ GROUP BY local_apresentacao,
-        date(data_apresentacao) 
-        ORDER BY local_apresentacao,date(data_apresentacao)"""
         consulta = """
         SELECT local_apresentacao,
         DATE_FORMAT(data_apresentacao,'%d/%m/%Y'),
         count(editalProjeto.id),
-        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'), 
-        (SELECT GROUP_CONCAT(users.nome SEPARATOR ', ') FROM usuarios_salas,users WHERE users.username=usuarios_salas.username and usuarios_salas.edital=""" + edital + """
-        and usuarios_salas.sala=local_apresentacao and usuarios_salas.data=DATE(data_apresentacao)) as avaliadores 
+        GROUP_CONCAT('<p style=\"background-color: #FCFF33;\">',DATE_FORMAT(data_apresentacao,'%H:%i'),'</p><BR> (',editalProjeto.id,') ',ua,' <BR> <i>', nome,'</i> <BR><b>',titulo,'</b>','<BR><a href=\"',link_apresentacao,'\" target=\"_blank\">APRESENTAÇÃO</a>' ORDER BY ua,data_apresentacao,editalProjeto.id SEPARATOR '<br><br>'),
+        (SELECT GROUP_CONCAT(users.nome SEPARATOR ', ') FROM usuarios_salas,users WHERE users.username=usuarios_salas.username and usuarios_salas.edital=%s
+        and usuarios_salas.sala=local_apresentacao and usuarios_salas.data=DATE(data_apresentacao)) as avaliadores
         FROM editalProjeto
-        WHERE situacao=1 and valendo=1 and tipo=""" + edital + """ GROUP BY local_apresentacao,
-        date(data_apresentacao) 
+        WHERE situacao=1 and valendo=1 and tipo=%s GROUP BY local_apresentacao,
+        date(data_apresentacao)
         ORDER BY local_apresentacao,date(data_apresentacao),id
         """
-        linhas,total = executarSelect(consulta)
+        linhas,total = executarSelect(consulta,valores=(edital,edital))
         return(render_template('mapa.html',linhas=linhas,nome_edital=nome_edital))
     else:
         return("OK")
@@ -2005,8 +2000,8 @@ def buscarPendentesVersaoFinal(edital):
     consulta = """SELECT editalProjeto.email,titulo,editalProjeto.id,siape,editalProjeto.email,
     users.password,arquivo_projeto_final,editalProjeto.nome FROM editalProjeto,users
     WHERE editalProjeto.siape=users.username and situacao=1 and
-    valendo=1 and (arquivo_projeto_final='0' or arquivo_projeto_final like '%.pdf') and tipo=""" + str(edital)
-    linhas,total = executarSelect(consulta)
+    valendo=1 and (arquivo_projeto_final='0' or arquivo_projeto_final like '%.pdf') and tipo=%s"""
+    linhas,total = executarSelect(consulta,valores=(str(edital),))
     return(linhas)
 
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
@@ -2027,12 +2022,12 @@ def solicitarVersaoFinal(edital):
 
   
 def getAvaliadoresSala(edital,sala,dia):
-    consulta = """SELECT users.nome FROM users,usuarios_salas 
-    WHERE users.username=usuarios_salas.username and 
-    usuarios_salas.edital=""" + edital + """ and 
-    usuarios_salas.sala='""" + sala + """' and 
-    usuarios_salas.data='""" + dia + """'"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT users.nome FROM users,usuarios_salas
+    WHERE users.username=usuarios_salas.username and
+    usuarios_salas.edital=%s and
+    usuarios_salas.sala=%s and
+    usuarios_salas.data=%s"""
+    linhas,total = executarSelect(consulta,valores=(edital,sala,dia))
     avaliadores = []
     for linha in linhas:
         avaliadores.append(str(linha[0]))
@@ -2171,10 +2166,10 @@ def emailInstrucoes(edital):
     DATE(data_apresentacao), 
     TIME(data_apresentacao),
     DATE_FORMAT(data_apresentacao,'%d/%m/%Y')  
-    FROM editalProjeto,users 
-    WHERE editalProjeto.siape=users.username and situacao=1 and 
-    valendo=1 and tipo=""" + edital
-    linhas,total=executarSelect(consulta)            
+    FROM editalProjeto,users
+    WHERE editalProjeto.siape=users.username and situacao=1 and
+    valendo=1 and tipo=%s"""
+    linhas,total=executarSelect(consulta,valores=(edital,))
     t = threading.Thread(target=processar_emails_instrucoes_apresentacao,args=(linhas,edital,))
     t.start()
     flash("Instruções enviadas com sucesso!")
@@ -2188,12 +2183,12 @@ def emailPosEvento():
         #Recuperando o edital
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
-            consulta = """(SELECT DISTINCT users.email FROM users,editalProjeto WHERE users.username=editalProjeto.siape and 
-            editalProjeto.tipo=""" + edital + """) UNION (SELECT DISTINCT users.email FROM users,usuarios_salas WHERE users.username=usuarios_salas.username and 
-            usuarios_salas.edital=""" +edital + """)"""
+            consulta = """(SELECT DISTINCT users.email FROM users,editalProjeto WHERE users.username=editalProjeto.siape and
+            editalProjeto.tipo=%s) UNION (SELECT DISTINCT users.email FROM users,usuarios_salas WHERE users.username=usuarios_salas.username and
+            usuarios_salas.edital=%s)"""
             nome_edital = obterColunaUnica('editais','nome','id',edital)
             nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-            linhas,total=executarSelect(consulta)            
+            linhas,total=executarSelect(consulta,valores=(edital,edital))
             for linha in linhas:
                 email_autor = str(linha[0])
                 texto_email = render_template('email_pos_evento.html',evento=nome_edital,nome_longo=nome_longo)
@@ -2255,8 +2250,8 @@ def emailInstrucoesAvaliador(edital):
     INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
     WHERE usuarios_salas.edital=%s
     ORDER BY usuarios_salas.username
-    """ % (edital)
-    linhas,total=executarSelect(consulta)            
+    """
+    linhas,total=executarSelect(consulta,valores=(edital,))
     t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(linhas,edital,))
     t.start()
     flash("E-mails enviados com sucesso!")
@@ -2368,10 +2363,10 @@ def mapaavaliadores():
             us.area
             FROM users as u
             LEFT JOIN usuarios_salas as us on u.username=us.username
-            WHERE us.edital=""" + edital + """
+            WHERE us.edital=%s
             ORDER by us.area,us.data,us.sala
             """
-            linhas,total = executarSelect(consulta)
+            linhas,total = executarSelect(consulta,valores=(edital,))
             return(render_template('mapa_avaliadores.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,linhas=linhas))
         else:
             return ("OK")
@@ -2627,8 +2622,8 @@ def confirmar():
         c3 = int(25*int(request.form['c3'])/10)
         c4 = int(25*int(request.form['c4'])/10)
         
-        c = """SELECT nome FROM users WHERE username='""" + session['username'] + """'"""
-        linhas,total = executarSelect(c)
+        c = """SELECT nome FROM users WHERE username=%s"""
+        linhas,total = executarSelect(c,valores=(session['username'],))
         avaliador = "INDEFINIDO"
         for linha in linhas:
             avaliador = str(linha[0])
@@ -2637,12 +2632,12 @@ def confirmar():
         id = str(request.form['idProjeto'])
         local = obterColunaUnica('editalProjeto','local_apresentacao','id',id)
         edital = obterColunaUnica('editalProjeto','tipo','id',id)
-        consulta = "UPDATE editalProjeto SET apresentou=1 WHERE id=" + id
-        atualizar(consulta)
+        consulta = "UPDATE editalProjeto SET apresentou=1 WHERE id=%s"
+        atualizar(consulta,valores=(id,))
         verificar = """
-        SELECT id FROM avaliacoes_orais WHERE idProjeto=%s AND avaliador='%s'
-        """ % (id,avaliador)
-        verificacao,total = executarSelect(verificar)
+        SELECT id FROM avaliacoes_orais WHERE idProjeto=%s AND avaliador=%s
+        """
+        verificacao,total = executarSelect(verificar,valores=(id,avaliador))
         if total==0:
             consulta = """INSERT INTO avaliacoes_orais (idProjeto,c1,c2,c3,c4,comentarios,avaliador) VALUES (%s,%s,%s,%s,%s,%s,%s) """
             valores = (int(id),c1,c2,c3,c4,comentarios,avaliador)
@@ -2651,10 +2646,10 @@ def confirmar():
             flash("Apresentação já avaliada anteriormente!")
             return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
         consulta = """
-        UPDATE usuarios_salas SET compareceu=1 
-        WHERE username='%s' AND edital=%s AND sala='%s' AND data='%s'
-        """ %(session['username'],edital,session['sala'],session['data'])
-        atualizar(consulta)
+        UPDATE usuarios_salas SET compareceu=1
+        WHERE username=%s AND edital=%s AND sala=%s AND data=%s
+        """
+        atualizar(consulta,valores=(session['username'],edital,session['sala'],session['data']))
         flash("Avaliação registrada com sucesso!")
         return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
     else:
@@ -3518,19 +3513,19 @@ def cadastrar_usuario(operacao):
             id_usuario = request.form['id_usuario']
         if int(operacao)==0: #Cadastrar
             consulta = """
-            INSERT INTO users (username,password,permission,roles,nome,email) 
-            VALUES ('%s','%s',%s,'%s','%s','%s')
-            """ %(username,password,permission,roles,nome,email)
-            atualizar(consulta)
+            INSERT INTO users (username,password,permission,roles,nome,email)
+            VALUES (%s,%s,%s,%s,%s,%s)
+            """
+            atualizar(consulta,valores=(username,password,permission,roles,nome,email))
             flash(u"Usuário cadastrado com sucesso!")
             return(redirect(url_for('cadastrar_usuario',operacao=1)))
         else: #Atualizar
             consulta = """
-            UPDATE users SET username='%s',password='%s',permission=%s,roles='%s',nome='%s',
-            email='%s'
+            UPDATE users SET username=%s,password=%s,permission=%s,roles=%s,nome=%s,
+            email=%s
             WHERE id=%s
-            """ %(username,password,permission,roles,nome,email,id_usuario)
-            atualizar(consulta)
+            """
+            atualizar(consulta,valores=(username,password,permission,roles,nome,email,id_usuario))
             return("OK")
 
 @app.route("/remover_usuario/<id_usuario>", methods=['GET','POST'])
@@ -3538,8 +3533,8 @@ def cadastrar_usuario(operacao):
 def remover_usuario(id_usuario):
     consulta = """
     DELETE FROM users WHERE id=%s
-    """ %(id_usuario)
-    atualizar(consulta)
+    """
+    atualizar(consulta,valores=(id_usuario,))
     flash(u"Usuário removido com sucesso!")
     return(redirect(url_for('cadastrar_usuario',operacao=1)))
 
@@ -3550,10 +3545,10 @@ def avaliador_sala(edital):
         consulta = """
         SELECT tipo,dia,inicio,termino,salas FROM salas
         WHERE edital=%s
-        """ %(edital)
-        datas,total = executarSelect(consulta)
+        """
+        datas,total = executarSelect(consulta,valores=(edital,))
         consulta_usuarios = """
-        SELECT username,nome FROM users 
+        SELECT username,nome FROM users
         WHERE roles like '%avaliador%'
         ORDER BY nome
         """
@@ -3568,10 +3563,10 @@ def avaliador_sala(edital):
         area = request.form['area']
         data,sala=str(sala_data).split(';')
         consulta = """
-        INSERT INTO usuarios_salas(username,edital,sala,data,area) 
-        VALUES('%s',%s,'%s','%s','%s')
-        """ %(username,edital,sala,data,area)
-        atualizar(consulta)
+        INSERT INTO usuarios_salas(username,edital,sala,data,area)
+        VALUES(%s,%s,%s,%s,%s)
+        """
+        atualizar(consulta,valores=(username,edital,sala,data,area))
         return(redirect(url_for('avaliador_sala_listar',edital=edital)))
         #return("SUCESSO")
 
@@ -3582,27 +3577,26 @@ def avaliador_sala_listar(edital):
     SELECT usuarios_salas.id,usuarios_salas.username,usuarios_salas.edital,
     usuarios_salas.sala,usuarios_salas.data,usuarios_salas.area,users.nome
     FROM usuarios_salas
-    INNER JOIN users ON users.username=usuarios_salas.username 
-    WHERE edital=%s 
+    INNER JOIN users ON users.username=usuarios_salas.username
+    WHERE edital=%s
     ORDER BY data,sala,area
-    """ %(edital)
-    linhas,total = executarSelect(consulta)
+    """
+    linhas,total = executarSelect(consulta,valores=(edital,))
     nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-    
+
     consulta_usuarios = """
-    SELECT username,nome FROM users 
+    SELECT username,nome FROM users
     WHERE roles like '%avaliador%'
     ORDER BY nome
     """
     usuarios,total = executarSelect(consulta_usuarios)
-    
-    consulta_salas = """
-    SELECT dia,salas FROM salas 
-    WHERE edital=%s 
-    ORDER BY dia,salas
-    """ %(edital)
 
-    datas,total = executarSelect(consulta_salas)
+    consulta_salas = """
+    SELECT dia,salas FROM salas
+    WHERE edital=%s
+    ORDER BY dia,salas
+    """
+    datas,total = executarSelect(consulta_salas,valores=(edital,))
 
     return(render_template('avaliador_sala_listar.html',linhas=linhas,edital=edital,nome_longo=nome_longo,usuarios=usuarios,datas=datas))
 
@@ -3611,8 +3605,8 @@ def avaliador_sala_listar(edital):
 def avaliador_sala_remover(id_avaliador_sala,edital):
     consulta = """
     DELETE FROM usuarios_salas WHERE id=%s
-    """ %(id_avaliador_sala)
-    atualizar(consulta)
+    """
+    atualizar(consulta,valores=(id_avaliador_sala,))
     flash(u"Atribuição removida com sucesso!")
     return(redirect(url_for('avaliador_sala_listar',edital=edital)))
 
@@ -3625,10 +3619,10 @@ def salvar_avaliador_sala():
     data,sala=str(sala_data).split(';')
     id_avaliador_sala = request.form['id_avaliador_sala']
     consulta = """
-    UPDATE usuarios_salas SET username='%s',sala='%s',data='%s',area='%s' 
+    UPDATE usuarios_salas SET username=%s,sala=%s,data=%s,area=%s
     WHERE id=%s
-    """ %(username,sala,data,area,id_avaliador_sala)
-    atualizar(consulta)
+    """
+    atualizar(consulta,valores=(username,sala,data,area,id_avaliador_sala))
     return("OK")
 
 @app.route("/autenticar_certificado/<tipo>/<codigo>/<id_projeto>", methods=['GET'])
@@ -3774,8 +3768,8 @@ def links_avaliadores(edital):
     INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
     WHERE usuarios_salas.edital=%s
     ORDER BY usuarios_salas.username
-    """ % (edital)
-    linhas,total=executarSelect(consulta)
+    """
+    linhas,total=executarSelect(consulta,valores=(edital,))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
     url = ROOT_SITE.replace('https://','')
     url = ROOT_SITE.replace('http://','')
