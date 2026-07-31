@@ -45,21 +45,51 @@
   }
 
   function seGraduacao() {
-    if (document.getElementById('vinculo').value == 0) { //Se o vinculo for graduação
+    var vinculo = document.getElementById('vinculo').value;
+    if (vinculo == 0) { //Se o vinculo for graduação
       document.getElementById('tipo_vinculo').setAttribute('required', "");
       document.getElementById('div_tipo_vinculo').style.visibility = "visible";
+      document.getElementById('tipo_vinculo').value = -1;
+      document.getElementById('categoria_trabalho').removeAttribute('required');
+      document.getElementById('categoria_trabalho').value = "";
+      document.getElementById('div_categoria_trabalho').style.visibility = "hidden";
+      document.getElementById('fomento').removeAttribute('required');
+      document.getElementById('fomento').value = -1;
+      document.getElementById('div_fomento').style.visibility = "hidden";
     }
     else {
       document.getElementById('tipo_vinculo').removeAttribute('required');
       document.getElementById('tipo_vinculo').value = -1;
-      document.getElementById('fomento').value = -1;
       document.getElementById('div_tipo_vinculo').style.visibility = "hidden";
+      document.getElementById('categoria_trabalho').removeAttribute('required');
+      document.getElementById('div_categoria_trabalho').style.visibility = "hidden";
+      // Pós-Graduação (1) => categoria 4; Ensino Médio (2) => categoria 3 (PIBIC-EM)
+      document.getElementById('categoria_trabalho').value = (vinculo == 1) ? "4" : "3";
+      document.getElementById('fomento').removeAttribute('required');
+      document.getElementById('fomento').value = -1;
       document.getElementById('div_fomento').style.visibility = "hidden";
     }
   }
 
-  function seBolsista() {
-    if (document.getElementById('tipo_vinculo').value == 1) { //Se o vinculo for bolsista
+  function seBolsistaOuVoluntario() {
+    var tipoVinculo = document.getElementById('tipo_vinculo').value;
+    document.getElementById('categoria_trabalho').value = "";
+    if (tipoVinculo == 1 || tipoVinculo == 0) { //Se o vinculo for bolsista ou voluntário
+      document.getElementById('categoria_trabalho').setAttribute('required', "");
+      document.getElementById('div_categoria_trabalho').style.visibility = "visible";
+    }
+    else {
+      document.getElementById('categoria_trabalho').removeAttribute('required');
+      document.getElementById('div_categoria_trabalho').style.visibility = "hidden";
+    }
+    document.getElementById('fomento').removeAttribute('required');
+    document.getElementById('fomento').value = -1;
+    document.getElementById('div_fomento').style.visibility = "hidden";
+  }
+
+  function seModalidadeFomento() {
+    var modalidade = document.getElementById('categoria_trabalho').value;
+    if (modalidade == 1 || modalidade == 2) { //Se a modalidade for PIBIC/PIBIC-Af ou PIBITI
       document.getElementById('fomento').setAttribute('required', "");
       document.getElementById('div_fomento').style.visibility = "visible";
     }
@@ -242,7 +272,7 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div>
       <label class="form-label">Vínculo</label>
       <select class="form-select" name="vinculo" id="vinculo" required="required" onchange="seGraduacao()">
@@ -254,11 +284,21 @@
     </div>
     <div id="div_tipo_vinculo" style="visibility: hidden">
       <label class="form-label">Tipo de Vínculo</label>
-      <select class="form-select" name="tipo_vinculo" id="tipo_vinculo" required="required" onchange="seBolsista()">
+      <select class="form-select" name="tipo_vinculo" id="tipo_vinculo" required="required" onchange="seBolsistaOuVoluntario()">
         <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
         <option value="1">Bolsista</option>
         <option value="0">Voluntário</option>
         <option value="-1">Não se aplica</option>
+      </select>
+    </div>
+    <div id="div_categoria_trabalho" style="visibility: hidden">
+      <label class="form-label">Modalidade</label>
+      <select class="form-select" name="categoria_trabalho" id="categoria_trabalho" required="required" onchange="seModalidadeFomento()">
+        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
+        <option value="1">Iniciação Científica - PIBIC/PIBIC-Af </option>
+        <option value="2">Desenvolvimento Tecnológico e Inovação - PIBITI</option>
+        <option value="3" hidden>Iniciação Científica para o Ensino Médio - PIBIC-EM</option>
+        <option value="4" hidden>Pós-Graduação</option>
       </select>
     </div>
     <div id="div_fomento" style="visibility: hidden">
@@ -292,16 +332,6 @@
         <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
         <option value="0">Resumo Simples - apresentação pôster presencial</option>
         <option value="2">Trabalho completo - apresentação oral online</option>
-      </select>
-    </div>
-    <div>
-      <label class="form-label">Categoria</label>
-      <select class="form-select" name="categoria_trabalho" required="required">
-        <option disabled="disabled" selected="selected" value=""> --selecione-- </option>
-        <option value="1">Iniciação Científica - PIBIC/PIBIC-Af </option>
-        <option value="2">Desenvolvimento Tecnológico e Inovação - PIBITI</option>
-        <option value="3">Iniciação Científica para o Ensino Médio - PIBIC-EM</option>
-        <option value="4">Pós-Graduação</option>
       </select>
     </div>
     <input type="hidden" name="tipo_apresentacao" id="tipo_apresentacao" value="">
