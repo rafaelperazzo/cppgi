@@ -2382,6 +2382,7 @@ def gerarCertificadoAvaliador():
     """
     template = obterColunaUnica('editais','certificado_moderador','id',session['edital'])
     nome = session['nome']
+    #TODO: Verificar este token
     token = "hskaOPia"
     periodo = obterColunaUnica('editais','periodo','id',session['edital'])
     evento = obterColunaUnica('editais','nome_longo','id',session['edital'])
