@@ -1,0 +1,29 @@
+[Unit]
+Description=Sistema Flask Yoko-Eventos
+After=network.target
+
+[Service]
+User=admin
+Group=www-data
+WorkingDirectory=/home/admin/cppgi/flask
+Environment=GIT_PYTHON_REFRESH=quiet
+Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local/bin"
+# Limita as arenas de malloc do glibc: em processo multi-thread (waitress threads=2)
+# evita que memória liberada fique retida em arenas por-thread sem voltar ao SO.
+Environment="MALLOC_ARENA_MAX=2"
+ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python pesquisa.py
+Restart=on-failure
+RestartSec=5
+# VPS de 1GB total, com MariaDB na mesma máquina. Uso real medido via
+# `systemctl status cppgi`: Memory 90.7M (peak 90.9M) em operação normal.
+# MemoryHigh = limite "suave": acima disso o cgroup passa a reclamar
+# memória agressivamente e desacelerar o processo, mas NÃO mata.
+# MemoryMax  = limite "duro": só mata o processo se ultrapassar isso
+# (ex: vazamento real fugindo do controle). Restart=on-failure religa.
+# Valores com ~2.7-3.3x de margem sobre o pico observado, deixando o
+# grosso do 1GB livre pro MariaDB e o SO. Reavaliar se o pico real subir.
+MemoryHigh=250M
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target
