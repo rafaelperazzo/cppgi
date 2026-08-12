@@ -758,7 +758,7 @@ def enviarAvaliacao():
         id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
         modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
         total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
-        if modalidade == '1':
+        if modalidade == '0':
             total = float((100*total)/40)
         else:
             total = float((100*total)/80)
