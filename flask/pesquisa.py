@@ -147,10 +147,9 @@ def inject_institucional():
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USERNAME'] = REMETENTE
-app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_SERVER'] = 'localhost'
+app.config['MAIL_PORT'] = 25
+app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_DEFAULT_SENDER'] = REMETENTE
 
@@ -170,10 +169,8 @@ else:
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
 PASSWORD = lines[0]
-GMAIL_PASSWORD = lines[1]
 SESSION_SECRET_KEY = lines[2]
 app.config['SECRET_KEY'] = SESSION_SECRET_KEY
-app.config['MAIL_PASSWORD'] = GMAIL_PASSWORD
 mail = Mail(app)
 
 app.config['SCHEDULER_API_ENABLED'] = False
