@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+
+{% block title %}Segurança{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MECANISMOS DE SEGURANÇA</h1>
+{% endblock %}
+
+{% block content %}
+<p class="mb-6 text-sm text-slate-600">
+  Esta página resume, de forma transparente, os mecanismos de segurança em operação na Plataforma Yoko —
+  tanto na camada de infraestrutura (Cloudflare) quanto na camada de aplicação (Flask).
+</p>
+
+<div class="alert-info mb-4">
+  <h2 class="text-lg font-bold">1. Segurança de infraestrutura (Cloudflare)</h2>
+</div>
+
+<div class="card mb-6">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Recurso</th>
+        <th>O que faz</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Leaked/Exposed Credential Checks</td>
+        <td>
+          Ao tentar fazer login, o Cloudflare verifica se o par usuário/senha enviado corresponde a uma
+          credencial conhecidamente vazada em algum banco de dados de vazamentos públicos. Quando há
+          correspondência, a requisição chega à aplicação com o header <code>Exposed-Credential-Check: 1</code>,
+          o que aciona a troca de senha obrigatória (ver seção 2).
+        </td>
+      </tr>
+      <tr>
+        <td>IP Geolocation</td>
+        <td>
+          O Cloudflare anexa o país (<code>CF-IPCountry</code>) e, quando disponível, a cidade
+          (<code>CF-IPCity</code>) de origem de cada requisição, usados para enriquecer o log de auditoria
+          de acessos (ver seção 2).
+        </td>
+      </tr>
+      <tr>
+        <td>Proteção de origem</td>
+        <td>
+          O servidor de aplicação não deve ficar diretamente acessível pela internet — apenas através do
+          Cloudflare (Authenticated Origin Pulls / allowlist de IP). Sem essa proteção de rede, os headers
+          acima podem ser forjados por qualquer cliente, então essa camada é pré-requisito para que os dois
+          recursos anteriores sejam confiáveis.
+        </td>
+      </tr>
+      <tr>
+        <td>Proteção de borda (WAF / mitigação de DDoS)</td>
+        <td>
+          Tráfego malicioso, varreduras automatizadas e picos de requisição são filtrados na borda da rede
+          do Cloudflare antes de alcançar o servidor de aplicação.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert-info mb-4">
+  <h2 class="text-lg font-bold">2. Segurança da aplicação</h2>
+</div>
+
+<div class="card">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Recurso</th>
+        <th>O que faz</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Autenticação</td>
+        <td>
+          Rotas administrativas/avaliador/monitor usam HTTP Basic Auth; usuários comuns usam login por
+          sessão. Em ambos os casos, a mesma verificação de credenciais é aplicada.
+        </td>
+      </tr>
+      <tr>
+        <td>Autocadastro com confirmação por e-mail</td>
+        <td>
+          A conta só é liberada para login após o clique em um link de confirmação enviado por e-mail
+          (token de uso único, expira em 24 horas).
+        </td>
+      </tr>
+      <tr>
+        <td>Política de senha forte</td>
+        <td>
+          Mínimo de 12 caracteres, com letra maiúscula, letra minúscula, número e caractere especial —
+          exigida tanto no autocadastro quanto na troca de senha.
+        </td>
+      </tr>
+      <tr>
+        <td>Troca de senha forçada por vazamento</td>
+        <td>
+          Ao detectar o alerta de credencial vazada do Cloudflare, a conta é bloqueada de qualquer outra
+          rota do sistema até que uma nova senha forte seja definida.
+        </td>
+      </tr>
+      <tr>
+        <td>Prevenção de enumeração de contas</td>
+        <td>
+          Ao tentar se cadastrar com um CPF já existente, o e-mail associado é mostrado parcialmente
+          mascarado (ex.: <code>ra***@dominio.com</code>), nunca por completo, para orientar o uso de
+          "Esqueci minha senha" sem expor dados de terceiros.
+        </td>
+      </tr>
+      <tr>
+        <td>Proteção contra CSRF</td>
+        <td>
+          Todos os formulários de estado (login, cadastro, troca de senha, submissão de trabalhos, etc.)
+          exigem um token CSRF válido, vinculado à sessão do usuário.
+        </td>
+      </tr>
+      <tr>
+        <td>Auditoria de acessos</td>
+        <td>
+          Rotas administrativas e de autenticação registram, em log dedicado, a rota acessada, o método
+          HTTP, o IP e o país/cidade de origem. O CPF do usuário é sempre mascarado no log
+          (ex.: <code>111******56</code>), nunca gravado por completo.
+        </td>
+      </tr>
+      <tr>
+        <td>Sessão isolada por login</td>
+        <td>
+          Dados de sessão (CPF, nome, e-mail) são definidos apenas no login bem-sucedido e completamente
+          removidos no logout.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

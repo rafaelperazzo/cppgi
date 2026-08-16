@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}Troca de senha obrigatória{% endblock %}
+
+{% block content %}
+<h2 class="page-title text-center">Troca de senha obrigatória</h2>
+
+<div class="mx-auto mt-4 max-w-md card">
+  <div class="alert-warning">
+    <p>Detectamos que sua senha pode estar comprometida. Defina uma nova senha para continuar usando o sistema.</p>
+  </div>
+
+  <form action="{{ url_for('trocarSenhaObrigatoria') }}" method="POST" class="mt-4 flex flex-col gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    {% if mensagem %}
+    <div class="alert-warning">
+      <p>{{ mensagem }}</p>
+    </div>
+    {% endif %}
+
+    <div>
+      <label class="form-label" for="senha">Nova senha (mínimo 12 caracteres, com maiúscula, minúscula, número e caractere especial)</label>
+      <input class="form-input" type="password" id="senha" name="senha" required minlength="12">
+    </div>
+
+    <button class="btn-primary" type="submit">Trocar senha</button>
+  </form>
+</div>
+{% endblock %}

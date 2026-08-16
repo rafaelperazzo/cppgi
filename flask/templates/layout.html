@@ -18,6 +18,15 @@
       <img class="mx-auto mt-1" src="https://img.shields.io/github/v/tag/rafaelperazzo/cppgi?sort=semver&label=vers%C3%A3o&color=059669" alt="Versão do app">
     </div>
     {% block page_header %}{% endblock %}
+    <nav class="ml-auto text-sm">
+      {% if session.get('username') %}
+        <span class="text-slate-600">{{ session['nome'] }}</span>
+        <a class="ml-3 font-semibold text-emerald-700 hover:underline" href="{{ url_for('encerrarSessao') }}">Sair</a>
+      {% else %}
+        <a class="font-semibold text-emerald-700 hover:underline" href="{{ url_for('login') }}">Entrar</a>
+        <a class="ml-3 font-semibold text-emerald-700 hover:underline" href="{{ url_for('cadastro') }}">Cadastre-se</a>
+      {% endif %}
+    </nav>
   </header>
 
   <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
@@ -37,6 +46,7 @@
 
   <footer class="app-footer">
     <p>Desenvolvedor: Prof. Rafael Perazzo Barbosa Mota</p>
+    <p><a class="text-emerald-700 hover:underline" href="{{ url_for('seguranca') }}">Segurança</a></p>
   </footer>
 
   {% block scripts_extra %}{% endblock %}

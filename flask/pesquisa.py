@@ -39,6 +39,10 @@ import boto3
 from botocore.config import Config
 import time
 import sentry_sdk
+from functools import wraps
+from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
+                              extrair_geolocalizacao_cloudflare, credencial_vazada,
+                              mascarar_email, cpf_valido, email_valido, mascarar_cpf)
 
 #WORKING_DIR='/home/perazzo/cppgi/'
 WORKING_DIR=''
@@ -162,9 +166,38 @@ app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
 
 if PRODUCAO==1:
-    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
+    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.ERROR)
 else:
-    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)    
+    logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='w', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)
+
+#Logger de auditoria de acessos (@log_required) - nível INFO próprio, independente do logger raiz
+#(que fica em ERROR quando PRODUCAO==1), gravando em arquivo separado do app.log
+logger_auditoria = logging.getLogger('auditoria_acessos')
+logger_auditoria.setLevel(logging.INFO)
+if not logger_auditoria.handlers:
+    #Evita handler duplicado: pesquisa.py é reexecutado como módulo "pesquisa" quando
+    #app_api.py faz "from pesquisa import ...", além de rodar como __main__
+    _handler_auditoria = logging.FileHandler(WORKING_DIR + 'auditoria.log')
+    _handler_auditoria.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+    logger_auditoria.addHandler(_handler_auditoria)
+logger_auditoria.propagate = False
+
+def log_required(f):
+    @wraps(f)
+    def decorado(*args, **kwargs):
+        try:
+            cpf = session.get('username', 'anonimo')
+            cpf_log = mascarar_cpf(cpf) if cpf != 'anonimo' else 'anonimo'
+            user_id = session.get('user_id', 'anonimo')
+            ip = obter_ip_cliente(request)
+            pais, cidade = extrair_geolocalizacao_cloudflare(request.headers)
+            logger_auditoria.info(
+                'user_id=%s cpf=%s rota=%s metodo=%s ip=%s pais=%s cidade=%s',
+                user_id, cpf_log, request.path, request.method, ip, pais, cidade)
+        except Exception as e:
+            logging.error("Erro ao registrar auditoria: " + str(e))
+        return f(*args, **kwargs)
+    return decorado
 
 #Obtendo senhas
 lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
@@ -349,13 +382,16 @@ def verify_password(username, password):
         conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
         conn.select_db('cppgi')
         cursor  = conn.cursor()
-        consulta = """SELECT 
+        consulta = """SELECT
         id,
         username,
         permission,
         roles,
-        nome 
-        FROM users 
+        nome,
+        email,
+        email_verificado,
+        forcar_troca_senha
+        FROM users
         WHERE username = %s AND password = %s """
         cursor.execute(consulta,(username,password))
         total = cursor.rowcount
@@ -363,12 +399,25 @@ def verify_password(username, password):
             return (False)
         else:
             linha = cursor.fetchone()
+            if int(linha[6]) == 0:
+                flash(u'Confirme seu e-mail antes de acessar o sistema.')
+                return (False)
+
             session['username'] = str(linha[1])
             session['permissao'] = int(linha[2])
             roles = str(linha[3])
             roles = roles.split(',')
             session['roles'] = roles
             session['nome'] = str(linha[4])
+            session['cpf'] = str(linha[1])
+            session['email'] = str(linha[5])
+            session['user_id'] = int(linha[0])
+
+            forcar = bool(int(linha[7]))
+            if credencial_vazada(request.headers):
+                atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
+                forcar = True
+            session['forcar_troca_senha'] = forcar
             #return (True)
             return username
     except:
@@ -491,6 +540,17 @@ def enviar_arquivo(filename):
 def iniciar_sessao():
     session['PRODUCAO'] = PRODUCAO
 
+ROTAS_ISENTAS_TROCA_SENHA = {'login', 'encerrarSessao', 'trocarSenhaObrigatoria',
+                              'cadastro', 'confirmarEmail', 'static'}
+
+@app.before_request
+def verificar_troca_senha_obrigatoria():
+    if request.endpoint is None or request.endpoint in ROTAS_ISENTAS_TROCA_SENHA:
+        return
+    if session.get('forcar_troca_senha'):
+        flash(u'Detectamos que sua senha pode estar comprometida. Defina uma nova senha para continuar.')
+        return redirect(url_for('trocarSenhaObrigatoria'))
+
 @app.route("/")
 def home():
     editaisAbertos = getEditaisAbertos()
@@ -540,7 +600,10 @@ def declaracaoOrientador():
     return render_template('orientador.html',texto=texto_declaracao,data=data_agora,identificador=texto_declaracao[0],bolsistas=bolsistas)
 
 @app.route("/cadastrarProjeto", methods=['POST'])
+@log_required
 def cadastrarProjeto():
+    if not autenticado():
+        return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
     csrf.protect()
     #CADASTRAR DADOS DO PROPONENTE
     destino = int(request.form['destino'])
@@ -549,10 +612,8 @@ def cadastrarProjeto():
     categoria_trabalho = int(request.form['categoria_trabalho'])
     nome = str(request.form['autores'])
     nome = nome.upper()
-    identificacao = str(request.form['identificacao'])
-    identificacao = identificacao.replace('.','')
-    identificacao = identificacao.replace('-','')
-    email = str(request.form['email'])
+    identificacao = str(session['cpf'])
+    email = str(session['email'])
     grande_area = str(request.form['grande_area'])
     titulo = str(request.form['titulo'])
     titulo = removerAspas(titulo)
@@ -631,31 +692,17 @@ def cadastrarProjeto():
     valores = (destino,tipo,tipo_trabalho,nome,identificacao,email,grande_area,titulo,palavras,resumo,nomeDoArquivoTrabalho,nomeDoArquivoSuplementar1,nomeDoArquivoSuplementar2,anais_permissao,vinculo,tipo_vinculo,area_cnpq,subarea_cnpq,fomento,matriculas,projeto_associado,acessibilidade,descricao_acessibilidade,lingua,categoria_trabalho,unidade_academica,ods)
     inserir(consulta,valores)
 
-    #CRIANDO SENHA DE ACESSO
-    consulta = """SELECT username,password FROM users WHERE username=%s"""
-    resultados,total = executarSelect(consulta,valores=(identificacao,))
-    usuario,senha = ('','')
-    if (total==0): #Se o usuário ainda não for cadastrado
-        usuario = identificacao
-        senha = id_generator(size=8)
-        consulta = """INSERT INTO users (username,password,nome,email) VALUES (%s,%s,%s,%s) """
-        valores = (usuario,senha,nome,email)
-        inserir(consulta,valores)
-    else:
-        usuario = str(resultados[0][0])
-        senha = str(resultados[0][1])
-
     getID = "SELECT MAX(id) FROM editalProjeto"
     ultimo_id,total = executarSelect(getID,1)
     idTrabalho = int(ultimo_id[0])
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
     email2 = REMETENTE
-    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica)
+    texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica)
     msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
-    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,usuario=usuario,senha=senha,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica))
+    return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica))
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
@@ -914,6 +961,7 @@ def recusarConvite():
 
 @app.route("/avaliacoesNegadas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def avaliacoesNegadas():
     if request.method == "GET":
         conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
@@ -959,6 +1007,7 @@ def avaliacoesNegadas():
 
 @app.route("/inserirAvaliador", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def inserirAvaliador():
     if request.method == "POST":
         token = id_generator(40)
@@ -1075,6 +1124,7 @@ def gerarPDF(template):
 
 @app.route("/editalProjeto/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def editalProjeto(edital):
 
     if (autenticado() and int(session['permissao'])==0):
@@ -1285,6 +1335,7 @@ def getNome(username):
 
 @app.route("/avaliador/<edital>", methods=['GET'])
 @auth.login_required(role=['avaliador','admin'])
+@log_required
 def avaliador(edital):
     session['edital'] = edital
     nome_edital = obterColunaUnica('editais','nome','id',edital)
@@ -1317,6 +1368,7 @@ def registrar_acesso(recurso,ip,usuario):
 Método que ativa a sessão com os dados do usuário
 '''
 @app.route("/login", methods=['POST'])
+@log_required
 def login():
     if request.method == "POST":
         if (('siape' in request.form) and ('senha' in request.form)):
@@ -1361,6 +1413,7 @@ def enviarMinhaSenha():
         return("OK")
 
 @app.route("/logout", methods=['GET', 'POST'])
+@log_required
 def encerrarSessao():
     logout()
     return(render_template('login.html',mensagem=''))
@@ -1446,6 +1499,7 @@ def verArquivo():
 
 @app.route("/estatisticas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def estatisticas():
 
     if request.method == "GET":
@@ -1496,6 +1550,7 @@ def estatisticas():
 
 @app.route("/parcial/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def parcial(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
     consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=""" + edital
@@ -1519,6 +1574,7 @@ def parcial(edital):
 
 @app.route("/resultados", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def resultados():
     if request.method == "GET":
         #Recuperando o edital
@@ -1679,6 +1735,7 @@ def distribuirIgualmente(local,turno,linhas,edital):
 
 @app.route("/distribuirSalas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def distribuirSalas():
     if request.method == "GET":
         #Recuperando o edital
@@ -1729,6 +1786,7 @@ def distribuirSalas():
 
 @app.route("/programacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def programacao():
     if request.method == "GET":
         #Recuperando o edital
@@ -1762,6 +1820,7 @@ def programacao():
 
 @app.route("/mapa", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def mapa():
     if 'edital' in request.args:
         edital = str(request.args.get('edital'))
@@ -1875,6 +1934,7 @@ def cadastrarLinkApresentacao():
 
 @app.route("/premiacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def premiacao():
     if request.method == "GET":
         #Recuperando o edital
@@ -1926,6 +1986,7 @@ def getLinkSala(edital,sala):
     
 @app.route("/apresentacoes", methods=['GET', 'POST'])
 @auth.login_required(role=['admin','avaliador','monitor'])
+@log_required
 def apresentacoes():
     if request.method == "GET":
         #Recuperando o edital
@@ -2075,6 +2136,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
 
 @app.route("/emailInformacoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def emailInformacoes(edital):
     if request.method == "GET":
         edital = str(request.args.get('edital'))
@@ -2149,6 +2211,7 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
 
 @app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def emailInstrucoes(edital):
     """
     ENVIO DAS INSTRUÇÕES PARA ENVIO DAS APRESENTAÇÕES
@@ -2178,6 +2241,7 @@ def emailInstrucoes(edital):
 
 @app.route("/emailPosEvento", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def emailPosEvento():
     if request.method == "GET":
         #Recuperando o edital
@@ -2234,6 +2298,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
 
 @app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def emailInstrucoesAvaliador(edital):
     """
     Envia os e-mails (todos) com as instruções para os moderadores de sessões
@@ -2301,6 +2366,7 @@ def getMapaApresentacoes(edital):
 
 @app.route("/organizacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin','monitor'])
+@log_required
 def organizacao():
     if request.method == "GET":
         if 'edital' in request.args:
@@ -2315,6 +2381,7 @@ def organizacao():
 
 @app.route("/admin", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
     consulta = """
@@ -2328,6 +2395,7 @@ def root():
 
 @app.route("/admin/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def admin(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
     deadline_avaliacao = obterColunaUnica('editais','deadline_avaliacao','id',edital)
@@ -2350,6 +2418,7 @@ def admin(edital):
 
 @app.route("/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def mapaavaliadores():
     if request.method == "GET":
         if 'edital' in request.args:
@@ -2375,6 +2444,7 @@ def mapaavaliadores():
 
 @app.route("/gerarCertificadoAvaliador", methods=['GET'])
 @auth.login_required(role=['avaliador'])
+@log_required
 def gerarCertificadoAvaliador():
     """
     Emite o certificado do moderador de sessões
@@ -2482,6 +2552,7 @@ def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, outp
 
 @app.route("/baixarCertificado/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['user','admin'])
+@log_required
 def baixarCertificado(id_projeto):
     """
     Emite o CERTIFICADO DE APRESENTADOR
@@ -2605,6 +2676,7 @@ def certificadoIndividual(id_certificado):
 
 @app.route("/confirmar", methods=['GET', 'POST'])
 @auth.login_required(role=['avaliador','admin'])
+@log_required
 def confirmar():
 
     if request.method == "GET":
@@ -2970,6 +3042,7 @@ Envia solicitação para os avaliadores dos trabalhos escritos
 """
 @app.route("/emailSolicitarAvaliacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def email_solicitar_avaliacao():
     t = threading.Thread(target=enviar_email_avaliadores)
     t.start()
@@ -2978,6 +3051,7 @@ def email_solicitar_avaliacao():
 
 @app.route("/toggleSchedulerAvaliadores")
 @auth.login_required(role=['admin'])
+@log_required
 def toggle_scheduler_avaliadores():
     job = scheduler.get_job('enviar_email_avaliadores')
     if job is None:
@@ -2997,6 +3071,7 @@ NOMES_JOBS_AGENDADOS = {
 
 @app.route("/jobsAgendados")
 @auth.login_required(role=['admin'])
+@log_required
 def jobs_agendados():
     jobs = []
     for job in scheduler.get_jobs():
@@ -3087,6 +3162,7 @@ def redimensionar_imagem(certificado,novotamanho):
 
 @app.route("/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_edital(operacao):
     edital = int(request.form['codigo_edital'])
     if int(operacao)==0:
@@ -3178,6 +3254,7 @@ def salvar_edital(operacao):
 
 @app.route("/cadastrar_edital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def cadastrar_edital():
     if request.method == "GET":
         return(render_template('cadastrar_edital.html'))
@@ -3195,11 +3272,13 @@ def cadastrar_edital():
 
 @app.route("/ver_imagem/<qual>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def ver_imagem(qual):
     return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
 
 @app.route("/salvar_projeto", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_projeto():
     nome = str(request.form['nome'])
     ga = str(request.form['grande_area'])
@@ -3215,6 +3294,7 @@ def salvar_projeto():
 
 @app.route("/listar_consultores/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def listar_consultores(id_projeto):
     
     consulta = """
@@ -3231,6 +3311,7 @@ def listar_consultores(id_projeto):
 
 @app.route("/listar_consultores_edital/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def listar_consultores_edital(edital):
     consulta = """
     SELECT avaliacoes.id,avaliacoes.idProjeto,avaliacoes.token,avaliador,nome_avaliador,
@@ -3247,6 +3328,7 @@ def listar_consultores_edital(edital):
 
 @app.route("/salvar_consultores", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_consultores():
     id_avaliacao = request.form['id_avaliacao']
     avaliador = request.form['avaliador']
@@ -3262,6 +3344,7 @@ def salvar_consultores():
 
 @app.route("/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def remover_avaliacao(id_avaliacao,id_projeto):
     consulta = """
     DELETE FROM avaliacoes WHERE id=%s
@@ -3272,6 +3355,7 @@ def remover_avaliacao(id_avaliacao,id_projeto):
 
 @app.route("/cadastrar_salas/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def cadastrar_salas(edital):
     if request.method=='GET':
         return(render_template('cadastrar_salas.html',edital=edital))
@@ -3291,6 +3375,7 @@ def cadastrar_salas(edital):
 
 @app.route("/listar_salas/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def listar_salas(edital):
     consulta = """
     SELECT id,edital,tipo,dia,time_format(inicio,'%H:%i') as inicio,time_format(termino,'%H:%i') as termino,slot,salas FROM salas WHERE edital=""" + str(edital)
@@ -3300,6 +3385,7 @@ def listar_salas(edital):
 
 @app.route("/salvar_salas", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_salas():
     tipo = request.form['tipo']
     dia = request.form['dia']
@@ -3317,6 +3403,7 @@ def salvar_salas():
 
 @app.route("/remover_salas/<id_salas>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def remover_salas(id_salas):
     consulta = """DELETE FROM salas WHERE id=%s""" % (id_salas)
     atualizar(consulta)
@@ -3325,6 +3412,7 @@ def remover_salas(id_salas):
 
 @app.route("/submissoes/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def listar_submissoes(edital):
     consulta = """
     SELECT
@@ -3371,6 +3459,7 @@ def listar_submissoes(edital):
 
 @app.route("/salvar_submissao", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_submissao():
     id_projeto = request.form['id_projeto']
     modalidade = request.form['modalidade']
@@ -3380,6 +3469,7 @@ def salvar_submissao():
 
 @app.route("/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def remover_submissao(id_projeto, edital):
     atualizar("DELETE FROM editalProjeto WHERE id=%s" % id_projeto)
     flash(u"Submissão removida com sucesso!")
@@ -3387,6 +3477,7 @@ def remover_submissao(id_projeto, edital):
 
 @app.route("/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def editar_submissao(id_projeto):
     if request.method == 'POST':
         csrf.protect()
@@ -3453,6 +3544,7 @@ def editar_submissao(id_projeto):
 
 @app.route("/local_apresentacao/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def local_apresentacao(edital):
     consulta = u"""
     SELECT id,UPPER(nome),ua,UPPER(titulo),data_apresentacao,local_apresentacao,
@@ -3470,6 +3562,7 @@ def local_apresentacao(edital):
 
 @app.route("/salvar_local_data", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_local_data():
     id_projeto = request.form['id_projeto']
     local = request.form['local_apresentacao']
@@ -3489,6 +3582,7 @@ def salvar_local_data():
 
 @app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def cadastrar_usuario(operacao):
     if request.method=='GET':
         if int(operacao)==0: #Cadastrar novo usuário
@@ -3530,6 +3624,7 @@ def cadastrar_usuario(operacao):
 
 @app.route("/remover_usuario/<id_usuario>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def remover_usuario(id_usuario):
     consulta = """
     DELETE FROM users WHERE id=%s
@@ -3540,6 +3635,7 @@ def remover_usuario(id_usuario):
 
 @app.route("/avaliador_sala/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def avaliador_sala(edital):
     if request.method=='GET':
         consulta = """
@@ -3572,6 +3668,7 @@ def avaliador_sala(edital):
 
 @app.route("/avaliador_sala_listar/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def avaliador_sala_listar(edital):
     consulta = """
     SELECT usuarios_salas.id,usuarios_salas.username,usuarios_salas.edital,
@@ -3602,6 +3699,7 @@ def avaliador_sala_listar(edital):
 
 @app.route("/avaliador_sala_remover/<id_avaliador_sala>/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def avaliador_sala_remover(id_avaliador_sala,edital):
     consulta = """
     DELETE FROM usuarios_salas WHERE id=%s
@@ -3612,6 +3710,7 @@ def avaliador_sala_remover(id_avaliador_sala,edital):
 
 @app.route("/salvar_avaliador_sala", methods=['POST'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar_avaliador_sala():
     username = request.form['username']
     sala_data = request.form['sala_data']
@@ -3654,6 +3753,7 @@ def get_image_file_as_base64_data(image):
 
 @app.route("/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def salvar(tabela,valor_id,coluna,novo_valor):
     consulta = """
     UPDATE %s SET %s='%s' 
@@ -3664,6 +3764,7 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 
 @app.route("/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
 @auth.login_required(role=['admin'])
+@log_required
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
@@ -3681,6 +3782,7 @@ ORDER BY ua,media DESC
 
 @app.route('/premiados/<edital>')
 @auth.login_required(role=['admin'])
+@log_required
 def premiados(edital):
     ############ GRADUAÇÃO
     ua = u"Ciências da Vida"
@@ -3751,6 +3853,7 @@ def premiados(edital):
 
 @app.route('/links_avaliadores/<edital>')
 @auth.login_required(role=['admin'])
+@log_required
 def links_avaliadores(edital):
     """
     Lista os links para os moderadores de sessões
@@ -3778,6 +3881,102 @@ def links_avaliadores(edital):
         prefixo = 'http://'
     
     return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo,ROOT_SITE=url,PREFIXO=prefixo))
+
+@app.route("/cadastro", methods=['GET', 'POST'])
+@log_required
+def cadastro():
+    if request.method == "GET":
+        return (render_template('cadastro.html'))
+
+    csrf.protect()
+    cpf = re.sub(r'\D', '', str(request.form.get('cpf', '')))
+    email = str(request.form.get('email', '')).strip().lower()
+    nome = str(request.form.get('nome', '')).strip()
+    senha = str(request.form.get('senha', ''))
+
+    if not cpf_valido(cpf):
+        return (render_template('cadastro.html', mensagem=u'CPF inválido. Informe apenas os 11 números.'))
+    if not email_valido(email):
+        return (render_template('cadastro.html', mensagem=u'E-mail inválido.'))
+    if not nome:
+        return (render_template('cadastro.html', mensagem=u'Informe seu nome completo.'))
+
+    ok, msg_senha = senha_forte(senha)
+    if not ok:
+        return (render_template('cadastro.html', mensagem=msg_senha))
+
+    #CPF já cadastrado?
+    linhas, total = executarSelect("SELECT email FROM users WHERE username=%s", 1, valores=(cpf,))
+    if total > 0:
+        email_existente = mascarar_email(str(linhas[0]))
+        return (render_template('cadastro.html', mensagem=(
+            u'Este CPF já possui cadastro associado ao e-mail ' + email_existente + u'. '
+            u'Utilize a opção "Esqueci minha senha" para recuperar o acesso.')))
+
+    #E-mail já em uso por outro CPF?
+    linhas, total = executarSelect("SELECT username FROM users WHERE email=%s", 1, valores=(email,))
+    if total > 0:
+        return (render_template('cadastro.html', mensagem=(
+            u'Este e-mail já está em uso. Utilize a opção "Esqueci minha senha" caso seja sua conta.')))
+
+    token = gerar_token_seguro()
+    expira = datetime.datetime.now() + datetime.timedelta(hours=24)
+    try:
+        consulta = """INSERT INTO users
+        (username,password,nome,email,roles,permission,email_verificado,token_verificacao,token_verificacao_expira)
+        VALUES (%s,%s,%s,%s,'user',1,0,%s,%s)"""
+        inserir(consulta, (cpf, senha, nome, email, token, expira))
+    except Exception as e:
+        logging.error("Erro ao cadastrar usuario: " + str(e))
+        return (render_template('cadastro.html', mensagem=(
+            u'Este CPF ou e-mail já possui cadastro. Utilize a opção "Esqueci minha senha".')))
+
+    link_confirmacao = CPPGI_SITE + 'confirmarEmail/' + token
+    texto_email = render_template('email_confirmacao_cadastro.html', nome=nome, link=link_confirmacao)
+    msg = Message(reply_to=NAO_RESPONDA, subject=u"Plataforma Yoko - Confirme seu cadastro",
+                  recipients=[email], html=texto_email)
+    t = threading.Thread(target=enviar_email, args=(msg,))
+    t.start()
+
+    return (render_template('login.html', mensagem=(
+        u'Cadastro realizado! Verifique seu e-mail para confirmar a conta antes de entrar.')))
+
+@app.route("/confirmarEmail/<token>", methods=['GET'])
+@log_required
+def confirmarEmail(token):
+    consulta = """SELECT id FROM users WHERE token_verificacao=%s AND token_verificacao_expira > NOW()"""
+    linhas, total = executarSelect(consulta, 1, valores=(token,))
+    if total == 0:
+        return (render_template('login.html', mensagem=u'Token de confirmação inválido ou expirado.'))
+
+    atualizar("""UPDATE users SET email_verificado=1, token_verificacao=NULL, token_verificacao_expira=NULL
+                 WHERE token_verificacao=%s""", (token,))
+    return (render_template('login.html', mensagem=u'E-mail confirmado com sucesso! Faça login para continuar.'))
+
+@app.route("/trocarSenhaObrigatoria", methods=['GET', 'POST'])
+@log_required
+def trocarSenhaObrigatoria():
+    if not autenticado():
+        return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
+
+    if request.method == "GET":
+        return (render_template('redefinirSenhaObrigatoria.html'))
+
+    csrf.protect()
+    nova_senha = str(request.form.get('senha', ''))
+    ok, msg_senha = senha_forte(nova_senha)
+    if not ok:
+        return (render_template('redefinirSenhaObrigatoria.html', mensagem=msg_senha))
+
+    atualizar("UPDATE users SET password=%s, forcar_troca_senha=0 WHERE username=%s",
+              (nova_senha, session['username']))
+    session['forcar_troca_senha'] = False
+    flash(u'Senha atualizada com sucesso!')
+    return redirect(url_for('usuario'))
+
+@app.route("/seguranca", methods=['GET'])
+def seguranca():
+    return (render_template('seguranca.html'))
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos,Apresentador

@@ -230,9 +230,8 @@
 
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
     <div>
-      <label class="form-label">CPF do autor principal (apenas os números, sem pontos ou espaços)</label>
-      <input class="form-input" name="identificacao" id="identificacao" required="required" type="text" placeholder="Ex: 00000000000"
-      onblur="baixarDados(this.value);">
+      <label class="form-label">CPF do autor principal (da sua conta logada)</label>
+      <input class="form-input bg-slate-100" name="identificacao" id="identificacao" required="required" type="text" value="{{ session['cpf'] }}" readonly>
     </div>
 
     <div>
@@ -243,8 +242,8 @@
 
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
     <div>
-      <label class="form-label">E-Mail do autor principal</label>
-      <input class="form-input" name="email" id="email" required="required" type="email">
+      <label class="form-label">E-Mail do autor principal (da sua conta logada)</label>
+      <input class="form-input bg-slate-100" name="email" id="email" required="required" type="email" value="{{ session['email'] }}" readonly>
     </div>
     <div>
       <label class="form-label">Números de Matriculas dos demais autores (separados por vírgulas)</label>
@@ -470,4 +469,9 @@
     <input class="btn-outline cursor-pointer" type="reset" value="Limpar formulário">
   </div>
 </form>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    baixarDados('{{ session["cpf"] }}');
+  });
+</script>
 {% endblock %}
