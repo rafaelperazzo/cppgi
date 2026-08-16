@@ -517,6 +517,33 @@ def test_cadastrarProjeto_sem_sessao():
     assert response.status_code == 200
     assert 'necessário autenticação'.encode() in response.data
 
+def test_senha_fraca_forca_troca_senha():
+    #Conta "legada" com senha fraca (não passaria mais na regra de senha forte hoje) — o login
+    #ainda deve funcionar (a senha em si está correta), mas deve forçar a troca, no mesmo
+    #mecanismo usado para credencial vazada.
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "fraca123", verificado=1)
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/login', data={
+            "csrf_token": csrf_token,
+            "siape": cpf,
+            "senha": "fraca123",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+
+        linhas, total = executarSelect("SELECT forcar_troca_senha FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 1
+
+        response = client.get('/meusProjetos', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/trocarSenhaObrigatoria' in response.headers['Location']
+
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
 def test_credencial_vazada_forca_troca_senha():
     cpf = _cpf_aleatorio()
     email = random_char(7)
@@ -565,6 +592,124 @@ def test_credencial_vazada_forca_troca_senha():
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 
+def _login_teste(cpf, senha):
+    csrf_token = get_csrf_token('/cadastro')
+    response = client.post('/login', data={
+        "csrf_token": csrf_token,
+        "siape": cpf,
+        "senha": senha,
+    }, follow_redirects=True)
+    assert response.status_code == 200
+
+def test_trocarSenha_sem_sessao():
+    with client.session_transaction() as sess:
+        sess.clear()
+    response = client.get('/trocarSenha', follow_redirects=True)
+    assert response.status_code == 200
+    assert 'necessário autenticação'.encode() in response.data
+
+def test_trocarSenha_senha_atual_incorreta():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        _login_teste(cpf, "SenhaDeTesteForte1!")
+
+        csrf_token = get_csrf_token('/trocarSenha')
+        response = client.post('/trocarSenha', data={
+            "csrf_token": csrf_token,
+            "senha_atual": "SenhaErrada999!",
+            "nova_senha": "OutraSenhaForte2!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'Senha atual incorreta'.encode() in response.data
+
+        linhas, total = executarSelect("SELECT password FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == "SenhaDeTesteForte1!"
+
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_trocarSenha_nova_senha_fraca():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        _login_teste(cpf, "SenhaDeTesteForte1!")
+
+        csrf_token = get_csrf_token('/trocarSenha')
+        response = client.post('/trocarSenha', data={
+            "csrf_token": csrf_token,
+            "senha_atual": "SenhaDeTesteForte1!",
+            "nova_senha": "fraca",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'mínimo 12 caracteres'.encode() in response.data
+
+        linhas, total = executarSelect("SELECT password FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == "SenhaDeTesteForte1!"
+
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_trocarSenha_sucesso():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        _login_teste(cpf, "SenhaDeTesteForte1!")
+
+        csrf_token = get_csrf_token('/trocarSenha')
+        response = client.post('/trocarSenha', data={
+            "csrf_token": csrf_token,
+            "senha_atual": "SenhaDeTesteForte1!",
+            "nova_senha": "NovaSenhaForte9!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+
+        linhas, total = executarSelect("SELECT password,forcar_troca_senha FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == "NovaSenhaForte9!"
+        assert linhas[1] == 0
+
+        #A nova senha já funciona para logar de novo
+        client.get('/logout', follow_redirects=True)
+        _login_teste(cpf, "NovaSenhaForte9!")
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_trocarSenha_credencial_vazada_bloqueia_e_forca_troca():
+    #Mesma checagem de credencial vazada usada no login também vale para a troca voluntária:
+    #não permite definir a nova senha e força o usuário para o fluxo de troca obrigatória.
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        _login_teste(cpf, "SenhaDeTesteForte1!")
+
+        csrf_token = get_csrf_token('/trocarSenha')
+        response = client.post('/trocarSenha', data={
+            "csrf_token": csrf_token,
+            "senha_atual": "SenhaDeTesteForte1!",
+            "nova_senha": "OutraSenhaForte2!",
+        }, headers={"Exposed-Credential-Check": "1"}, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'comprometida'.encode() in response.data
+
+        linhas, total = executarSelect("SELECT password,forcar_troca_senha FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == "SenhaDeTesteForte1!" #senha NÃO foi trocada
+        assert linhas[1] == 1
+
+        response = client.get('/meusProjetos', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/trocarSenhaObrigatoria' in response.headers['Location']
+
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
 def test_log_required_grava_auditoria(caplog):
     #logger_auditoria tem propagate=False em produção (não duplicar em app.log); religa
     #temporariamente só para o caplog conseguir capturar via propagação até a raiz.
@@ -608,6 +753,12 @@ def test_login_get_renderiza_formulario():
     response = client.get('/login', follow_redirects=True)
     assert response.status_code == 200
     assert 'Autenticação'.encode() in response.data
+
+def test_login_tem_link_criar_conta():
+    response = client.get('/login', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'href="/cadastro"' in response.data
+    assert 'Criar conta'.encode() in response.data
 
 def test_link_login_logout_no_layout():
     #Nota: em produção (waitress com url_prefix='/cppgi') os links renderizam com esse prefixo;

@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}Trocar senha{% endblock %}
+
+{% block content %}
+<h2 class="page-title text-center">Trocar minha senha</h2>
+
+<div class="mx-auto mt-4 max-w-md card">
+  <form action="{{ url_for('trocarSenha') }}" method="POST" class="flex flex-col gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    {% if mensagem %}
+    <div class="alert-warning">
+      <p>{{ mensagem }}</p>
+    </div>
+    {% endif %}
+
+    <div>
+      <label class="form-label" for="senha_atual">Senha atual</label>
+      <input class="form-input" type="password" id="senha_atual" name="senha_atual" required>
+    </div>
+
+    <div>
+      <label class="form-label" for="nova_senha">Nova senha (mínimo 12 caracteres, com maiúscula, minúscula, número e caractere especial)</label>
+      <input class="form-input" type="password" id="nova_senha" name="nova_senha" required minlength="12">
+    </div>
+
+    <button class="btn-primary" type="submit">Trocar senha</button>
+  </form>
+</div>
+{% endblock %}

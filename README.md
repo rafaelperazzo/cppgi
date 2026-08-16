@@ -130,13 +130,29 @@ backup de produção no container local (**operação destrutiva** sobre os dado
   limpa toda a sessão. `/cadastrarProjeto` exige sessão ativa e usa `session['cpf']`/`session['email']` em
   vez de campos de formulário preenchidos manualmente (a criação implícita de conta que existia nesse fluxo
   foi removida).
-- **Detecção de credencial vazada (Cloudflare)**: se o header `Exposed-Credential-Check: 1` (feature
-  "Leaked/Exposed Credential Checks" do Cloudflare) estiver presente na requisição de login, a conta é
-  marcada com `forcar_troca_senha=1`. Um middleware (`@app.before_request`) bloqueia o acesso a qualquer
-  rota até a senha ser trocada em `/trocarSenhaObrigatoria`. **Nota de infraestrutura**: esse header só é
-  confiável se a origem não for acessível diretamente pela internet (Authenticated Origin Pulls / allowlist
-  de IP do Cloudflare) — sem isso, qualquer cliente pode forjá-lo. `CF-IPCountry`/`CF-IPCity` (geolocalização)
-  seguem a mesma lógica; `CF-IPCity` não é um header padrão fora de Enterprise/Workers.
+- **Login com link para autocadastro**: a tela `/login` mostra "Ainda não tem cadastro? Criar conta",
+  apontando para `/cadastro`, para quem tenta entrar sem ter conta.
+- **Troca de senha forçada** (`forcar_troca_senha` em `users`, avaliado em todo login bem-sucedido dentro
+  de `verify_password`): disparada por dois motivos independentes —
+  1. **Credencial vazada (Cloudflare)**: header `Exposed-Credential-Check: 1` (feature "Leaked/Exposed
+     Credential Checks" do Cloudflare) presente na requisição de login. **Nota de infraestrutura**: esse
+     header só é confiável se a origem não for acessível diretamente pela internet (Authenticated Origin
+     Pulls / allowlist de IP do Cloudflare) — sem isso, qualquer cliente pode forjá-lo. `CF-IPCountry`/
+     `CF-IPCity` (geolocalização) seguem a mesma lógica; `CF-IPCity` não é um header padrão fora de
+     Enterprise/Workers.
+  2. **Senha fraca**: a própria senha submetida no login não passa mais em `seguranca_utils.senha_forte`
+     (ex. contas antigas criadas com a senha auto-gerada de 8 caracteres). **Atenção ao rollout**: como a
+     maioria das contas legadas foi criada com esse padrão de senha curta, essa checagem tende a forçar a
+     troca de senha para praticamente toda a base de usuários existente já no primeiro login após o
+     deploy — não é um caso raro, é o comportamento esperado.
+
+  Em ambos os casos, um middleware (`@app.before_request`) bloqueia o acesso a qualquer rota até a senha
+  ser trocada em `/trocarSenhaObrigatoria`.
+- **Troca de senha voluntária** (`/trocarSenha`, link "Trocar minha senha" no card "Senha" da tela
+  inicial, visível só logado): exige a senha atual correta (confirmação de identidade), aplica a mesma
+  regra de senha forte para a nova senha, e também checa `Exposed-Credential-Check` na própria submissão —
+  se disparar, a troca é recusada e a conta é jogada no fluxo de troca obrigatória (`forcar_troca_senha=1`)
+  em vez de aceitar a senha potencialmente comprometida.
 - **Senhas continuam em texto puro** em `users.password` (decisão explícita, fora do escopo desta entrega)
   — `verify_password` compara diretamente via SQL, sem hashing.
 - **Auditoria (`@log_required`)**: decorator aplicado às rotas administrativas/avaliador/monitor

@@ -414,8 +414,10 @@ def verify_password(username, password):
             session['user_id'] = int(linha[0])
 
             forcar = bool(int(linha[7]))
-            if credencial_vazada(request.headers):
-                atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
+            senha_ok, _ = senha_forte(password)
+            if credencial_vazada(request.headers) or not senha_ok:
+                if not forcar:
+                    atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
                 forcar = True
             session['forcar_troca_senha'] = forcar
             #return (True)
@@ -548,7 +550,7 @@ def verificar_troca_senha_obrigatoria():
     if request.endpoint is None or request.endpoint in ROTAS_ISENTAS_TROCA_SENHA:
         return
     if session.get('forcar_troca_senha'):
-        flash(u'Detectamos que sua senha pode estar comprometida. Defina uma nova senha para continuar.')
+        flash(u'Sua senha está fraca ou pode estar comprometida. Defina uma nova senha forte para continuar.')
         return redirect(url_for('trocarSenhaObrigatoria'))
 
 @app.route("/")
@@ -3974,6 +3976,43 @@ def trocarSenhaObrigatoria():
               (nova_senha, session['username']))
     session['forcar_troca_senha'] = False
     flash(u'Senha atualizada com sucesso!')
+    return redirect(url_for('usuario'))
+
+@app.route("/trocarSenha", methods=['GET', 'POST'])
+@log_required
+def trocarSenha():
+    if not autenticado():
+        return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
+
+    if request.method == "GET":
+        return (render_template('trocarSenha.html'))
+
+    csrf.protect()
+    senha_atual = str(request.form.get('senha_atual', ''))
+    nova_senha = str(request.form.get('nova_senha', ''))
+
+    #Confirma que quem está trocando realmente conhece a senha atual
+    linhas, total = executarSelect("SELECT id FROM users WHERE username=%s AND password=%s", 1,
+                                    valores=(session['username'], senha_atual))
+    if total == 0:
+        return (render_template('trocarSenha.html', mensagem=u'Senha atual incorreta.'))
+
+    #Não permite trocar para uma senha vazada: mesma checagem usada no login
+    if credencial_vazada(request.headers):
+        atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (session['username'],))
+        session['forcar_troca_senha'] = True
+        return (render_template('trocarSenha.html', mensagem=(
+            u'Detectamos que essa senha pode estar comprometida. Escolha uma senha diferente.')))
+
+    #Não permite senha fraca
+    ok, msg_senha = senha_forte(nova_senha)
+    if not ok:
+        return (render_template('trocarSenha.html', mensagem=msg_senha))
+
+    atualizar("UPDATE users SET password=%s, forcar_troca_senha=0 WHERE username=%s",
+              (nova_senha, session['username']))
+    session['forcar_troca_senha'] = False
+    flash(u'Senha alterada com sucesso!')
     return redirect(url_for('usuario'))
 
 @app.route("/seguranca", methods=['GET'])

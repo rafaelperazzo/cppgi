@@ -93,14 +93,25 @@
         <td>Política de senha forte</td>
         <td>
           Mínimo de 12 caracteres, com letra maiúscula, letra minúscula, número e caractere especial —
-          exigida tanto no autocadastro quanto na troca de senha.
+          exigida no autocadastro, na troca voluntária e na troca obrigatória de senha.
         </td>
       </tr>
       <tr>
-        <td>Troca de senha forçada por vazamento</td>
+        <td>Troca de senha forçada</td>
         <td>
-          Ao detectar o alerta de credencial vazada do Cloudflare, a conta é bloqueada de qualquer outra
-          rota do sistema até que uma nova senha forte seja definida.
+          Em todo login, o sistema verifica se a senha veio de um alerta de credencial vazada do
+          Cloudflare <b>ou</b> se ela não atende mais à política de senha forte. Em qualquer um dos dois
+          casos, a conta é bloqueada de qualquer outra rota do sistema até que uma nova senha forte seja
+          definida.
+        </td>
+      </tr>
+      <tr>
+        <td>Troca de senha voluntária</td>
+        <td>
+          Um usuário logado pode trocar a própria senha a qualquer momento, informando a senha atual para
+          confirmar identidade. A nova senha passa pelas mesmas checagens de força e de credencial vazada
+          usadas no login — se a nova senha for detectada como comprometida, a troca é recusada e a conta
+          é enviada para o fluxo de troca obrigatória.
         </td>
       </tr>
       <tr>
