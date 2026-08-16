@@ -558,6 +558,8 @@ def home():
 
 @app.route("/submissao")
 def submissao():
+    if not autenticado():
+        return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
     editaisAbertos = getEditaisAbertos()
     subareas_cnpq = getSubAreasCNPQ()
     return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO,subareas_cnpq=subareas_cnpq,root_site=ROOT_SITE))
@@ -1367,7 +1369,7 @@ def registrar_acesso(recurso,ip,usuario):
 '''
 Método que ativa a sessão com os dados do usuário
 '''
-@app.route("/login", methods=['POST'])
+@app.route("/login", methods=['GET', 'POST'])
 @log_required
 def login():
     if request.method == "POST":
