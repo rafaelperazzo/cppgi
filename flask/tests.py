@@ -475,6 +475,38 @@ def test_sessao_login_e_logout():
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 
+def test_submissao_sem_sessao():
+    #Regressão: /submissao (GET, exibe o formulário de cadastrarProjeto) não tinha checagem de
+    #autenticação — só o POST em /cadastrarProjeto tinha, deixando o formulário visível (com
+    #campos de CPF/e-mail vazios) para quem não estava logado.
+    with client.session_transaction() as sess:
+        sess.clear()
+    response = client.get('/submissao', follow_redirects=True)
+    assert response.status_code == 200
+    assert 'necessário autenticação'.encode() in response.data
+    assert b'name="identificacao"' not in response.data
+
+def test_submissao_preenche_cpf_email_da_sessao():
+    #Com sessão ativa, o formulário deve mostrar o CPF e o e-mail do usuário logado
+    #(pré-preenchidos a partir da sessão), não campos vazios/manuais.
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        with client.session_transaction() as sess:
+            sess['username'] = cpf
+            sess['cpf'] = cpf
+            sess['email'] = email
+            sess['nome'] = "USUARIO DE TESTE"
+        response = client.get('/submissao', follow_redirects=True)
+        assert response.status_code == 200
+        assert ('value="' + cpf + '"').encode() in response.data
+        assert ('value="' + email + '"').encode() in response.data
+        with client.session_transaction() as sess:
+            sess.clear()
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
 def test_cadastrarProjeto_sem_sessao():
     with client.session_transaction() as sess:
         sess.clear()
@@ -569,6 +601,13 @@ def test_guardrail_log_required_em_rotas_login_required():
             if proxima != '@log_required':
                 faltando.append(i + 1)
     assert faltando == [], "Rotas com @auth.login_required sem @log_required nas linhas: %s" % faltando
+
+def test_login_get_renderiza_formulario():
+    #Regressão: o link "Entrar" do layout faz GET em /login; a rota precisa aceitar GET
+    #além de POST, senão o clique resulta em "405 Method Not Allowed".
+    response = client.get('/login', follow_redirects=True)
+    assert response.status_code == 200
+    assert 'Autenticação'.encode() in response.data
 
 def test_link_login_logout_no_layout():
     #Nota: em produção (waitress com url_prefix='/cppgi') os links renderizam com esse prefixo;
