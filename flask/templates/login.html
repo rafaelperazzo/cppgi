@@ -46,5 +46,12 @@ function humano() {
     <button class="btn-primary" type="submit">Entrar</button>
     <a class="text-center text-sm text-brand-700 hover:underline" href="{{ url_for('esqueciMinhaSenha') }}">Esqueci/Não Sei minha Senha</a>
   </form>
+
+  <hr class="my-4 border-slate-200">
+
+  <p class="text-center text-sm text-slate-600">
+    Ainda não tem cadastro?
+    <a class="font-semibold text-brand-700 hover:underline" href="{{ url_for('cadastro') }}">Criar conta</a>
+  </p>
 </div>
 {% endblock %}
