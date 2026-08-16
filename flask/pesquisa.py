@@ -542,6 +542,26 @@ def enviar_arquivo(filename):
 def iniciar_sessao():
     session['PRODUCAO'] = PRODUCAO
 
+INTERVALO_HEARTBEAT_ONLINE = 60  # segundos entre atualizações de presença por sessão
+
+@app.before_request
+def atualizar_usuario_online():
+    if request.endpoint == 'static' or not autenticado():
+        return
+    agora = time.time()
+    if (agora - session.get('_ultimo_heartbeat_online', 0)) < INTERVALO_HEARTBEAT_ONLINE:
+        return
+    session['_ultimo_heartbeat_online'] = agora
+    try:
+        consulta = """
+        INSERT INTO sessoes_ativas (username,nome,ip,rota,ultimo_acesso) VALUES (%s,%s,%s,%s,NOW())
+        ON DUPLICATE KEY UPDATE nome=VALUES(nome),ip=VALUES(ip),rota=VALUES(rota),ultimo_acesso=NOW()
+        """
+        valores = (str(session['username']),str(session.get('nome','')),obter_ip_cliente(request),str(request.endpoint or ''))
+        inserir(consulta,valores)
+    except Exception as e:
+        logging.error("Erro ao registrar presença online: " + str(e))
+
 ROTAS_ISENTAS_TROCA_SENHA = {'login', 'encerrarSessao', 'trocarSenhaObrigatoria',
                               'cadastro', 'confirmarEmail', 'static'}
 
@@ -3089,6 +3109,19 @@ def jobs_agendados():
             'fim': getattr(job.trigger, 'end_date', None),
         })
     return(render_template('jobs_agendados.html', jobs=jobs))
+
+@app.route("/usuariosOnline")
+@auth.login_required(role=['admin'])
+@log_required
+def usuarios_online():
+    consulta = """
+    SELECT username,nome,ip,rota,DATE_FORMAT(ultimo_acesso,'%d/%m/%Y %H:%i:%s')
+    FROM sessoes_ativas
+    WHERE ultimo_acesso > NOW() - INTERVAL 5 MINUTE
+    ORDER BY ultimo_acesso DESC
+    """
+    linhas,total = executarSelect(consulta)
+    return(render_template('usuarios_online.html', linhas=linhas, total=total))
 
 def enviarPedidoAvaliacao(id):
     gerarLinkAvaliacao()
