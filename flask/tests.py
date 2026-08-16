@@ -4,6 +4,7 @@ import base64
 import os
 import re
 import datetime
+import logging
 
 import random
 import string
@@ -87,11 +88,35 @@ def test_0_criar_edital_teste():
     assert linhas[0][0]=="EDITAL DE TESTE AUTOMATIZADO"
     assert linhas[0][1]==token
 
+def _garantir_usuario_teste(cpf, email, senha, verificado=1):
+    linhas, total = executarSelect("SELECT id FROM users WHERE username=%s", 1, valores=(cpf,))
+    if total == 0:
+        inserir("""INSERT INTO users (username,password,nome,email,roles,permission,email_verificado)
+                   VALUES (%s,%s,%s,%s,'user',1,%s)""",
+                (cpf, senha, "USUARIO DE TESTE", email, verificado))
+    else:
+        atualizar("UPDATE users SET password=%s, email=%s, email_verificado=%s WHERE username=%s",
+                  (senha, email, verificado, cpf))
+
+def _cpf_aleatorio():
+    return ''.join(random.choice(string.digits) for _ in range(11))
+
 def test_0_cadastrar_projeto():
     edital_teste = get_last_id('editais')
     titulo = id_generator(40)
     nome = str(id_generator(30)).upper()
     orientador = str(id_generator(20)).upper()
+
+    #/cadastrarProjeto agora exige sessão ativa: garante a conta e popula a sessão do cliente de teste
+    _garantir_usuario_teste("00000000000", "email@email.com", "SenhaDeTesteForte1!")
+    with client.session_transaction() as sess:
+        sess['username'] = "00000000000"
+        sess['cpf'] = "00000000000"
+        sess['email'] = "email@email.com"
+        sess['nome'] = "USUARIO DE TESTE"
+        sess['permissao'] = 1
+        sess['roles'] = ['user']
+
     csrf_token = get_csrf_token('/submissao')
     response = client.post("/cadastrarProjeto", data={
         "csrf_token": csrf_token,
@@ -285,4 +310,292 @@ def test_5_remover_submissao_teste():
     """ %(edital_teste)
     linhas,total = executarSelect(consulta)
     assert total==0
+    atualizar("DELETE FROM users WHERE username=%s", ("00000000000",))
+
+'''
+**************************************************************
+TESTES: autocadastro, sessão, credencial vazada (Cloudflare) e auditoria (@log_required)
+**************************************************************
+'''
+
+def test_cadastro_senha_fraca():
+    casos = [
+        "Curta1!",                 #menos de 12 caracteres
+        "senhalongasemmaiuscula1!", #falta maiúscula
+        "SENHALONGASEMMINUSCULA1!", #falta minúscula
+        "SenhaLongaSemNumero!!!!",   #falta número
+        "SenhaLongaSemEspecial123", #falta caractere especial
+    ]
+    for senha in casos:
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/cadastro', data={
+            "csrf_token": csrf_token,
+            "cpf": _cpf_aleatorio(),
+            "nome": "Fulano de Tal",
+            "email": random_char(7),
+            "senha": senha,
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'mínimo 12 caracteres'.encode() in response.data
+
+def test_cadastro_cpf_e_email_duplicado():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/cadastro', data={
+            "csrf_token": csrf_token,
+            "cpf": cpf,
+            "nome": "Fulano de Tal",
+            "email": email,
+            "senha": "SenhaDeTesteForte1!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'Cadastro realizado'.encode() in response.data
+
+        #CPF já cadastrado: não cria segunda conta, mostra e-mail mascarado
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/cadastro', data={
+            "csrf_token": csrf_token,
+            "cpf": cpf,
+            "nome": "Outro Nome",
+            "email": random_char(7),
+            "senha": "OutraSenhaForte1!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'CPF já possui cadastro'.encode() in response.data
+        assert email.encode() not in response.data #e-mail completo não pode vazar
+        linhas, total = executarSelect("SELECT id FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert total == 1
+
+        #E-mail já em uso por outro CPF: rejeitado, sem criar nova linha
+        outro_cpf = _cpf_aleatorio()
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/cadastro', data={
+            "csrf_token": csrf_token,
+            "cpf": outro_cpf,
+            "nome": "Mais Um",
+            "email": email,
+            "senha": "MaisUmaSenhaForte1!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'e-mail já está em uso'.encode() in response.data
+        linhas, total = executarSelect("SELECT id FROM users WHERE username=%s", 1, valores=(outro_cpf,))
+        assert total == 0
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_cadastro_token_confirmacao():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        csrf_token = get_csrf_token('/cadastro')
+        client.post('/cadastro', data={
+            "csrf_token": csrf_token,
+            "cpf": cpf,
+            "nome": "Fulano de Tal",
+            "email": email,
+            "senha": "SenhaDeTesteForte1!",
+        }, follow_redirects=True)
+
+        #Token inválido não confirma
+        response = client.get('/confirmarEmail/token-que-nao-existe', follow_redirects=True)
+        assert response.status_code == 200
+        assert 'inválido ou expirado'.encode() in response.data
+
+        #Token expirado não confirma
+        linhas, total = executarSelect("SELECT token_verificacao FROM users WHERE username=%s", 1, valores=(cpf,))
+        token = linhas[0]
+        atualizar("UPDATE users SET token_verificacao_expira=%s WHERE username=%s",
+                  (datetime.datetime.now() - datetime.timedelta(hours=1), cpf))
+        response = client.get('/confirmarEmail/' + token, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'inválido ou expirado'.encode() in response.data
+        linhas, total = executarSelect("SELECT email_verificado FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 0
+
+        #Token válido confirma, e não pode ser reutilizado depois
+        atualizar("UPDATE users SET token_verificacao_expira=%s WHERE username=%s",
+                  (datetime.datetime.now() + datetime.timedelta(hours=1), cpf))
+        response = client.get('/confirmarEmail/' + token, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'confirmado com sucesso'.encode() in response.data
+        linhas, total = executarSelect("SELECT email_verificado FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 1
+
+        response = client.get('/confirmarEmail/' + token, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'inválido ou expirado'.encode() in response.data
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_login_bloqueado_email_nao_verificado():
+    cpf = _cpf_aleatorio()
+    try:
+        #Requisições Basic Auth de testes anteriores (get_res/post_res) deixam sessão de admin
+        #residual no cliente de teste compartilhado; limpa antes de checar o bloqueio isoladamente.
+        with client.session_transaction() as sess:
+            sess.clear()
+        _garantir_usuario_teste(cpf, random_char(7), "SenhaDeTesteForte1!", verificado=0)
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/login', data={
+            "csrf_token": csrf_token,
+            "siape": cpf,
+            "senha": "SenhaDeTesteForte1!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        assert 'Confirme seu e-mail'.encode() in response.data
+        with client.session_transaction() as sess:
+            assert 'username' not in sess
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_sessao_login_e_logout():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/login', data={
+            "csrf_token": csrf_token,
+            "siape": cpf,
+            "senha": "SenhaDeTesteForte1!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+        with client.session_transaction() as sess:
+            assert sess['cpf'] == cpf
+            assert sess['email'] == email
+            assert sess['nome'] == "USUARIO DE TESTE"
+
+        client.get('/logout', follow_redirects=True)
+        with client.session_transaction() as sess:
+            assert 'cpf' not in sess
+            assert 'email' not in sess
+            assert 'username' not in sess
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_cadastrarProjeto_sem_sessao():
+    with client.session_transaction() as sess:
+        sess.clear()
+    csrf_token = get_csrf_token('/submissao')
+    response = client.post('/cadastrarProjeto', data={
+        "csrf_token": csrf_token,
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert 'necessário autenticação'.encode() in response.data
+
+def test_credencial_vazada_forca_troca_senha():
+    cpf = _cpf_aleatorio()
+    email = random_char(7)
+    try:
+        _garantir_usuario_teste(cpf, email, "SenhaDeTesteForte1!", verificado=1)
+        csrf_token = get_csrf_token('/cadastro')
+        response = client.post('/login', data={
+            "csrf_token": csrf_token,
+            "siape": cpf,
+            "senha": "SenhaDeTesteForte1!",
+        }, headers={"Exposed-Credential-Check": "1"}, follow_redirects=True)
+        assert response.status_code == 200
+
+        linhas, total = executarSelect("SELECT forcar_troca_senha FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 1
+
+        #Middleware bloqueia qualquer rota e redireciona para a troca obrigatória
+        response = client.get('/meusProjetos', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/trocarSenhaObrigatoria' in response.headers['Location']
+
+        response = client.get('/usuario', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/trocarSenhaObrigatoria' in response.headers['Location']
+
+        #A própria tela de troca continua acessível, sem loop
+        response = client.get('/trocarSenhaObrigatoria', follow_redirects=True)
+        assert response.status_code == 200
+        assert 'Troca de senha obrigatória'.encode() in response.data
+
+        #Trocar a senha libera o acesso normal na mesma sessão
+        csrf_token = get_csrf_token('/trocarSenhaObrigatoria')
+        response = client.post('/trocarSenhaObrigatoria', data={
+            "csrf_token": csrf_token,
+            "senha": "NovaSenhaForte9!",
+        }, follow_redirects=True)
+        assert response.status_code == 200
+
+        linhas, total = executarSelect("SELECT forcar_troca_senha FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 0
+
+        response = client.get('/meusProjetos', follow_redirects=False)
+        assert response.status_code == 200
+
+        client.get('/logout', follow_redirects=True)
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_log_required_grava_auditoria(caplog):
+    #logger_auditoria tem propagate=False em produção (não duplicar em app.log); religa
+    #temporariamente só para o caplog conseguir capturar via propagação até a raiz.
+    logger_auditoria = logging.getLogger('auditoria_acessos')
+    logger_auditoria.propagate = True
+    try:
+        with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
+            get_res('/avaliacoesNegadas')
+    finally:
+        logger_auditoria.propagate = False
+    mensagens = [r.message for r in caplog.records if r.name == 'auditoria_acessos']
+    assert any('rota=/avaliacoesNegadas' in m and 'metodo=GET' in m for m in mensagens)
+    #CPF nunca deve aparecer em texto puro no log de auditoria
+    assert not any(usuario in m for m in mensagens)
+    assert any(re.search(r'cpf=\d{3}\*+\d{2}\b', m) for m in mensagens)
+    #ID numérico do usuário deve estar presente no log
+    id_usuario = obterColunaUnica('users', 'id', 'username', usuario)
+    assert any(('user_id=' + str(id_usuario)) in m for m in mensagens)
+
+def test_pagina_seguranca():
+    response = client.get('/seguranca', follow_redirects=True)
+    assert response.status_code == 200
+    assert 'Leaked/Exposed Credential Checks'.encode() in response.data
+    assert 'Política de senha forte'.encode() in response.data
+
+def test_guardrail_log_required_em_rotas_login_required():
+    caminho = WORKING_DIR + 'pesquisa.py'
+    with open(caminho, encoding='utf-8') as f:
+        linhas_arquivo = f.readlines()
+    faltando = []
+    for i, linha in enumerate(linhas_arquivo):
+        if linha.strip().startswith('@auth.login_required('):
+            proxima = linhas_arquivo[i + 1].strip() if i + 1 < len(linhas_arquivo) else ''
+            if proxima != '@log_required':
+                faltando.append(i + 1)
+    assert faltando == [], "Rotas com @auth.login_required sem @log_required nas linhas: %s" % faltando
+
+def test_link_login_logout_no_layout():
+    #Nota: em produção (waitress com url_prefix='/cppgi') os links renderizam com esse prefixo;
+    #sob app.test_client() o prefixo não é aplicado, então checamos os caminhos sem ele aqui.
+    #Sem sessão: mostra Entrar/Cadastre-se, não mostra logout
+    with client.session_transaction() as sess:
+        sess.clear()
+    response = client.get('/submissao', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'href="/login"' in response.data
+    assert b'href="/cadastro"' in response.data
+    assert b'href="/logout"' not in response.data
+
+    #Com sessão: mostra logout, não mostra Entrar/Cadastre-se
+    cpf = _cpf_aleatorio()
+    try:
+        _garantir_usuario_teste(cpf, random_char(7), "SenhaDeTesteForte1!", verificado=1)
+        with client.session_transaction() as sess:
+            sess['username'] = cpf
+            sess['cpf'] = cpf
+            sess['nome'] = "USUARIO DE TESTE"
+        response = client.get('/submissao', follow_redirects=True)
+        assert response.status_code == 200
+        assert b'href="/logout"' in response.data
+        assert b'href="/login"' not in response.data
+        with client.session_transaction() as sess:
+            sess.clear()
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 

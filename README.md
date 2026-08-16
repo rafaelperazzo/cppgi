@@ -69,6 +69,7 @@ Vault Agent).
 ```
 flask/
   pesquisa.py        # app Flask: rotas, auth, helpers de banco, geração de certificados, agendamento
+  seguranca_utils.py # funções puras de segurança: senha forte, tokens, headers Cloudflare (ver seção abaixo)
   app_api.py         # API JSON (Flask-RESTful), registrada apenas quando pesquisa.py roda como __main__
   processar.py        # script de cron para e-mails a avaliadores (convite/lembrete/agradecimento)
   auditoria.py, atualizar_email.py, atualizar_tokens.py, calcular_lattes.py  # scripts de manutenção
@@ -78,6 +79,7 @@ flask/
   config.ini / senhas.pass  # configuração local (gitignored, ver acima)
 fonts/                # fontes usadas na geração de certificados (Times New Roman)
 share/                # dumps/snapshots do schema do banco
+share/migrations/     # scripts SQL incrementais (sem framework de migration; aplicar manualmente)
 *.sh.sample           # modelos dos scripts reais (gitignored) de deploy/backup/cron usados em produção
 ```
 
@@ -115,6 +117,37 @@ submissão (/cadastrarProjeto)
 MariaDB 10.5.8, iniciado com `--sql_mode=""` (modo relaxado — atenção a problemas de modo estrito que não
 aparecem localmente). Schema de referência em `share/2025-02-20T19.04-cppgi.sql`. `atualizar_db.sh` restaura um
 backup de produção no container local (**operação destrutiva** sobre os dados locais).
+
+## Autenticação e Segurança
+
+- **Autocadastro** (`/cadastro`): CPF, e-mail, nome completo e senha forte (mínimo 12 caracteres, com
+  maiúscula, minúscula, número e caractere especial — validado por `seguranca_utils.senha_forte`). A conta
+  só é liberada para login após confirmação por e-mail (`/confirmarEmail/<token>`, token expira em 24h). CPF
+  ou e-mail já cadastrados são rejeitados sem criar conta duplicada; ao detectar CPF já existente, o
+  e-mail associado é mostrado mascarado (`ra***@dominio.com`) orientando o uso de "Esqueci minha senha".
+- **Sessão**: no login (`verify_password`, usado tanto pelo formulário `/login` quanto pelo handshake nativo
+  de HTTP Basic Auth), `session['cpf']`, `session['nome']` e `session['email']` são populados; `/logout`
+  limpa toda a sessão. `/cadastrarProjeto` exige sessão ativa e usa `session['cpf']`/`session['email']` em
+  vez de campos de formulário preenchidos manualmente (a criação implícita de conta que existia nesse fluxo
+  foi removida).
+- **Detecção de credencial vazada (Cloudflare)**: se o header `Exposed-Credential-Check: 1` (feature
+  "Leaked/Exposed Credential Checks" do Cloudflare) estiver presente na requisição de login, a conta é
+  marcada com `forcar_troca_senha=1`. Um middleware (`@app.before_request`) bloqueia o acesso a qualquer
+  rota até a senha ser trocada em `/trocarSenhaObrigatoria`. **Nota de infraestrutura**: esse header só é
+  confiável se a origem não for acessível diretamente pela internet (Authenticated Origin Pulls / allowlist
+  de IP do Cloudflare) — sem isso, qualquer cliente pode forjá-lo. `CF-IPCountry`/`CF-IPCity` (geolocalização)
+  seguem a mesma lógica; `CF-IPCity` não é um header padrão fora de Enterprise/Workers.
+- **Senhas continuam em texto puro** em `users.password` (decisão explícita, fora do escopo desta entrega)
+  — `verify_password` compara diretamente via SQL, sem hashing.
+- **Auditoria (`@log_required`)**: decorator aplicado às rotas administrativas/avaliador/monitor
+  (`@auth.login_required`) e às rotas de autenticação (`/login`, `/cadastro`, `/confirmarEmail`,
+  `/trocarSenhaObrigatoria`, `/logout`, `/cadastrarProjeto`). Registra o ID numérico do usuário
+  (`users.id`, populado em `session['user_id']` no login), CPF (**sempre mascarado**, ex. `111******56`,
+  via `seguranca_utils.mascarar_cpf`), rota, método HTTP, IP e país/cidade (headers Cloudflare) **só em
+  log de arquivo** (`flask/auditoria.log`, logger dedicado com nível `INFO` independente do logger raiz —
+  que fica em `ERROR` quando `PRODUCAO=1`), sem tabela no banco.
+- **`/seguranca`**: página pública (link no rodapé) que documenta, em dois blocos, os mecanismos de
+  segurança de infraestrutura (Cloudflare) e de aplicação — ver `flask/templates/seguranca.html`.
 
 ## Deploy / produção
 
