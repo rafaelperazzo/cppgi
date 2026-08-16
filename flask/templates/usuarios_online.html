@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block title %}Usuários online{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">USUÁRIOS ONLINE</h1>
+<h2 class="page-subtitle">Usuários com atividade nos últimos 5 minutos</h2>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<a href="{{url_for('root')}}" class="btn-outline mb-4 inline-block">Voltar</a>
+
+{% if linhas %}
+<div class="alert-info mb-4">{{total}} usuário(s) online.</div>
+<div class="table-wrapper">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Usuário</th>
+        <th>Nome</th>
+        <th>IP</th>
+        <th>Última rota</th>
+        <th>Última atividade</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in linhas %}
+      <tr>
+        <td>{{linha[0]}}</td>
+        <td>{{linha[1]}}</td>
+        <td>{{linha[2]}}</td>
+        <td>{{linha[3]}}</td>
+        <td>{{linha[4]}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert-info">Nenhum usuário online no momento.</div>
+{% endif %}
+{% endblock %}
