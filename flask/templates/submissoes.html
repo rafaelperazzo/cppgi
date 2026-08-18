@@ -63,10 +63,22 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="id_projeto" value="{{linha[0]}}">
 
-                    <td>{{linha[0]}}</td>
+                    <td>
+                        {% if linha[11] %}
+                        <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo', filename=linha[11])}}" target="_blank">{{linha[0]}}</a>
+                        {% else %}
+                        {{linha[0]}}
+                        {% endif %}
+                    </td>
                     <td>{{linha[1]}}</td>
                     <td>{{linha[2]}}</td>
-                    <td>{{linha[5]}}</td>
+                    <td>
+                        {% if linha[11] %}
+                        <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo', filename=linha[11])}}" target="_blank">{{linha[5]}}</a>
+                        {% else %}
+                        {{linha[5]}}
+                        {% endif %}
+                    </td>
 
                     <td>
                         <select class="form-select editavel" name="modalidade">
@@ -83,7 +95,7 @@
                     </td>
 
                     <td>
-                        {% if linha[11] %}
+                        {% if linha[12] %}
                         <table class="text-xs w-full border-collapse">
                             <thead>
                                 <tr>
@@ -93,7 +105,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                            {% for av in linha[11] %}
+                            {% for av in linha[12] %}
                             {% if av.aceitou != 0 %}
                             <tr class="{% if av.recomendacao == 1 %}bg-green-100{% elif av.recomendacao == 0 %}bg-red-100{% else %}bg-yellow-100{% endif %}">
                                 <td class="px-1 py-0.5 border border-slate-200">
@@ -112,8 +124,8 @@
                             {% endfor %}
                             </tbody>
                         </table>
-                        {% set rec_sim = linha[11] | selectattr('recomendacao', 'equalto', 1) | list | length %}
-                        {% set rec_nao = linha[11] | selectattr('recomendacao', 'equalto', 0) | list | length %}
+                        {% set rec_sim = linha[12] | selectattr('recomendacao', 'equalto', 1) | list | length %}
+                        {% set rec_nao = linha[12] | selectattr('recomendacao', 'equalto', 0) | list | length %}
                         {% set diff = rec_sim - rec_nao %}
                         <a href="{{url_for('avaliacoesNegadas', edital=edital, id=linha[0])}}" class="btn-outline text-xs w-full mt-1 block text-center">+ Avaliador</a>
                         <div class="mt-1 px-1 py-0.5 text-sm font-semibold text-center
