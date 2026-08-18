@@ -37,6 +37,7 @@ import math
 import json
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 import time
 import sentry_sdk
 from functools import wraps
@@ -495,9 +496,9 @@ def upload_s3(origem,destino):
     try:
         s3.upload_file(origem, AWS_S3_BUCKET, destino)
         os.remove(origem)
-        app.logger.info("[S3] Upload de arquivo {} para o S3 concluído com sucesso.", origem)
+        app.logger.info("[S3] Upload de arquivo %s para o S3 concluído com sucesso.", origem)
     except (ClientError,FileNotFoundError) as e:
-        app.logger.error("[S3] Erro ao fazer upload ({}, {}) para o S3: {}", origem, destino, e)
+        app.logger.error("[S3] Erro ao fazer upload (%s, %s) para o S3: %s", origem, destino, e)
 
 def upload_e_apaga(arquivo):
     """
@@ -519,13 +520,13 @@ def esperar(arquivo):
         try:
             os.remove(arquivo)
         except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar({})):{}",arquivo,str(e))
+            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo,str(e))
     if os.path.exists(arquivo + '.gpg'):
         #remove file
         try:
             os.remove(arquivo + '.gpg')
         except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar({})):{}",arquivo + '.gpg',str(e))
+            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo + '.gpg',str(e))
 
 @app.route("/enviar_arquivo/<filename>", methods=['GET'])
 def enviar_arquivo(filename):
@@ -721,9 +722,8 @@ def cadastrarProjeto():
     idTrabalho = int(ultimo_id[0])
     nome_curto = obterColunaUnica('editais','nome_curto','id',str(destino))
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(destino))
-    email2 = REMETENTE
     texto_email = render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica)
-    msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email,email2],html=texto_email)
+    msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE DE SUBMISSÃO DE TRABALHO",recipients=[email],html=texto_email)
     t = threading.Thread(target=enviar_email,args=(msg,))
     t.start()
     return (render_template('confirmacao_submissao.html',email_proponente=email,id_projeto=idTrabalho,proponente=nome,titulo_projeto=titulo,resumo_projeto=resumo,tipo_apresentacao=tipo,evento=nome_longo,link=CPPGI_SITE + 'meusProjetos',orientador=orientador,ods=ods,vinculo=vinculo,categoria_trabalho=categoria_trabalho,tipo_trabalho=tipo_trabalho,grande_area=grande_area,acessibilidade=acessibilidade,descricao_acessibilidade=descricao_acessibilidade,lingua=lingua,subarea_cnpq=subarea_cnpq,area_cnpq=area_cnpq,unidade_academica=unidade_academica))
@@ -3464,6 +3464,7 @@ def listar_submissoes(edital):
         ep.categoria_trabalho,
         ep.area_cnpq,
         ep.lingua,
+        ep.arquivo_projeto,
         JSON_ARRAYAGG(
             JSON_OBJECT(
                 'id',            av.id,
