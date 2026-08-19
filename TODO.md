@@ -14,6 +14,10 @@
   - Adicionar botão de edição por linha de avaliação → rota `GET/POST /edicao_avaliacao/<id_avaliacao>` + template `edicaoAvaliacao.html`
   - Adicionar botão de remoção por linha de avaliação → rota `GET /remover_avaliacao_submissao/<id_avaliacao>/<edital>`
 
+## Configuração
+
+- [ ] Eliminar o uso do arquivo `senhas.pass` e colocar os valores de PASSWORD e SESSION_SECRET_KEY em `config.ini`.
+
 ## Testes
 
 - [x] Teste de submissão
