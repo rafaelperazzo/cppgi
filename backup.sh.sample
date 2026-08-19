@@ -1,1 +1,14 @@
-docker-compose exec db_cppgi bash -c "mysqldump -u root -p<SENHA> --add-drop-database --add-drop-table --databases cppgi > /share/db_cppgi.sql"
+#!/bin/bash
+export $(cat /home/admin/cppgi/app/.env | xargs)
+MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+cd /home/admin/cppgi
+date=$(/usr/bin/date '+%Y-%m-%dT%H.%M')
+echo "Dump do BD"
+mariadb-dump -u root -p$MYSQL_ROOT_PASSWORD --add-drop-database --add-drop-table --databases cppgi > /home/admin/cppgi/share/$date-cppgi.sql
+cd /home/admin/cppgi/share
+sed -i 's/\sDEFINER=`[^`]*`@`[^`]*`//g' $date-cppgi.sql
+echo "Gz"
+gzip /home/admin/cppgi/share/$date-cppgi.sql
+rm -f `ls -t *.gz | awk 'NR>21'`
+echo "Backup para proton/s3..." 
+aws s3 sync /home/admin/cppgi/share/ s3://rajardekalambur/cppgi/ --delete
