@@ -18,7 +18,7 @@
     {% endfor %}
     {% if editais %}
       <div class="mt-3 flex justify-center">
-        <a class="btn-primary" href="{{ url_for('submissao') }}">Submeter trabalho</a>
+        <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('submissao') }}">Submeter trabalho</a>
       </div>
     {% else %}
       <div class="alert-warning mt-3">
@@ -31,7 +31,7 @@
     <h5 class="text-base font-semibold text-slate-800">Minhas Submissões</h5>
     <p class="mt-1 text-sm text-slate-600">Consulte seus trabalhos enviados, certificados, avaliações, etc...</p>
     <div class="mt-3 flex justify-center">
-      <a class="btn-primary" href="{{ url_for('meusProjetos') }}">Meus trabalhos submetidos</a>
+      <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('meusProjetos') }}">Meus trabalhos submetidos</a>
     </div>
   </div>
 
@@ -40,9 +40,9 @@
     <p class="mt-1 text-sm text-slate-600">Recupere ou altere sua senha de acesso.</p>
     <div class="mt-3 flex flex-col items-center gap-2">
       {% if session.get('username') %}
-        <a class="btn-primary" href="{{ url_for('trocarSenha') }}">Trocar minha senha</a>
+        <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('trocarSenha') }}">Trocar minha senha</a>
       {% endif %}
-      <a class="btn-primary" href="{{ url_for('esqueciMinhaSenha') }}">Esqueci/Não sei minha senha</a>
+      <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('esqueciMinhaSenha') }}">Esqueci/Não sei minha senha</a>
     </div>
   </div>
 
@@ -51,7 +51,7 @@
     <p class="mt-1 text-sm text-slate-600">Consulte as salas, trabalhos e certificados de moderador de sessões</p>
     <div class="mt-3 flex flex-col items-center gap-2">
       {% for edital in editais %}
-        <a class="btn-primary" href="{{ url_for('avaliador', edital=edital[0]) }}">Moderador - {{ edital[1] }}</a>
+        <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('avaliador', edital=edital[0]) }}">Moderador - {{ edital[1] }}</a>
       {% else %}
         <div class="alert-warning">
           <b>Não existem editais abertos no momento.</b>
@@ -64,7 +64,7 @@
     <h5 class="text-base font-semibold text-slate-800">Gestor do Sistema</h5>
     <p class="mt-1 text-sm text-slate-600">Administre editais, avaliações, salas, datas, etc...</p>
     <div class="mt-3 flex justify-center">
-      <a class="btn-primary" href="{{ url_for('root') }}">Módulo Gestor</a>
+      <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('root') }}">Módulo Gestor</a>
     </div>
   </div>
 
@@ -72,7 +72,7 @@
     <h5 class="text-base font-semibold text-slate-800">Segurança</h5>
     <p class="mt-1 text-sm text-slate-600">Conheça os mecanismos de segurança da plataforma e da infraestrutura</p>
     <div class="mt-3 flex justify-center">
-      <a class="btn-primary" href="{{ url_for('seguranca') }}">Ver mecanismos de segurança</a>
+      <a class="btn-primary bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" href="{{ url_for('seguranca') }}">Ver mecanismos de segurança</a>
     </div>
   </div>
 </div>
