@@ -2070,9 +2070,9 @@ def processar_emails_versao_final(linhas,edital):
             if (arquivo=="0"):
                 texto_email = render_template('email_versao_final.html',evento=nome_edital,id=id_trabalho,titulo=titulo,cpf=cpf,email=email_autor,senha=senha,autores=autores,prazo=prazo,cppgi_site=CPPGI_SITE)
                 if PRODUCAO==1:
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=[str(linha[0])],reply_to=NAO_RESPONDA,html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",recipients=[str(linha[0])],reply_to=NAO_RESPONDA,html=texto_email)
                 else:
-                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",bcc=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
+                    msg = Message(subject = nome_edital + u"- SOLICITAÇÃO DE VERSÃO FINAL",recipients=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
                 try:
                     mail.send(msg)
                 except Exception as e:
@@ -2151,7 +2151,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
                 jaMandouVersaoFinal = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',edital)
                 if (jaMandouVersaoFinal=='0') or (jaMandouOlink=='0'):    
                     texto_email = render_template('email_data_local.html',evento=nome_edital,id=id_trabalho,titulo=titulo,email=email_autor,autores=autores,local=local,data=data,avaliadores=avaliadores,link=link,jaMandouOlink=jaMandouOlink,jaMandouVersaoFinal=jaMandouVersaoFinal)
-                    msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
+                    msg = Message(subject = nome_edital + u"- INFORMAÇÕES SOBRE A APRESENTAÇÃO",recipients=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
                     try:
                         if PRODUCAO==1:
                             mail.send(msg)
@@ -2221,9 +2221,9 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             except Exception as e:
                 logging.error("[render_template]Erro ao gerar o link da sala: " + str(e))
             if PRODUCAO==1:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",recipients=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
             else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",bcc=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
+                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A APRESENTAÇÃO",recipients=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -2281,8 +2281,8 @@ def emailPosEvento():
                 email_autor = str(linha[0])
                 texto_email = render_template('email_pos_evento.html',evento=nome_edital,nome_longo=nome_longo)
                 subject = "AGRADECIMENTOS"
-                msg = Message(subject = subject,bcc=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
-                #msg = Message(subject = subject,bcc=["rafaelperazzo@gmail.com"],reply_to=NAO_RESPONDA,html=texto_email)
+                msg = Message(subject = subject,recipients=[email_autor],reply_to=NAO_RESPONDA,html=texto_email)
+                #msg = Message(subject = subject,recipients=["rafaelperazzo@gmail.com"],reply_to=NAO_RESPONDA,html=texto_email)
                 try:
                     if PRODUCAO==1:
                         mail.send(msg)
@@ -3018,7 +3018,7 @@ def enviar_email_avaliadores():
         nome_longo = str(linha[12])
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
-            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",recipients=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
@@ -3175,7 +3175,7 @@ def enviarPedidoAvaliacao(id):
         nome_longo = obterColunaUnica('editais','nome','id',str(linha[9]))
         with app.app_context():
             texto_email = render_template('email_avaliador.html',nome_longo=nome_longo,titulo=titulo,resumo=resumo,link=link,link_recusa=link_recusa,deadline=deadline,modalidade=modalidade)
-            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",bcc=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
+            msg = Message(subject = u"CONVITE: AVALIAÇÃO DE TRABALHO CIENTÍFICO",recipients=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
