@@ -44,6 +44,7 @@ from functools import wraps
 from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
                               extrair_geolocalizacao_cloudflare, credencial_vazada,
                               mascarar_email, cpf_valido, email_valido, mascarar_cpf)
+from brseclabcripto.cripto3 import SecCripto
 
 #WORKING_DIR='/home/perazzo/cppgi/'
 WORKING_DIR=''
@@ -132,6 +133,10 @@ CERTIFICADOS_TEMPLATE_DIR = WORKING_DIR + 'documentos/'
 FONT_PATH = "/fonts/Times_New_Roman_Bold.ttf"
 LINK_AVALIACAO = ROOT_SITE + "/cppgi/avaliacao"
 DSN = config['DEFAULT']['DSN']
+AES_KEY = config['DEFAULT']['AES_KEY']
+ARGON2_KEY = config['DEFAULT']['ARGON2_KEY']
+
+cripto = SecCripto(AES_KEY)
 
 if PRODUCAO==1:
     sentry_sdk.init(
@@ -4071,9 +4076,9 @@ if __name__ == "__main__":
                     id='enviar_email_avaliadores',
                     func=job_enviar_email_avaliadores,
                     trigger='cron',
-                    day_of_week='mon,fri',
+                    day_of_week='fri',
                     hour=7,
-                    minute=0,
+                    minute=59,
                     timezone='America/Fortaleza',
                     end_date=deadline_avaliacao,
                 )
@@ -4086,9 +4091,9 @@ if __name__ == "__main__":
                 id='solicitar_versao_final',
                 func=job_solicitar_versao_final,
                 trigger='cron',
-                day_of_week='mon,fri',
-                hour=7,
-                minute=0,
+                day_of_week='mon',
+                hour=10,
+                minute=55,
                 timezone='America/Fortaleza',
                 start_date=inicio_versao_final,
                 end_date=deadline_versao_final_ultimo,
