@@ -16,7 +16,8 @@
 
 ## Configuração
 
-- [ ] Eliminar o uso do arquivo `senhas.pass` e colocar os valores de PASSWORD e SESSION_SECRET_KEY em `config.ini`.
+- [x] Eliminar o uso do arquivo `senhas.pass` e do `config.ini`, migrando toda a configuração (incluindo
+  PASSWORD/SESSION_SECRET_KEY) para `flask/.env`.
 
 ## Testes
 

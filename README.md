@@ -25,20 +25,14 @@ Construído em Flask (Python) com banco de dados MariaDB, executado via Docker C
 
    ```console
    cp docker-compose.yml.sample docker-compose.yml
-   cp flask/config.ini.sample flask/config.ini
+   cp flask/.env.sample flask/.env
    ```
 
-2. Crie `flask/senhas.pass` (não versionado) com 3 linhas, lidas em ordem por `pesquisa.py` e pelos scripts de
-   cron:
-
-   ```
-   <senha da aplicação>
-   <senha SMTP do Gmail>
-   <chave secreta de sessão do Flask>
-   ```
-
-3. Ajuste `flask/config.ini` (seção `[DEFAULT]`) com a URL do servidor, modo de produção (`producao = 0/1`) e,
-   se for usar upload para S3, as credenciais AWS.
+2. Ajuste `flask/.env` com a URL do servidor, modo de produção (`producao = 0/1`), credenciais do banco
+   (`database`, `usuario`, `senha`), `DB_PASSWORD` (senha do usuário `cppgi` no MariaDB), `GMAIL_SMTP_PASSWORD`
+   e, se for usar upload para S3, as credenciais AWS. A chave de sessão do Flask (`SECRET_KEY`) **não** vem
+   do `.env`: é gerada aleatoriamente a cada início do app (`secrets.token_hex(32)`), o que também derruba
+   sessões/CSRF ativos a cada restart — aceitável porque o host de produção reinicia diariamente (23h–7h).
 
 ## Executando o stack
 
@@ -60,7 +54,7 @@ docker-compose exec cppgi python -m pytest -vv -s /home/perazzo/cppgi/tests.py
 ```
 
 Os testes em `flask/tests.py` usam o cliente de testes real do Flask (`app.test_client()`) contra o banco MySQL
-configurado em `config.ini` — não há camada de mocking. As credenciais de Basic Auth vêm de
+configurado em `flask/.env` — não há camada de mocking. As credenciais de Basic Auth vêm de
 `config['DEFAULT']['usuario']`/`['senha']`. Veja `test.sh` para a invocação completa usada em CI/deploy (via
 Vault Agent).
 
@@ -76,7 +70,7 @@ flask/
   modules/            # helpers de apoio (funcoes.py, scoreLattes.py, odtEdit.py, etc.)
   templates/          # views Jinja2 (layout.html + páginas) e templates de certificado/e-mail (sem layout)
   static/             # CSS Tailwind compilado, bundle React legado, libs vendorizadas (chosen.js, tablefilter)
-  config.ini / senhas.pass  # configuração local (gitignored, ver acima)
+  .env                # configuração local (gitignored, ver acima; a partir de .env.sample)
 fonts/                # fontes usadas na geração de certificados (Times New Roman)
 share/                # dumps/snapshots do schema do banco
 share/migrations/     # scripts SQL incrementais (sem framework de migration; aplicar manualmente)
@@ -178,8 +172,9 @@ Scripts operacionais (não fazem parte do código da app, usados em deploy/cron 
 - `flask/cron` — crontab instalado dentro do container (limpeza de temporários, execução diária de
   `processar.py`, backup horário via `backup-mysql.sh`).
 - `pos_avaliacoes.sh` — etapa em lote pós-avaliação.
-- `vault.exec`/`cppgi.exec` — helpers do Vault Agent para gerar credenciais do banco em `.env` para o
-  docker-compose real (não necessários para desenvolvimento local).
+- `vault.exec`/`cppgi.exec` — helpers do Vault Agent para gerar credenciais do banco em um `.env` na raiz do
+  repo, consumido pelo `docker-compose` real (`MYSQL_PASSWORD`/`MYSQL_ROOT_PASSWORD`) — não confundir com
+  `flask/.env`, que é a configuração da aplicação (não necessário para desenvolvimento local).
 
 Demais arquivos `*.sample` (`backup.sh.sample`, `cicd.sh.sample`, `commit.sh.sample`, etc.) são modelos dos
 scripts reais (gitignored) — consulte o `.sample` correspondente para entender o que um script não versionado

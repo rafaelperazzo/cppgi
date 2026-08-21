@@ -26,7 +26,7 @@ from flask_apscheduler import APScheduler
 from flask_uploads import *
 from PIL import Image, ImageDraw, ImageFont
 import threading
-import iniconfig
+from dotenv import dotenv_values
 import base64
 import pyqrcode
 from flask_restful import Api
@@ -39,6 +39,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 import time
+import secrets
 import sentry_sdk
 from functools import wraps
 from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
@@ -48,7 +49,7 @@ from brseclabcripto.cripto3 import SecCripto
 
 #WORKING_DIR='/home/perazzo/cppgi/'
 WORKING_DIR=''
-config = iniconfig.IniConfig(WORKING_DIR + 'config.ini')
+config = {'DEFAULT': dotenv_values(WORKING_DIR + '.env')}
 SERVER_URL = config['DEFAULT']['server']
 
 try:
@@ -206,9 +207,10 @@ def log_required(f):
     return decorado
 
 #Obtendo senhas
-lines = [line.rstrip('\n') for line in open(WORKING_DIR + 'senhas.pass')]
-PASSWORD = lines[0]
-SESSION_SECRET_KEY = lines[2]
+PASSWORD = config['DEFAULT']['DB_PASSWORD']
+#Gerada aleatoriamente a cada start (por decisão explícita): a máquina de produção reinicia diariamente
+#(desliga às 23h, liga às 7h), então invalidar sessões/CSRF nesse restart diário é aceitável.
+SESSION_SECRET_KEY = secrets.token_hex(32)
 app.config['SECRET_KEY'] = SESSION_SECRET_KEY
 mail = Mail(app)
 
@@ -502,8 +504,14 @@ def upload_s3(origem,destino):
         s3.upload_file(origem, AWS_S3_BUCKET, destino)
         os.remove(origem)
         app.logger.info("[S3] Upload de arquivo %s para o S3 concluído com sucesso.", origem)
+        logger_auditoria.info(
+            'evento=upload_s3 origem=%s destino=%s bucket=%s status=sucesso',
+            origem, destino, AWS_S3_BUCKET)
     except (ClientError,FileNotFoundError) as e:
         app.logger.error("[S3] Erro ao fazer upload (%s, %s) para o S3: %s", origem, destino, e)
+        logger_auditoria.info(
+            'evento=upload_s3 origem=%s destino=%s bucket=%s status=falha erro=%s',
+            origem, destino, AWS_S3_BUCKET, e)
 
 def upload_e_apaga(arquivo):
     """
