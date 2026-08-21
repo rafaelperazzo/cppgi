@@ -24,6 +24,11 @@ services:
   cppgi:
     image: cppgi:latest
     build: .
+    environment:
+      # PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /pesquisa) em vez
+      # de flask/.env - requer credenciais AWS válidas para o container (IAM role/instance profile, não
+      # vem do .env). Sem essa variável (ou com PRODUCAO=0/ausente), a config vem de flask/.env normalmente.
+      - PRODUCAO=1
     volumes:
       - ./flask:/home/perazzo/cppgi
       - ./fonts:/fonts

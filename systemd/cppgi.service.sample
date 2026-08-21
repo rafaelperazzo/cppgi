@@ -1,6 +1,7 @@
 [Unit]
 Description=Sistema Flask Yoko-Eventos
-After=network.target
+After=network.target mariadb.service
+Requires=mariadb.service
 
 [Service]
 User=admin
@@ -8,10 +9,10 @@ Group=www-data
 WorkingDirectory=/home/admin/cppgi/flask
 Environment=GIT_PYTHON_REFRESH=quiet
 Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local/bin"
-# Limita as arenas de malloc do glibc: em processo multi-thread (waitress threads=2)
-# evita que memória liberada fique retida em arenas por-thread sem voltar ao SO.
-Environment="MALLOC_ARENA_MAX=2"
-ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python pesquisa.py
+PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /cppgi)
+# em vez de flask/.env - requer credenciais AWS no host (ver CLAUDE.md).
+Environment="PRODUCAO=1"
+ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python /home/admin/cppgi/flask/pesquisa.py
 Restart=on-failure
 RestartSec=5
 # VPS de 1GB total, com MariaDB na mesma máquina. Uso real medido via
