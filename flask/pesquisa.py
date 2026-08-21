@@ -98,6 +98,7 @@ except ValueError:
 
 if PRODUCAO==0:
     load_dotenv()
+    logger.info("[.env] Configuração carregada de flask/.env (PRODUCAO=0/ausente).")
 else:
     load_ssm_parameters()
 

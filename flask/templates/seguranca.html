@@ -147,4 +147,38 @@
     </tbody>
   </table>
 </div>
+
+<div class="alert-info mb-4 mt-6">
+  <h2 class="text-lg font-bold">3. Segredos e dados em repouso</h2>
+</div>
+
+<div class="card">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Recurso</th>
+        <th>O que faz</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Segredos da aplicação (AWS SSM)</td>
+        <td>
+          Em produção, a aplicação não mantém senhas, chaves e credenciais em arquivo local: elas são
+          buscadas no AWS SSM Parameter Store a cada início do processo, com decriptação em trânsito
+          (<code>WithDecryption</code>).
+        </td>
+      </tr>
+      <tr>
+        <td>Criptografia do banco de dados em repouso</td>
+        <td>
+          O banco de dados MariaDB é criptografado em repouso (tabelas, log de transações e arquivos
+          temporários). A chave de criptografia não é mantida em disco permanentemente: é obtida do AWS SSM
+          Parameter Store apenas no momento em que o banco é iniciado, e mantida somente em memória
+          enquanto o serviço está em execução.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 {% endblock %}

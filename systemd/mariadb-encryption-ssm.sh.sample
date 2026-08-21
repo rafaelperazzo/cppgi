@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Configura a criptografia at-rest do MariaDB (mariadb.service, nativo no host, não Docker) para
+# buscar a chave de criptografia no AWS SSM Parameter Store em vez de manter a chave em disco.
+#
+# A chave é resgatada do SSM (parâmetro /mariadb/encryption-key) e gravada em /run/mysql-encryption
+# (tmpfs) só no start do mariadb.service, via um override systemd (ExecStartPre); é apagada no stop
+# (ExecStopPost). Isso evita persistir a chave em disco no host.
+#
+# Executar uma vez na provisão do host (como root/sudo); requer AWS CLI configurado com permissão de
+# ssm:GetParameter (com WithDecryption) para /mariadb/encryption-key, e kms:Decrypt se o parâmetro for
+# SecureString.
+set -euo pipefail
+
+if [ "$EUID" -ne 0 ]; then
+  echo "Erro: Execute este script como root ou com sudo." >&2
+  exit 1
+fi
+
+echo "==> [1/4] Criando script de resgate (/usr/local/bin/fetch-mariadb-pass.sh)..."
+cat << 'INNER_EOF' > /usr/local/bin/fetch-mariadb-pass.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+RAM_DIR="/run/mysql-encryption"
+KEY_FILE="$RAM_DIR/keys.txt"
+SSM_PARAM="/mariadb/encryption-key"
+AWS_REGION="us-east-2"
+
+AWS_CLI="$(command -v aws || echo /usr/local/bin/aws)"
+
+export HOME=/root
+export AWS_DEFAULT_REGION="$AWS_REGION"
+
+mkdir -p "$RAM_DIR"
+chmod 700 "$RAM_DIR"
+chown mysql:mysql "$RAM_DIR"
+
+KEY_DATA=$("$AWS_CLI" ssm get-parameter \
+    --name "$SSM_PARAM" \
+    --with-decryption \
+    --region "$AWS_REGION" \
+    --query "Parameter.Value" \
+    --output text)
+
+printf "%s\n" "$KEY_DATA" > "$KEY_FILE"
+chmod 600 "$KEY_FILE"
+chown mysql:mysql "$KEY_FILE"
+INNER_EOF
+
+chmod +x /usr/local/bin/fetch-mariadb-pass.sh
+
+echo "==> [2/4] Configurando override do Systemd..."
+mkdir -p /etc/systemd/system/mariadb.service.d
+cat << 'INNER_EOF' > /etc/systemd/system/mariadb.service.d/override.conf
+[Unit]
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStartPre=+/usr/local/bin/fetch-mariadb-pass.sh
+ExecStopPost=+/bin/rm -rf /run/mysql-encryption
+INNER_EOF
+
+echo "==> [3/4] Configurando parâmetros de criptografia do MariaDB..."
+mkdir -p /etc/mysql/mariadb.conf.d
+cat << 'INNER_EOF' > /etc/mysql/mariadb.conf.d/60-encryption.cnf
+[mariadb]
+plugin_load_add = file_key_management
+file_key_management_filename = /run/mysql-encryption/keys.txt
+
+innodb_encrypt_tables = FORCE
+innodb_encrypt_log = ON
+innodb_encryption_threads = 4
+innodb_encryption_rotate_key_age = 1
+
+encrypt_tmp_disk_tables = ON
+encrypt_binlog = ON
+INNER_EOF
+
+echo "==> [4/4] Recarregando daemon e reiniciando o MariaDB..."
+systemctl daemon-reload
+systemctl restart mariadb
+
+echo "==> Concluído com sucesso! Verificando status..."
+systemctl status mariadb --no-pager

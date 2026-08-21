@@ -3,7 +3,8 @@
 Sistema de gerenciamento de eventos científicos / acadêmicos (submissão de trabalhos, avaliação por pares,
 distribuição em sessões/salas e geração de certificados) usado pela UFCA em eventos como o SEPEC/CONPESQ.
 
-Construído em Flask (Python) com banco de dados MariaDB, executado via Docker Compose.
+Construído em Flask (Python) com banco de dados MariaDB. Em desenvolvimento local roda via Docker Compose;
+em produção, app e banco rodam nativamente no host via systemd (ver seção "Deploy / produção").
 
 ## Stack
 
@@ -55,8 +56,7 @@ docker-compose exec cppgi python -m pytest -vv -s /home/perazzo/cppgi/tests.py
 
 Os testes em `flask/tests.py` usam o cliente de testes real do Flask (`app.test_client()`) contra o banco MySQL
 configurado em `flask/.env` — não há camada de mocking. As credenciais de Basic Auth vêm de
-`config['DEFAULT']['usuario']`/`['senha']`. Veja `test.sh` para a invocação completa usada em CI/deploy (via
-Vault Agent).
+`config['DEFAULT']['usuario']`/`['senha']`. Veja `test.sh` para a invocação exata.
 
 ## Estrutura do projeto
 
@@ -112,6 +112,13 @@ MariaDB 10.5.8, iniciado com `--sql_mode=""` (modo relaxado — atenção a prob
 aparecem localmente). Schema de referência em `share/2025-02-20T19.04-cppgi.sql`. `atualizar_db.sh` restaura um
 backup de produção no container local (**operação destrutiva** sobre os dados locais).
 
+Em produção, o MariaDB roda nativamente no host (não no container `db_cppgi`, que é só para dev local) e é
+**criptografado at-rest** (plugin `file_key_management`; tabelas InnoDB, log, binlog e temporários
+criptografados). A chave de criptografia não fica salva em disco permanentemente: é buscada no **AWS SSM
+Parameter Store** (`/mariadb/encryption-key`) só no momento em que o `mariadb.service` sobe, via um override
+systemd, e gravada num tmpfs (`/run/mysql-encryption/`) apagado no stop do serviço. Ver
+`systemd/mariadb-encryption-ssm.sh.sample` para o script de provisionamento completo.
+
 ## Autenticação e Segurança
 
 - **Autocadastro** (`/cadastro`): CPF, e-mail, nome completo e senha forte (mínimo 12 caracteres, com
@@ -156,25 +163,32 @@ backup de produção no container local (**operação destrutiva** sobre os dado
   via `seguranca_utils.mascarar_cpf`), rota, método HTTP, IP e país/cidade (headers Cloudflare) **só em
   log de arquivo** (`flask/auditoria.log`, logger dedicado com nível `INFO` independente do logger raiz —
   que fica em `ERROR` quando `PRODUCAO=1`), sem tabela no banco.
+- **Segredos em produção via AWS SSM**: em produção (`PRODUCAO=1` no ambiente do processo, setado no unit
+  systemd — distinto da chave `producao` dentro de `flask/.env`), `pesquisa.py` não lê `flask/.env`: busca
+  todos os segredos/config (senha do banco, credenciais AWS, chaves de criptografia da aplicação, etc.) no
+  **AWS SSM Parameter Store** (prefixo `/pesquisa`, `WithDecryption=True`), a cada start do processo. Fora
+  de produção, a config vem normalmente de `flask/.env`.
 - **`/seguranca`**: página pública (link no rodapé) que documenta, em dois blocos, os mecanismos de
   segurança de infraestrutura (Cloudflare) e de aplicação — ver `flask/templates/seguranca.html`.
 
 ## Deploy / produção
 
-Deploy automatizado via GitHub Actions (`.github/workflows/update.yml`): a cada push de uma tag `v*.*.*` na
-branch `master`, o workflow conecta via SSH ao host de produção, faz `git pull origin master --tags` e reinicia
-o serviço (`systemctl restart cppgi.service`).
+**Produção não usa Docker Compose** para o app nem para o MariaDB — ambos rodam nativamente no host EC2 via
+systemd (`systemd/cppgi.service.sample` e o `mariadb.service` do próprio SO). Deploy automatizado via GitHub
+Actions (`.github/workflows/update.yml`): a cada push de uma tag `v*.*.*` na branch `master`, o workflow
+conecta via SSH ao host de produção, faz `git pull origin master --tags` e reinicia o serviço
+(`systemctl restart cppgi.service`).
 
 Scripts operacionais (não fazem parte do código da app, usados em deploy/cron no host de produção):
 
-- `cron.sh`, `cron.avaliador.sh`, `cron.final.sh` — chamadas agendadas (curl/docker-compose run) por edital para
-  e-mails de avaliadores, lembretes de apresentação, etc.
+- `cron.sh`, `cron.avaliador.sh`, `cron.final.sh` — chamadas agendadas (curl) por edital para e-mails de
+  avaliadores, lembretes de apresentação, etc.
 - `flask/cron` — crontab instalado dentro do container (limpeza de temporários, execução diária de
   `processar.py`, backup horário via `backup-mysql.sh`).
 - `pos_avaliacoes.sh` — etapa em lote pós-avaliação.
-- `vault.exec`/`cppgi.exec` — helpers do Vault Agent para gerar credenciais do banco em um `.env` na raiz do
-  repo, consumido pelo `docker-compose` real (`MYSQL_PASSWORD`/`MYSQL_ROOT_PASSWORD`) — não confundir com
-  `flask/.env`, que é a configuração da aplicação (não necessário para desenvolvimento local).
+- `systemd/cppgi.service.sample` — unit real do app (`PRODUCAO=1`, ver "Autenticação e Segurança").
+  `systemd/mariadb-encryption-ssm.sh.sample` — provisionamento único da criptografia at-rest do MariaDB via
+  AWS SSM (ver "Banco de dados").
 
 Demais arquivos `*.sample` (`backup.sh.sample`, `cicd.sh.sample`, `commit.sh.sample`, etc.) são modelos dos
 scripts reais (gitignored) — consulte o `.sample` correspondente para entender o que um script não versionado

@@ -6,8 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CPPGI is a Flask-based event/research-management system (in Portuguese) used by UFCA for managing research
 project submissions, peer-review/evaluation workflows, presentation scheduling, and certificate generation for
-academic events (e.g. SEPEC/CONPESQ). It runs as a Docker Compose stack: a `cppgi` Flask app container + a
-`db_cppgi` MariaDB container.
+academic events (e.g. SEPEC/CONPESQ).
+
+**Local dev** runs as a Docker Compose stack: a `cppgi` Flask app container + a `db_cppgi` MariaDB container
+(see `docker-compose.yml.sample`). **Production is different**: both the app and MariaDB run natively on the
+EC2 host via systemd (`cppgi.service` running `python pesquisa.py` directly, and the host's own
+`mariadb.service`), not via `docker-compose` — see `systemd/*.sample`. Don't assume docker-compose commands
+apply to production; the deploy workflow (`.github/workflows/update.yml`) only does `git pull` +
+`systemctl restart cppgi.service`.
 
 ## Running the stack
 
@@ -34,9 +40,9 @@ docker-compose logs -f cppgi
   `os.environ`. SSM parameter names must match the `.env` key names exactly (case-sensitive, e.g.
   `/pesquisa/AWS_S3_BUCKET`, `/pesquisa/DB_PASSWORD`). If SSM lookup fails (`ClientError`/`BotoCoreError`),
   `load_ssm_parameters()` re-raises — startup fails hard in that case, by design (no silent fallback to
-  defaults). `docker-compose.yml.sample`'s `cppgi` service shows the `PRODUCAO=1` env var; without it (or
-  with `PRODUCAO=0`/unset) the app always uses `.env`, which is what local dev does today (no such var is
-  set in the local `docker-compose.yml`).
+  defaults). `PRODUCAO=1` is set in `systemd/cppgi.service.sample` (real production unit) — **not** in
+  `docker-compose.yml`/`.sample`, which is dev-only and always uses `.env` (no such var is set there;
+  setting it would make local dev try to hit AWS SSM and fail without credentials).
   This replaces the former `config.ini` + `senhas.pass` (3-line file: DB password, Gmail SMTP password,
   Flask session secret key) — DB password and Gmail SMTP password are now the `DB_PASSWORD`/
   `GMAIL_SMTP_PASSWORD` keys (in `.env` or under the SSM prefix). `app.config['SECRET_KEY']` (Flask
@@ -44,10 +50,6 @@ docker-compose logs -f cppgi
   `secrets.token_hex(32)` on every process start, from neither `.env` nor SSM (explicit product decision —
   the production host reboots daily at 23h/7h, so a daily session/CSRF invalidation on restart is
   acceptable; do not "fix" this back to a static key without checking with the user first).
-- `vault.exec` / `cppgi.exec` are Hashicorp Vault agent helpers used to template DB credentials into a
-  separate `.env` at the repo root (`MYSQL_PASSWORD`/`MYSQL_ROOT_PASSWORD`) for `docker-compose` itself in
-  the real deployment — not to be confused with `flask/.env` (the app's own config); not needed for local
-  dev unless integrating with Vault.
 
 ## Tests
 
@@ -55,7 +57,7 @@ docker-compose logs -f cppgi
 docker-compose exec cppgi python -m pytest -vv -s /home/perazzo/cppgi/tests.py
 ```
 
-(see `test.sh` for the full Vault-agent-driven invocation used in CI/deploy). Tests in `flask/tests.py` hit a real
+(see `test.sh` for the exact invocation). Tests in `flask/tests.py` hit a real
 running Flask test client (`app.test_client()`) against the real MySQL database configured in `flask/.env` —
 there's no mocking layer. HTTP Basic Auth credentials for tests come from `config['DEFAULT']['usuario']` /
 `['senha']` in `flask/.env`.
@@ -151,10 +153,22 @@ and emails (`/gerarCertificadoAvaliador`, `/certificadoApresentacoes`, `/enviarC
 
 ## Database
 
-MariaDB 10.5.8, started with `--sql_mode=""` (relaxed SQL mode — be aware when writing new queries, strict-mode
-issues won't surface locally). Schema snapshot for reference is at `share/2025-02-20T19.04-cppgi.sql`. Backups are
-pulled from the production server via `atualizar_db.sh` (restores into the local `db_cppgi` container — this is a
-destructive operation against local data, confirm before running).
+MariaDB 10.5.8 locally (local `db_cppgi` container, started with `--sql_mode=""` — relaxed SQL mode, be aware
+when writing new queries since strict-mode issues won't surface locally). Schema snapshot for reference is at
+`share/2025-02-20T19.04-cppgi.sql`. Backups are pulled from the production server via `atualizar_db.sh`
+(restores into the local `db_cppgi` container — this is a destructive operation against local data, confirm
+before running).
+
+**Production MariaDB is encrypted at rest** (`file_key_management` plugin: `innodb_encrypt_tables = FORCE`,
+`innodb_encrypt_log`, `encrypt_binlog`, etc. — see `systemd/mariadb-encryption-ssm.sh.sample`). The encryption
+key itself is **not** stored on disk long-term: it lives in an AWS SSM Parameter Store parameter
+(`/mariadb/encryption-key`, `SecureString`) and is fetched only at `mariadb.service` start, via a systemd
+override (`ExecStartPre=+/usr/local/bin/fetch-mariadb-pass.sh`) that writes it to `/run/mysql-encryption/`
+(tmpfs — RAM-backed, not persisted to disk) and wipes it on stop (`ExecStopPost`). Requires an IAM
+role/credential on the host with `ssm:GetParameter`(`WithDecryption`) + `kms:Decrypt` for that parameter. An
+earlier HashiCorp-Vault-based approach (`hashicorp_key_management` plugin) was tried and abandoned — don't
+resurrect it from old commit history without checking with the user; the SSM-based systemd script is the
+current source of truth.
 
 ## Operational scripts (not part of app code, used for deploys/cron on the prod host)
 
@@ -163,6 +177,9 @@ destructive operation against local data, confirm before running).
 - `flask/cron` — crontab installed inside the app container (cleanup of temp files, daily `processar.py` runs,
   hourly `backup-mysql.sh`).
 - `pos_avaliacoes.sh` — post-evaluation batch step.
+- `systemd/cppgi.service.sample` — the real production unit for the Flask app (sets `PRODUCAO=1`, see
+  above); `systemd/mariadb-encryption-ssm.sh.sample` — one-time EC2 provisioning script for MariaDB's
+  SSM-backed encryption-at-rest key (see "Database" above).
 - `*.sample` files (`docker-compose.yml.sample`, `backup.sh.sample`, `cicd.sh.sample`, `commit.sh.sample`, etc.) are
   templates for the real (gitignored) deployment scripts — check the corresponding `.sample` to understand what an
   untracked script does.
