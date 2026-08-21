@@ -31,8 +31,10 @@ em produção, app e banco rodam nativamente no host via systemd (ver seção "D
 
 2. Ajuste `flask/.env` com a URL do servidor, modo de produção (`producao = 0/1`), credenciais do banco
    (`database`, `usuario`, `senha`), `DB_PASSWORD` (senha do usuário `cppgi` no MariaDB), `GMAIL_SMTP_PASSWORD`
-   e, se for usar upload para S3, as credenciais AWS. A chave de sessão do Flask (`SECRET_KEY`) **não** vem
-   do `.env`: é gerada aleatoriamente a cada início do app (`secrets.token_hex(32)`), o que também derruba
+   e `AWS_S3_KEY_ID`/`AWS_S3_SECRET_KEY` para upload no S3 — **necessárias em dev local** (a máquina não tem
+   IAM role). Em produção (EC2), deixe essas duas em branco: o boto3 usa a IAM role da instância
+   automaticamente; setá-las explicitamente (mesmo vazias) quebraria isso. A chave de sessão do Flask
+   (`SECRET_KEY`) **não** vem do `.env`: é gerada aleatoriamente a cada início do app (`secrets.token_hex(32)`), o que também derruba
    sessões/CSRF ativos a cada restart — aceitável porque o host de produção reinicia diariamente (23h–7h).
 
 ## Executando o stack

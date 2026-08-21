@@ -50,6 +50,12 @@ docker-compose logs -f cppgi
   `secrets.token_hex(32)` on every process start, from neither `.env` nor SSM (explicit product decision —
   the production host reboots daily at 23h/7h, so a daily session/CSRF invalidation on restart is
   acceptable; do not "fix" this back to a static key without checking with the user first).
+  `AWS_S3_KEY_ID`/`AWS_S3_SECRET_KEY` are **intentionally absent in production**: the `boto3.client('s3', ...)`
+  construction only passes them as kwargs when both are non-empty (`if AWS_S3_KEY_ID and AWS_S3_SECRET_KEY`),
+  so on the EC2 host boto3 falls through to its default credential chain and picks up the instance's IAM
+  role instead. They're only needed in local dev (`.env`), which has no IAM role. Don't "fix" this by
+  always passing them — an empty string is a valid (wrong) credential to boto3, not "unset", and would
+  break S3 auth in production instead of falling back to the instance role.
 
 ## Tests
 
