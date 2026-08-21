@@ -164,10 +164,17 @@ try:
 except:
     NAO_RESPONDA = "NAO-RESPONDA@ufca.edu.br"
 
+#Em produção (EC2), AWS_S3_KEY_ID/AWS_S3_SECRET_KEY não são configurados de propósito: o acesso ao S3 vem
+#da IAM role da instância. Passar credenciais explícitas vazias pro boto3 quebraria essa role (ele tentaria
+#autenticar com chave/segredo em branco em vez de cair no credential chain padrão) - só passamos as chaves
+#quando ambas estão presentes (uso local/dev, fora da AWS).
+_s3_credenciais = {}
+if AWS_S3_KEY_ID and AWS_S3_SECRET_KEY:
+    _s3_credenciais = {'aws_access_key_id': AWS_S3_KEY_ID, 'aws_secret_access_key': AWS_S3_SECRET_KEY}
+
 s3 = boto3.client('s3', region_name=AWS_REGION,
-                  aws_access_key_id=AWS_S3_KEY_ID,
-                  aws_secret_access_key=AWS_S3_SECRET_KEY,
-                  config=Config(use_dualstack_endpoint=True))
+                  config=Config(use_dualstack_endpoint=True),
+                  **_s3_credenciais)
 
 
 
