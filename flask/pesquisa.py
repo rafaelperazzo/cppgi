@@ -26,7 +26,7 @@ from flask_apscheduler import APScheduler
 from flask_uploads import *
 from PIL import Image, ImageDraw, ImageFont
 import threading
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 import base64
 import pyqrcode
 from flask_restful import Api
@@ -37,7 +37,7 @@ import math
 import json
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError,BotoCoreError
 import time
 import secrets
 import sentry_sdk
@@ -47,9 +47,63 @@ from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
                               mascarar_email, cpf_valido, email_valido, mascarar_cpf)
 from brseclabcripto.cripto3 import SecCripto
 
+#Logger de bootstrap do carregamento de configuração (SSM/.env) - precisa de handler próprio porque roda
+#antes de logging.basicConfig() (configurado bem mais abaixo; uma 2ª chamada a basicConfig() é ignorada)
+logger = logging.getLogger('config_bootstrap')
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _handler_bootstrap = logging.StreamHandler()
+    _handler_bootstrap.setFormatter(logging.Formatter('%(asctime)s %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(_handler_bootstrap)
+logger.propagate = False
+
+def load_ssm_parameters(prefix="/cppgi", region_name="us-east-2"):
+    """
+    Busca todos os parâmetros sob o prefixo especificado no AWS SSM
+    e os injeta no os.environ, registrando as ações via logger.
+    """
+    try:
+        ssm = boto3.client("ssm", region_name=region_name)
+        paginator = ssm.get_paginator("get_parameters_by_path")
+
+        # Pagina sobre os resultados caso haja mais de 10 parâmetros
+        pages = paginator.paginate(
+            Path=prefix,
+            Recursive=True,
+            WithDecryption=True
+        )
+
+        loaded_count = 0
+        for page in pages:
+            for param in page.get("Parameters", []):
+                # Extrai apenas o nome final da chave (ex: '/pesquisa/DB_HOST' -> 'DB_HOST')
+                key = param["Name"].rstrip("/").split("/")[-1]
+                value = param["Value"]
+
+                # Injeta na variável de ambiente do processo
+                os.environ[key] = value
+                loaded_count += 1
+
+        logger.info(f"[SSM] {loaded_count} parâmetros carregados com sucesso do prefixo '{prefix}'.")
+
+    except (BotoCoreError, ClientError) as e:
+        logger.error(f"[SSM ERRO] Falha ao carregar parâmetros do SSM: {e}")
+        # Opcional: descomente se desejar interromper a inicialização em caso de falha crítica
+        raise e
+
+try:
+    PRODUCAO = int(os.getenv("PRODUCAO", "0"))
+except ValueError:
+    PRODUCAO = 0
+
+if PRODUCAO==0:
+    load_dotenv()
+else:
+    load_ssm_parameters()
+
 #WORKING_DIR='/home/perazzo/cppgi/'
 WORKING_DIR=''
-config = {'DEFAULT': dotenv_values(WORKING_DIR + '.env')}
+config = {'DEFAULT': os.environ}
 SERVER_URL = config['DEFAULT']['server']
 
 try:

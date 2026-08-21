@@ -22,15 +22,28 @@ docker-compose logs -f cppgi
   changes).
 - The app entrypoint is `flask/pesquisa.py`, served via `waitress` on port 80 inside the container, mounted under
   the `/cppgi` URL prefix.
-- Local runtime config lives in `flask/.env` (gitignored; copy from `flask/.env.sample`), loaded via
-  `dotenv_values()` into a `config` dict that mimics the old `config['DEFAULT']['CHAVE']` access pattern.
-  It replaces the former `config.ini` + `senhas.pass` (3-line file: DB password, Gmail SMTP password,
+- Local runtime config lives in `flask/.env` (gitignored; copy from `flask/.env.sample`). At the top of
+  `pesquisa.py`, right after the imports, a bootstrap step decides where config comes from: if the real
+  container/process environment variable `PRODUCAO` (uppercase, distinct from the `producao` key inside
+  `.env`) is `1`, it calls `load_ssm_parameters()` (walks all AWS SSM Parameter Store params under
+  `/pesquisa`, `WithDecryption=True`, and injects them into `os.environ`, one AWS API call per env — needs
+  IAM credentials on the container, e.g. instance profile/role, not sourced from `.env`); otherwise it calls
+  `load_dotenv()` (loads `flask/.env` into `os.environ`). Either way, `config = {'DEFAULT': os.environ}`
+  right after, so every existing `config['DEFAULT']['CHAVE']` access site (~20 of them, plus `tests.py`,
+  which imports `config` from `pesquisa`) keeps working unchanged, reading whichever source populated
+  `os.environ`. SSM parameter names must match the `.env` key names exactly (case-sensitive, e.g.
+  `/pesquisa/AWS_S3_BUCKET`, `/pesquisa/DB_PASSWORD`). If SSM lookup fails (`ClientError`/`BotoCoreError`),
+  `load_ssm_parameters()` re-raises — startup fails hard in that case, by design (no silent fallback to
+  defaults). `docker-compose.yml.sample`'s `cppgi` service shows the `PRODUCAO=1` env var; without it (or
+  with `PRODUCAO=0`/unset) the app always uses `.env`, which is what local dev does today (no such var is
+  set in the local `docker-compose.yml`).
+  This replaces the former `config.ini` + `senhas.pass` (3-line file: DB password, Gmail SMTP password,
   Flask session secret key) — DB password and Gmail SMTP password are now the `DB_PASSWORD`/
-  `GMAIL_SMTP_PASSWORD` keys in `flask/.env`. `app.config['SECRET_KEY']` (Flask session/CSRF signing key,
-  formerly the 3rd line of `senhas.pass`) is instead regenerated with `secrets.token_hex(32)` on every
-  process start (explicit product decision — the production host reboots daily at 23h/7h, so a daily
-  session/CSRF invalidation on restart is acceptable; do not "fix" this back to a static key without
-  checking with the user first).
+  `GMAIL_SMTP_PASSWORD` keys (in `.env` or under the SSM prefix). `app.config['SECRET_KEY']` (Flask
+  session/CSRF signing key, formerly the 3rd line of `senhas.pass`) is instead regenerated with
+  `secrets.token_hex(32)` on every process start, from neither `.env` nor SSM (explicit product decision —
+  the production host reboots daily at 23h/7h, so a daily session/CSRF invalidation on restart is
+  acceptable; do not "fix" this back to a static key without checking with the user first).
 - `vault.exec` / `cppgi.exec` are Hashicorp Vault agent helpers used to template DB credentials into a
   separate `.env` at the repo root (`MYSQL_PASSWORD`/`MYSQL_ROOT_PASSWORD`) for `docker-compose` itself in
   the real deployment — not to be confused with `flask/.env` (the app's own config); not needed for local
