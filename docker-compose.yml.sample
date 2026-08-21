@@ -1,10 +1,15 @@
 services:
   db_cppgi:
+     # Uso local/dev apenas - em produção o MariaDB roda nativamente no host via systemd
+     # (mariadb.service), não neste container. Ver systemd/*.sample para a criptografia at-rest
+     # (chave via AWS SSM) usada em produção.
      image: mariadb:11
-     build: ./mariadb
      restart: no
      command: mariadbd --sql_mode=""
      environment:
+       # ${MYSQL_ROOT_PASSWORD}/${MYSQL_PASSWORD} vêm de um .env na raiz do repo (convenção nativa do
+       # docker-compose, ver https://docs.docker.com/compose/environment-variables/) - crie um localmente,
+       # não é gerado por nenhuma ferramenta externa.
        MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
        MYSQL_DATABASE: cppgi
        MYSQL_USER: cppgi
@@ -15,20 +20,15 @@ services:
      volumes:
        - mariadb-cppgi:/var/lib/mysql
        - ./share:/share
-       #- ./encryption:/etc/mysql/encryption
-       - ./conf:/etc/mysql/conf.d:ro
-       #- ./plain:/etc/mysql/password
      networks:
-       - web  
+       - web
 
   cppgi:
+    # Só para dev local - em produção este serviço não roda via docker-compose, e sim nativamente via
+    # systemd (systemd/cppgi.service.sample, que é onde PRODUCAO=1 é setado de verdade). Não descomente
+    # PRODUCAO=1 aqui: faria o dev local tentar buscar config no AWS SSM em vez de flask/.env.
     image: cppgi:latest
     build: .
-    environment:
-      # PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /pesquisa) em vez
-      # de flask/.env - requer credenciais AWS válidas para o container (IAM role/instance profile, não
-      # vem do .env). Sem essa variável (ou com PRODUCAO=0/ausente), a config vem de flask/.env normalmente.
-      - PRODUCAO=1
     volumes:
       - ./flask:/home/perazzo/cppgi
       - ./fonts:/fonts
