@@ -22,11 +22,19 @@ docker-compose logs -f cppgi
   changes).
 - The app entrypoint is `flask/pesquisa.py`, served via `waitress` on port 80 inside the container, mounted under
   the `/cppgi` URL prefix.
-- Local runtime config lives in `flask/config.ini` (gitignored; copy from `config.ini.sample`) and
-  `flask/senhas.pass` (gitignored, not present in sample form — a 3-line file: app password, Gmail SMTP password,
-  Flask session secret key, read line-by-line by `pesquisa.py` and the cron scripts).
-- `vault.exec` / `cppgi.exec` are Hashicorp Vault agent helpers used to template DB credentials into `.env` for
-  docker-compose in the real deployment; not needed for local dev unless integrating with Vault.
+- Local runtime config lives in `flask/.env` (gitignored; copy from `flask/.env.sample`), loaded via
+  `dotenv_values()` into a `config` dict that mimics the old `config['DEFAULT']['CHAVE']` access pattern.
+  It replaces the former `config.ini` + `senhas.pass` (3-line file: DB password, Gmail SMTP password,
+  Flask session secret key) — DB password and Gmail SMTP password are now the `DB_PASSWORD`/
+  `GMAIL_SMTP_PASSWORD` keys in `flask/.env`. `app.config['SECRET_KEY']` (Flask session/CSRF signing key,
+  formerly the 3rd line of `senhas.pass`) is instead regenerated with `secrets.token_hex(32)` on every
+  process start (explicit product decision — the production host reboots daily at 23h/7h, so a daily
+  session/CSRF invalidation on restart is acceptable; do not "fix" this back to a static key without
+  checking with the user first).
+- `vault.exec` / `cppgi.exec` are Hashicorp Vault agent helpers used to template DB credentials into a
+  separate `.env` at the repo root (`MYSQL_PASSWORD`/`MYSQL_ROOT_PASSWORD`) for `docker-compose` itself in
+  the real deployment — not to be confused with `flask/.env` (the app's own config); not needed for local
+  dev unless integrating with Vault.
 
 ## Tests
 
@@ -35,9 +43,9 @@ docker-compose exec cppgi python -m pytest -vv -s /home/perazzo/cppgi/tests.py
 ```
 
 (see `test.sh` for the full Vault-agent-driven invocation used in CI/deploy). Tests in `flask/tests.py` hit a real
-running Flask test client (`app.test_client()`) against the real MySQL database configured in `config.ini` —
+running Flask test client (`app.test_client()`) against the real MySQL database configured in `flask/.env` —
 there's no mocking layer. HTTP Basic Auth credentials for tests come from `config['DEFAULT']['usuario']` /
-`['senha']` in `config.ini`.
+`['senha']` in `flask/.env`.
 
 `flask/teste.py` is an ad hoc manual scratch script, not part of the pytest suite.
 
@@ -50,8 +58,8 @@ state/helpers directly from it (`from pesquisa import executarSelect, ...`). Whe
 `pesquisa.py` first; it is the source of truth for routing, auth, and most business logic.
 
 Key pieces inside `pesquisa.py`:
-- App/config setup at the top: working dirs, `config.ini` loading, Flask-Mail, Flask-Uploads, CSRF, CORS, logging
-  (level depends on `producao` flag in `config.ini`).
+- App/config setup at the top: working dirs, `.env` loading (via `dotenv_values`), Flask-Mail, Flask-Uploads,
+  CSRF, CORS, logging (level depends on `producao` flag in `.env`).
 - `executarSelect` / `executarSelect2` / `atualizar` / `inserir`: thin raw-SQL helpers over `MySQLdb` — almost all
   DB access in this codebase is hand-written SQL via these helpers, not an ORM.
 - `flask_httpauth.HTTPBasicAuth` (`auth`) with `get_user_roles` driving `@auth.login_required(role=[...])` checks
@@ -89,8 +97,8 @@ Key pieces inside `pesquisa.py`:
 - `processar.py` — standalone script (run via cron, not a route) for emailing evaluators (invite/reminder/thanks)
   for a given `edital`, keyed by CLI args.
 - `auditoria.py`, `atualizar_email.py`, `atualizar_tokens.py`, `calcular_lattes.py` — standalone maintenance
-  scripts (user provisioning/audits, Lattes-CV scoring) run manually or via cron, each re-reading
-  `senhas.pass`/`config.ini` independently rather than sharing app state.
+  scripts (user provisioning/audits, Lattes-CV scoring) run manually or via cron, each re-reading `.env`
+  independently rather than sharing app state.
 
 **Templates & static assets**: `flask/templates/` (Jinja2, named after routes/concepts, e.g.
 `certificado_avaliador.html`, `avaliacao.html`) and `flask/static/` (a built React app's static bundle alongside
