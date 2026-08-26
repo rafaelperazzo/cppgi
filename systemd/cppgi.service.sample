@@ -12,9 +12,6 @@ Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local
 # PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /cppgi)
 # em vez de flask/.env - requer credenciais AWS no host (ver CLAUDE.md).
 Environment="PRODUCAO=1"
-Environment="AWS_DEFAULT_REGION=us-east-2"
-Environment="AWS_CONFIG_FILE=/home/admin/.aws/config"
-Environment="AWS_USE_DUALSTACK_ENDPOINT=true"
 ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python /home/admin/cppgi/flask/pesquisa.py
 Restart=on-failure
 RestartSec=5
