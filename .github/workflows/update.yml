@@ -32,13 +32,16 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy cppgi via GitHub Actions" \
             --parameters commands='[
-              "git config --system --add safe.directory /home/admin/cppgi",
-              "cd /home/admin/cppgi",
+              "git config --system --add safe.directory /opt/cppgi",
+              "cd /opt/cppgi",
               "git checkout master",
               "git pull origin master --tags",
-              "sudo chown -R admin:pesquisa /home/admin/cppgi",
-              "sudo chmod -R u=rwX,g=rwX,o= /home/admin/cppgi",
-              "sudo systemctl restart cppgi.service"
+              "sudo systemctl stop cppgi.service",
+              "sudo chown -R admin:pesquisa /opt/cppgi",
+              "sudo chmod -R u=rwX,g=rX,o= /opt/cppgi",
+              "sudo chmod -R g+w /opt/cppgi/flask/uploads /opt/cppgi/flask/pdfs /opt/cppgi/flask/certificados /opt/cppgi/flask/documentos",
+              "sudo chmod g+w /opt/cppgi/flask/app.log /opt/cppgi/flask/auditoria.log || true",
+              "sudo systemctl start cppgi.service"
             ]' \
             --query "Command.CommandId" \
             --output text)
