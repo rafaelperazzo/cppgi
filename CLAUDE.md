@@ -12,8 +12,21 @@ academic events (e.g. SEPEC/CONPESQ).
 (see `docker-compose.yml.sample`). **Production is different**: both the app and MariaDB run natively on the
 EC2 host via systemd (`cppgi.service` running `python pesquisa.py` directly, and the host's own
 `mariadb.service`), not via `docker-compose` — see `systemd/*.sample`. Don't assume docker-compose commands
-apply to production; the deploy workflow (`.github/workflows/update.yml`) only does `git pull` +
-`systemctl restart cppgi.service`.
+apply to production; the deploy workflow (`.github/workflows/update.yml`) does `git pull`, then
+`systemctl stop cppgi.service` *before* reapplying ownership/permissions, and `systemctl start
+cppgi.service` only after — the service is stopped for the whole chown/chmod sequence (not a `restart`
+issued afterwards) so the old process can't be caught mid-write during the brief window where the
+group's write access is stripped and then selectively restored. The permission step is
+`chown -R admin:pesquisa` (owner `admin` full control, group `pesquisa` — the user `cppgi.service` runs
+as, see `systemd/cppgi.service.sample`) followed by `chmod -R u=rwX,g=rX,o=` as a restrictive baseline
+(group gets read/traverse only, no write), then `g+w` is re-added only on the exact paths the app writes
+to at runtime — `flask/uploads`, `flask/pdfs`, `flask/certificados`, `flask/documentos`,
+`flask/app.log`, `flask/auditoria.log` (the last two tolerate not existing yet, via `|| true`). These
+paths intentionally mirror `ReadWritePaths` in `cppgi.service.sample`'s `ProtectSystem=strict` sandbox —
+filesystem permissions and the systemd sandbox enforce the same write boundary in two layers. If you add
+a new runtime-writable path to the app, update both the workflow's `chmod g+w` list and
+`ReadWritePaths` together, or writes will fail in production despite working in local dev (which has no
+such restriction).
 
 ## Running the stack
 

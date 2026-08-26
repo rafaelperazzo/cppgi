@@ -1,14 +1,55 @@
 #!/bin/bash
-export $(cat /home/admin/cppgi/app/.env | xargs)
-MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-cd /home/admin/cppgi
-date=$(/usr/bin/date '+%Y-%m-%dT%H.%M')
-echo "Dump do BD"
-mariadb-dump -u root -p$MYSQL_ROOT_PASSWORD --add-drop-database --add-drop-table --databases cppgi > /home/admin/cppgi/share/$date-cppgi.sql
-cd /home/admin/cppgi/share
-sed -i 's/\sDEFINER=`[^`]*`@`[^`]*`//g' $date-cppgi.sql
-echo "Gz"
-gzip /home/admin/cppgi/share/$date-cppgi.sql
-rm -f `ls -t *.gz | awk 'NR>21'`
-echo "Backup para proton/s3..." 
-aws s3 sync /home/admin/cppgi/share/ s3://rajardekalambur/cppgi/ --delete
+set -eo pipefail
+
+# --- Configura    es e Vari  veis ---
+BASE_DIR="/opt/cppgi"
+SHARE_DIR="${BASE_DIR}/share"
+DB_NAME="cppgi"
+DB_USER="backup"
+DB_HOST="localhost"
+AWS_REGION="us-east-2"
+S3_BUCKET="s3://rajardekalambur/cppgi_backup/"
+
+# Par  metro SSM com a senha do usu  rio backup
+SSM_PARAM_DB_PASS="/pesquisa/MYSQL_BACKUP_PASSWORD"
+
+TIMESTAMP=$(/usr/bin/date '+%Y-%m-%dT%H.%M')
+OUTPUT_FILE="${SHARE_DIR}/${TIMESTAMP}-cppgi.sql.gz"
+
+mkdir -p "$SHARE_DIR"
+
+# --- Obter Senha do AWS SSM ---
+echo "Recuperando senha do AWS SSM (Regi  o: ${AWS_REGION})..."
+export MYSQL_PWD=$(aws ssm get-parameter \
+  --name "$SSM_PARAM_DB_PASS" \
+  --region "$AWS_REGION" \
+  --with-decryption \
+  --query "Parameter.Value" \
+  --output text)
+
+# --- Dump, Limpeza de DEFINER e Compress  o Gzip em Fluxo ---
+echo "Executando Dump do banco '${DB_NAME}' com usu  rio '${DB_USER}'..."
+
+mariadb-dump -h "$DB_HOST" -u "$DB_USER" \
+  --single-transaction \
+  --no-tablespaces \
+  --add-drop-table \
+  --quick \
+  "$DB_NAME" \
+  | sed -E 's/\sDEFINER=`[^`]*`@`[^`]*`//g' \
+  | gzip -c > "$OUTPUT_FILE"
+
+# Limpa a senha da mem  ria do shell
+unset MYSQL_PWD
+
+# --- Rota    o de Backups Locais (Mant  m os 21 mais recentes) ---
+echo "Limpando backups locais antigos..."
+cd "$SHARE_DIR"
+ls -1t *-cppgi.sql.gz 2>/dev/null | tail -n +22 | xargs -r rm -f
+
+# --- Sincroniza    o com AWS S3 ---
+echo "Sincronizando com S3..."
+aws s3 sync "$SHARE_DIR/" "$S3_BUCKET" --region "$AWS_REGION" --delete --exclude "*" --include "*.gz"
+
+echo "Backup do cppgi conclu  do com sucesso: ${OUTPUT_FILE}"
+

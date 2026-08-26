@@ -6,13 +6,13 @@ Requires=mariadb.service pesquisa.service
 [Service]
 User=pesquisa
 UMask=0002
-WorkingDirectory=/home/admin/cppgi/flask
+WorkingDirectory=/opt/cppgi/flask
 Environment=GIT_PYTHON_REFRESH=quiet
 Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local/bin"
 # PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /cppgi)
 # em vez de flask/.env - requer credenciais AWS no host (ver CLAUDE.md).
 Environment="PRODUCAO=1"
-ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python /home/admin/cppgi/flask/pesquisa.py
+ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python /opt/cppgi/flask/pesquisa.py
 Restart=on-failure
 RestartSec=5
 
@@ -37,7 +37,7 @@ MemoryMax=300M
 # árvore do repo (código, venv em moduloPesquisaPRPI, etc.) fica só leitura.
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/admin/cppgi/flask/uploads /home/admin/cppgi/flask/pdfs /home/admin/cppgi/flask/certificados /home/admin/cppgi/flask/documentos -/home/admin/cppgi/flask/app.log -/home/admin/cppgi/flask/auditoria.log /tmp /var/tmp
+ReadWritePaths=/opt/cppgi/flask/uploads /opt/cppgi/flask/pdfs /opt/cppgi/flask/certificados /opt/cppgi/flask/documentos -/opt/cppgi/flask/app.log -/opt/cppgi/flask/auditoria.log /tmp /var/tmp
 PrivateTmp=true
 NoNewPrivileges=true
 ProtectKernelTunables=true
