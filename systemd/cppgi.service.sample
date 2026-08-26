@@ -5,7 +5,7 @@ Requires=mariadb.service pesquisa.service
 
 [Service]
 User=pesquisa
-UMask=0002
+UMask=0007
 WorkingDirectory=/opt/cppgi/flask
 Environment=GIT_PYTHON_REFRESH=quiet
 Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local/bin"
