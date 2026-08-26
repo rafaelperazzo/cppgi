@@ -1,20 +1,25 @@
 [Unit]
 Description=Sistema Flask Yoko-Eventos
-After=network.target mariadb.service
-Requires=mariadb.service
+After=network.target mariadb.service pesquisa.service
+Requires=mariadb.service pesquisa.service
 
 [Service]
-User=admin
-Group=www-data
+User=pesquisa
+UMask=0002
 WorkingDirectory=/home/admin/cppgi/flask
 Environment=GIT_PYTHON_REFRESH=quiet
 Environment="PATH=/home/admin/moduloPesquisaPRPI/app/env/bin:/usr/bin:/usr/local/bin"
-PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /cppgi)
+# PRODUCAO=1 faz pesquisa.py carregar a config do AWS SSM Parameter Store (prefixo /cppgi)
 # em vez de flask/.env - requer credenciais AWS no host (ver CLAUDE.md).
 Environment="PRODUCAO=1"
+Environment="AWS_DEFAULT_REGION=us-east-2"
+Environment="AWS_CONFIG_FILE=/home/admin/.aws/config"
+Environment="AWS_USE_DUALSTACK_ENDPOINT=true"
 ExecStart=/home/admin/moduloPesquisaPRPI/app/env/bin/python /home/admin/cppgi/flask/pesquisa.py
 Restart=on-failure
 RestartSec=5
+
+# Gerenciamento de memória
 # VPS de 1GB total, com MariaDB na mesma máquina. Uso real medido via
 # `systemctl status cppgi`: Memory 90.7M (peak 90.9M) em operação normal.
 # MemoryHigh = limite "suave": acima disso o cgroup passa a reclamar
@@ -25,6 +30,21 @@ RestartSec=5
 # grosso do 1GB livre pro MariaDB e o SO. Reavaliar se o pico real subir.
 MemoryHigh=250M
 MemoryMax=300M
+
+# Diretivas de isolamento e segurança
+# ProtectSystem=strict + ProtectHome=read-only tornam todo o sistema (e /home)
+# somente leitura por padrão; ReadWritePaths abre exceções pontuais, restritas
+# às pastas/arquivos que pesquisa.py de fato grava em runtime (uploads de
+# anexos, PDFs de declaração/resultado, certificados gerados, templates de
+# certificado enviados pelo admin, e os dois arquivos de log) - o resto da
+# árvore do repo (código, venv em moduloPesquisaPRPI, etc.) fica só leitura.
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/admin/cppgi/flask/uploads /home/admin/cppgi/flask/pdfs /home/admin/cppgi/flask/certificados /home/admin/cppgi/flask/documentos -/home/admin/cppgi/flask/app.log -/home/admin/cppgi/flask/auditoria.log /tmp /var/tmp
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
 
 [Install]
 WantedBy=multi-user.target

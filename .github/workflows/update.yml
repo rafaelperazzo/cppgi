@@ -36,6 +36,8 @@ jobs:
               "cd /home/admin/cppgi",
               "git checkout master",
               "git pull origin master --tags",
+              "sudo chown -R admin:pesquisa /home/admin/cppgi",
+              "sudo chmod -R u=rwX,g=rwX,o= /home/admin/cppgi",
               "sudo systemctl restart cppgi.service"
             ]' \
             --query "Command.CommandId" \
