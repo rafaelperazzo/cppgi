@@ -236,7 +236,7 @@ app.config['DECLARACOES_FOLDER'] = DECLARACOES_DIR
 app.config['TEMP_FOLDER'] = DECLARACOES_DIR
 app.config['DOCUMENTS_FOLDER'] = WORKING_DIR + 'documentos/'
 app.config['CERTIFICADOS_FOLDER'] = WORKING_DIR + 'certificados/'
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20 MB
 
 if PRODUCAO==1:
     logging.basicConfig(filename=WORKING_DIR + 'app.log', filemode='a', format='%(asctime)s %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
