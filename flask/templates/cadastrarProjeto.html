@@ -47,7 +47,7 @@
   function seGraduacao() {
     var vinculo = document.getElementById('vinculo').value;
     if (vinculo == 0) { //Se o vinculo for graduação
-      document.getElementById('tipo_vinculo').setAttribute('required', "");
+      document.getElementById('tipo_vinculo').setAttribute('required', "-1");
       document.getElementById('div_tipo_vinculo').style.visibility = "visible";
       document.getElementById('tipo_vinculo').value = -1;
       document.getElementById('categoria_trabalho').removeAttribute('required');
