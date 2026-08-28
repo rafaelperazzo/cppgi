@@ -298,6 +298,12 @@ def removerAspas(texto):
     resultado = resultado.replace("'"," ")
     return(resultado)
 
+def paraInt(valor):
+    try:
+        return(int(valor))
+    except (TypeError,ValueError):
+        return(-1)
+
 def enviar_email(msg):
     with app.app_context():
         if PRODUCAO==1:
@@ -710,10 +716,10 @@ def cadastrarProjeto():
         return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
     csrf.protect()
     #CADASTRAR DADOS DO PROPONENTE
-    destino = int(request.form['destino'])
-    tipo = int(request.form['tipo_apresentacao'])
-    tipo_trabalho = int(request.form['tipo_trabalho'])
-    categoria_trabalho = int(request.form['categoria_trabalho'])
+    destino = paraInt(request.form['destino'])
+    tipo = paraInt(request.form['tipo_apresentacao'])
+    tipo_trabalho = paraInt(request.form['tipo_trabalho'])
+    categoria_trabalho = paraInt(request.form['categoria_trabalho'])
     nome = str(request.form['autores'])
     nome = nome.upper()
     identificacao = str(session['cpf'])
@@ -726,25 +732,25 @@ def cadastrarProjeto():
     palavras = removerAspas(palavras)
     resumo = str(request.form['resumo'])
     resumo = removerAspas(resumo)
-    vinculo = int(request.form['vinculo'])
+    vinculo = paraInt(request.form['vinculo'])
     tipo_vinculo = 0
     if 'tipo_vinculo' in request.form:
-        tipo_vinculo = int(request.form['tipo_vinculo'])
+        tipo_vinculo = paraInt(request.form['tipo_vinculo'])
     fomento = "-1"
     if 'fomento' in request.form:
-        fomento = int(request.form['fomento']) 
-    
+        fomento = paraInt(request.form['fomento'])
+
     matriculas = ""
     if 'matriculas' in request.form:
         matriculas = str(request.form['matriculas'])
-    
+
     projeto_associado = 0
     if 'projeto' in request.form:
-        projeto_associado = int(request.form['projeto'])
-    
+        projeto_associado = paraInt(request.form['projeto'])
+
     area_cnpq = str(request.form['area_cnpq'])
     subarea_cnpq = str(request.form['subarea_cnpq'])
-    anais_permissao = int(request.form['anais'])
+    anais_permissao = paraInt(request.form['anais'])
     
     #Pegando o orientador
     orientador = str(request.form['orientador'])
@@ -763,14 +769,14 @@ def cadastrarProjeto():
     #Acessibilidade
     acessibilidade = 0
     if 'acessibilidade' in request.form:
-        acessibilidade = int(request.form['acessibilidade'])
-    
+        acessibilidade = paraInt(request.form['acessibilidade'])
+
     descricao_acessibilidade = ""
     if 'descricao_acessibilidade' in request.form:
         descricao_acessibilidade = str(request.form['descricao_acessibilidade'])
     lingua = 0
     if 'lingua' in request.form:
-        lingua = int(request.form['lingua'])
+        lingua = paraInt(request.form['lingua'])
     
     nomeDoArquivoTrabalho = ""
     if 'arquivo_trabalho' in request.files:
