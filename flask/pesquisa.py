@@ -719,7 +719,7 @@ def cadastrarProjeto():
     destino = paraInt(request.form['destino'])
     tipo = paraInt(request.form['tipo_apresentacao'])
     tipo_trabalho = paraInt(request.form['tipo_trabalho'])
-    categoria_trabalho = paraInt(request.form['categoria_trabalho'])
+    categoria_trabalho = paraInt(request.form.get('categoria_trabalho', -1))
     nome = str(request.form['autores'])
     nome = nome.upper()
     identificacao = str(session['cpf'])
