@@ -1,13 +1,33 @@
 #!/bin/bash
-cd /home/perazzo/docker/projetos/cppgi
-docker-compose restart
-ssh sci01-ter-jne.ufca.edu.br '/backup/cppgi/./backup.mysql.sh'
-rsync -e 'ssh -p 22184' -avzh sci01-ter-jne.ufca.edu.br:/backup/cppgi/flask/uploads/ /home/perazzo/docker/projetos/cppgi/flask/uploads/
-dir="/backup/cppgi/share"
-server="perazzo@sci01-ter-jne.ufca.edu.br"
-arquivo=$(ssh sci01-ter-jne.ufca.edu.br 'ls -t /backup/cppgi/share | head -1')
-scp $server:$dir/$arquivo share/
-gunzip -f share/$arquivo
-arquivo=$(ls -t share | head -1)
-/usr/local/bin/docker-compose -f /home/perazzo/docker/projetos/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mysql -u root -pSENHA < /share/$arquivo"
-#rm share/$arquivo
+set -e
+
+cd /home/perazzo/Projetos/docker/cppgi
+docker compose restart
+
+BUCKET="rajardekalambur"
+PASTA="cppgi_backup"
+
+# Localiza a chave (caminho) do arquivo mais recente dentro da pasta no S3
+s3_key=$(aws s3api list-objects-v2 \
+  --bucket "$BUCKET" \
+  --prefix "$PASTA/" \
+  --query 'reverse(sort_by(Contents[?Size > `0`], &LastModified))[0].Key' \
+  --output text)
+
+# Extrai apenas o nome do arquivo
+arquivo=$(basename "$s3_key")
+
+# Baixa o arquivo mais recente do S3 para a pasta local share/
+aws s3 cp "s3://$BUCKET/$s3_key" "share/$arquivo"
+
+# Descompacta o arquivo
+gunzip -f "share/$arquivo"
+
+# Identifica o arquivo SQL descompactado mais recente na pasta share
+arquivo_sql=$(ls -t share | head -1)
+
+# Restaura o banco de dados via Docker Compose
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb -u root -pSENHA_ROOT cppgi < /share/$arquivo_sql"
+
+# Opcional: remover o arquivo restaurado se desejar
+rm "share/$arquivo_sql"
