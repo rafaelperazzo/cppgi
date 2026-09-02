@@ -28,6 +28,6 @@ arquivo_sql=$(ls -t share | head -1)
 
 # Restaura o banco de dados via Docker Compose
 /usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb -u root -pSENHA_ROOT cppgi < /share/$arquivo_sql"
-
-# Opcional: remover o arquivo restaurado se desejar
+# Gera o dump apenas da estrutura (sem dados) usando 'mariadb-dump'
 rm "share/$arquivo_sql"
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb-dump -u root -pSENHA_ROOT --no-data --triggers cppgi > /share/cppgi.sql"
