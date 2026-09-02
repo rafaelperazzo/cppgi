@@ -2,32 +2,44 @@
 set -e
 
 cd /home/perazzo/Projetos/docker/cppgi
+
+# Carrega as variáveis do arquivo .env
+if [ -f .env ]; then
+  # Exporta apenas as variáveis válidas, ignorando comentários e linhas em branco
+  export $(grep -v '^#' .env | xargs)
+else
+  echo "Erro: Arquivo .env não encontrado em $(pwd)"
+  exit 1
+fi
+
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+  echo "Erro: A variável MYSQL_ROOT_PASSWORD não está definida no arquivo .env"
+  exit 1
+fi
+
 docker compose restart
 
 BUCKET="rajardekalambur"
 PASTA="cppgi_backup"
 
-# Localiza a chave (caminho) do arquivo mais recente dentro da pasta no S3
+# Localiza o arquivo mais recente no S3
 s3_key=$(aws s3api list-objects-v2 \
   --bucket "$BUCKET" \
   --prefix "$PASTA/" \
   --query 'reverse(sort_by(Contents[?Size > `0`], &LastModified))[0].Key' \
   --output text)
 
-# Extrai apenas o nome do arquivo
 arquivo=$(basename "$s3_key")
 
-# Baixa o arquivo mais recente do S3 para a pasta local share/
+# Baixa e descompacta
 aws s3 cp "s3://$BUCKET/$s3_key" "share/$arquivo"
-
-# Descompacta o arquivo
 gunzip -f "share/$arquivo"
 
-# Identifica o arquivo SQL descompactado mais recente na pasta share
 arquivo_sql=$(ls -t share | head -1)
 
-# Restaura o banco de dados via Docker Compose
-/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb -u root -pSENHA_ROOT cppgi < /share/$arquivo_sql"
-# Gera o dump apenas da estrutura (sem dados) usando 'mariadb-dump'
-rm "share/$arquivo_sql"
-/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb-dump -u root -pSENHA_ROOT --no-data --triggers cppgi > /share/cppgi.sql"
+# 1. Importa os dados usando 'mariadb' com a senha do .env
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb -u root -p'${MYSQL_ROOT_PASSWORD}' cppgi < /share/$arquivo_sql"
+rm -f "share/$arquivo_sql"
+# 2. Gera o dump apenas da estrutura usando 'mariadb-dump'
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi mariadb-dump -u root -p"${MYSQL_ROOT_PASSWORD}" --no-data cppgi > share/cppgi.sql
+
