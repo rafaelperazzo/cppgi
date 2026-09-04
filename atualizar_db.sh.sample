@@ -1,13 +1,45 @@
 #!/bin/bash
-cd /home/perazzo/docker/projetos/cppgi
-docker-compose restart
-ssh sci01-ter-jne.ufca.edu.br '/backup/cppgi/./backup.mysql.sh'
-rsync -e 'ssh -p 22184' -avzh sci01-ter-jne.ufca.edu.br:/backup/cppgi/flask/uploads/ /home/perazzo/docker/projetos/cppgi/flask/uploads/
-dir="/backup/cppgi/share"
-server="perazzo@sci01-ter-jne.ufca.edu.br"
-arquivo=$(ssh sci01-ter-jne.ufca.edu.br 'ls -t /backup/cppgi/share | head -1')
-scp $server:$dir/$arquivo share/
-gunzip -f share/$arquivo
-arquivo=$(ls -t share | head -1)
-/usr/local/bin/docker-compose -f /home/perazzo/docker/projetos/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mysql -u root -pSENHA < /share/$arquivo"
-#rm share/$arquivo
+set -e
+
+cd /home/perazzo/Projetos/docker/cppgi
+
+# Carrega as variáveis do arquivo .env
+if [ -f .env ]; then
+  # Exporta apenas as variáveis válidas, ignorando comentários e linhas em branco
+  export $(grep -v '^#' .env | xargs)
+else
+  echo "Erro: Arquivo .env não encontrado em $(pwd)"
+  exit 1
+fi
+
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+  echo "Erro: A variável MYSQL_ROOT_PASSWORD não está definida no arquivo .env"
+  exit 1
+fi
+
+docker compose restart
+
+BUCKET="rajardekalambur"
+PASTA="cppgi_backup"
+
+# Localiza o arquivo mais recente no S3
+s3_key=$(aws s3api list-objects-v2 \
+  --bucket "$BUCKET" \
+  --prefix "$PASTA/" \
+  --query 'reverse(sort_by(Contents[?Size > `0`], &LastModified))[0].Key' \
+  --output text)
+
+arquivo=$(basename "$s3_key")
+
+# Baixa e descompacta
+aws s3 cp "s3://$BUCKET/$s3_key" "share/$arquivo"
+gunzip -f "share/$arquivo"
+
+arquivo_sql=$(ls -t share | head -1)
+
+# 1. Importa os dados usando 'mariadb' com a senha do .env
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi bash -c "mariadb -u root -p'${MYSQL_ROOT_PASSWORD}' cppgi < /share/$arquivo_sql"
+rm -f "share/$arquivo_sql"
+# 2. Gera o dump apenas da estrutura usando 'mariadb-dump'
+/usr/bin/docker compose -f /home/perazzo/Projetos/docker/cppgi/docker-compose.yml exec -T db_cppgi mariadb-dump -u root -p"${MYSQL_ROOT_PASSWORD}" --no-data cppgi > share/cppgi.sql
+
