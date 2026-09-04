@@ -129,7 +129,13 @@
 
   function seOrientadorVazio() {
     var campoOrientador = document.getElementById('orientador');
+    var vinculo = document.getElementById('vinculo').value;
     if (campoOrientador.value.trim() == '') {
+      if (vinculo == 0 || vinculo == 2) { //Graduação ou Ensino Médio: orientador é obrigatório
+        alert('Orientador(a) é obrigatório para Graduação e Ensino Médio.');
+        campoOrientador.focus();
+        return;
+      }
       if (confirm('O trabalho realmente não tem orientador?')) {
         campoOrientador.value = 'N/A';
       }
@@ -141,6 +147,13 @@
       $(document).ready(function(){
           $('#btnEnviar').on('click',function(event){
               var username = $('#identificacao').val();
+              var vinculo = document.getElementById('vinculo').value;
+              var orientador = document.getElementById('orientador').value.trim();
+              if ((vinculo == 0 || vinculo == 2) && (orientador == '' || orientador.toUpperCase() == 'N/A')) {
+                  alert('Orientador(a) é obrigatório para Graduação e Ensino Médio.');
+                  document.getElementById('orientador').focus();
+                  return (false);
+              }
               if (validarCPF(username)) {
                   //$('#frmCadastroProjeto').submit();
                   return (true);

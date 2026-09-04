@@ -755,6 +755,8 @@ def cadastrarProjeto():
     #Pegando o orientador
     orientador = str(request.form['orientador'])
     orientador = orientador.upper()
+    if vinculo in (0, 2) and (orientador.strip() == '' or orientador == 'N/A'):
+        return(u"O campo Orientador(a) é obrigatório para vínculo de Graduação ou Ensino Médio!")
     if orientador !='N/A':
         nome = nome + ', ' + orientador
 
