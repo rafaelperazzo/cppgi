@@ -127,13 +127,23 @@
     }
   }
 
+  var avisandoOrientadorVazio = false;
+
   function seOrientadorVazio() {
+    if (avisandoOrientadorVazio) return;
     var campoOrientador = document.getElementById('orientador');
     var vinculo = document.getElementById('vinculo').value;
     if (campoOrientador.value.trim() == '') {
       if (vinculo == 0 || vinculo == 2) { //Graduação ou Ensino Médio: orientador é obrigatório
+        avisandoOrientadorVazio = true;
         alert('Orientador(a) é obrigatório para Graduação e Ensino Médio.');
-        campoOrientador.focus();
+        // Adia o focus para o próximo tick: chamá-lo de forma síncrona aqui, ainda dentro
+        // do próprio evento onblur do campo, faz o blur disparar de novo em alguns
+        // navegadores (ex: Firefox), reabrindo o alert em loop.
+        setTimeout(function () {
+          campoOrientador.focus();
+          avisandoOrientadorVazio = false;
+        }, 0);
         return;
       }
       if (confirm('O trabalho realmente não tem orientador?')) {
@@ -146,12 +156,18 @@
   <script>
       $(document).ready(function(){
           $('#btnEnviar').on('click',function(event){
+              if (avisandoOrientadorVazio) return (false);
               var username = $('#identificacao').val();
               var vinculo = document.getElementById('vinculo').value;
               var orientador = document.getElementById('orientador').value.trim();
               if ((vinculo == 0 || vinculo == 2) && (orientador == '' || orientador.toUpperCase() == 'N/A')) {
+                  var campoOrientador = document.getElementById('orientador');
+                  avisandoOrientadorVazio = true;
                   alert('Orientador(a) é obrigatório para Graduação e Ensino Médio.');
-                  document.getElementById('orientador').focus();
+                  setTimeout(function () {
+                    campoOrientador.focus();
+                    avisandoOrientadorVazio = false;
+                  }, 0);
                   return (false);
               }
               if (validarCPF(username)) {
