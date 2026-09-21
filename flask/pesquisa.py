@@ -1070,7 +1070,7 @@ def recusarConvite():
     else:
         return("OK")
 
-@app.route("/avaliacoesNegadas", methods=['GET', 'POST'])
+@app.route("/admin/avaliacoesNegadas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def avaliacoesNegadas():
@@ -1116,7 +1116,7 @@ def avaliacoesNegadas():
     else:
         return("OK")
 
-@app.route("/inserirAvaliador", methods=['GET', 'POST'])
+@app.route("/admin/inserirAvaliador", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def inserirAvaliador():
@@ -1233,7 +1233,7 @@ def gerarPDF(template):
         logging.error("ERRO Na função gerarPDF")
     #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
 
-@app.route("/editalProjeto/<edital>", methods=['GET', 'POST'])
+@app.route("/admin/editalProjeto/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def editalProjeto(edital):
@@ -1608,7 +1608,7 @@ def verArquivo():
     else:
         return("OK")
 
-@app.route("/estatisticas", methods=['GET', 'POST'])
+@app.route("/admin/estatisticas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def estatisticas():
@@ -1659,7 +1659,7 @@ def estatisticas():
     else:
         return("Acesso negado.")
 
-@app.route("/parcial/<edital>", methods=['GET'])
+@app.route("/admin/parcial/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def parcial(edital):
@@ -1683,7 +1683,7 @@ def parcial(edital):
     flash(u"Situação das submissões atualizada com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
-@app.route("/resultados", methods=['GET', 'POST'])
+@app.route("/admin/resultados", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def resultados():
@@ -1844,7 +1844,7 @@ def distribuirIgualmente(local,turno,linhas,edital):
     trabalhos_uas = [cv,ct,hu]
     distribuir(local,turno,uas,trabalhos_uas)
 
-@app.route("/distribuirSalas", methods=['GET', 'POST'])
+@app.route("/admin/distribuirSalas", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def distribuirSalas():
@@ -1887,7 +1887,7 @@ def distribuirSalas():
                         
                 except Exception as e:
                     logging.error(str(e))
-                    logging.error("/distribuirSalas - POSTERS")
+                    logging.error("/admin/distribuirSalas - POSTERS")
             
             return(redirect(url_for('programacao',edital=edital)))
         else:
@@ -1895,7 +1895,7 @@ def distribuirSalas():
     else:
         return("OK")
 
-@app.route("/programacao", methods=['GET', 'POST'])
+@app.route("/admin/programacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def programacao():
@@ -1929,7 +1929,7 @@ def programacao():
     else:
         return("OK")
 
-@app.route("/mapa", methods=['GET', 'POST'])
+@app.route("/admin/mapa", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def mapa():
@@ -2043,7 +2043,7 @@ def cadastrarLinkApresentacao():
     else:
         return("OK")
 
-@app.route("/premiacao", methods=['GET', 'POST'])
+@app.route("/admin/premiacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def premiacao():
@@ -2245,7 +2245,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
                     except Exception as e:
                         app.logger.error(str(e))
 
-@app.route("/emailInformacoes/<edital>", methods=['GET', 'POST'])
+@app.route("/admin/emailInformacoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def emailInformacoes(edital):
@@ -2320,7 +2320,7 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
             except Exception as e:
                 app.logger.error("Erro no processamento dos e-mails com instrucoes de avaliacao: " + str(e))
 
-@app.route("/emailInstrucoes/<edital>", methods=['GET', 'POST'])
+@app.route("/admin/emailInstrucoes/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def emailInstrucoes(edital):
@@ -2350,7 +2350,7 @@ def emailInstrucoes(edital):
     return(redirect(url_for('admin',edital=edital)))
 
 
-@app.route("/emailPosEvento", methods=['GET', 'POST'])
+@app.route("/admin/emailPosEvento", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def emailPosEvento():
@@ -2374,7 +2374,7 @@ def emailPosEvento():
                     if PRODUCAO==1:
                         mail.send(msg)
                 except Exception as e:
-                    logging.error('Erro no /emailPosEvento') 
+                    logging.error('Erro no /admin/emailPosEvento') 
                     logging.error(str(e))
                      
             return("E-mails enviados...")
@@ -2407,7 +2407,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             except Exception as e:
                 app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
 
-@app.route("/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
+@app.route("/admin/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def emailInstrucoesAvaliador(edital):
@@ -2527,7 +2527,7 @@ def admin(edital):
     scheduler_ativo = job is not None and job.next_run_time is not None
     return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo))
 
-@app.route("/mapaavaliadores", methods=['GET', 'POST'])
+@app.route("/admin/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def mapaavaliadores():
@@ -3151,7 +3151,7 @@ def job_solicitar_versao_final():
 """
 Envia solicitação para os avaliadores dos trabalhos escritos
 """
-@app.route("/emailSolicitarAvaliacao", methods=['GET', 'POST'])
+@app.route("/admin/emailSolicitarAvaliacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def email_solicitar_avaliacao():
@@ -3160,7 +3160,7 @@ def email_solicitar_avaliacao():
     flash("Envio de e-mails iniciado!")
     return(redirect(url_for('root')))
 
-@app.route("/toggleSchedulerAvaliadores")
+@app.route("/admin/toggleSchedulerAvaliadores")
 @auth.login_required(role=['admin'])
 @log_required
 def toggle_scheduler_avaliadores():
@@ -3180,7 +3180,7 @@ NOMES_JOBS_AGENDADOS = {
     'solicitar_versao_final': 'Solicitação de versão final',
 }
 
-@app.route("/jobsAgendados")
+@app.route("/admin/jobsAgendados")
 @auth.login_required(role=['admin'])
 @log_required
 def jobs_agendados():
@@ -3197,7 +3197,7 @@ def jobs_agendados():
         })
     return(render_template('jobs_agendados.html', jobs=jobs))
 
-@app.route("/usuariosOnline")
+@app.route("/admin/usuariosOnline")
 @auth.login_required(role=['admin'])
 @log_required
 def usuarios_online():
@@ -3284,7 +3284,7 @@ def redimensionar_imagem(certificado,novotamanho):
     imagem.close()
     novaimagem.save(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
-@app.route("/salvarEdital/<operacao>", methods=['GET', 'POST'])
+@app.route("/admin/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_edital(operacao):
@@ -3376,7 +3376,7 @@ def salvar_edital(operacao):
 
         return(redirect(url_for('root')))
 
-@app.route("/cadastrar_edital", methods=['GET', 'POST'])
+@app.route("/admin/cadastrar_edital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def cadastrar_edital():
@@ -3394,13 +3394,13 @@ def cadastrar_edital():
     flash('Edital adicionado com sucesso')
     return(redirect(url_for('root')))
 
-@app.route("/ver_imagem/<qual>", methods=['GET', 'POST'])
+@app.route("/admin/ver_imagem/<qual>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def ver_imagem(qual):
     return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
 
-@app.route("/salvar_projeto", methods=['POST'])
+@app.route("/admin/salvar_projeto", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_projeto():
@@ -3416,7 +3416,7 @@ def salvar_projeto():
     atualizar(consulta)
     return("OK")
 
-@app.route("/listar_consultores/<id_projeto>", methods=['GET'])
+@app.route("/admin/listar_consultores/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def listar_consultores(id_projeto):
@@ -3433,7 +3433,7 @@ def listar_consultores(id_projeto):
     area = obterColunaUnica('editalProjeto','ua','id',id_projeto)
     return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital,area=area))
 
-@app.route("/listar_consultores_edital/<edital>", methods=['GET'])
+@app.route("/admin/listar_consultores_edital/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def listar_consultores_edital(edital):
@@ -3450,7 +3450,7 @@ def listar_consultores_edital(edital):
     avaliacoes,total = executarSelect(consulta)
     return(render_template('listar_avaliadores_edital.html',avaliacoes=avaliacoes,edital=edital,nome_longo=nome_longo))
 
-@app.route("/salvar_consultores", methods=['POST'])
+@app.route("/admin/salvar_consultores", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_consultores():
@@ -3466,7 +3466,7 @@ def salvar_consultores():
     atualizar(consulta)
     return(str(id_avaliacao))
 
-@app.route("/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
+@app.route("/admin/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_avaliacao(id_avaliacao,id_projeto):
@@ -3477,7 +3477,7 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     flash(u"Avaliação removida com sucesso!")
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
-@app.route("/cadastrar_salas/<edital>", methods=['GET','POST'])
+@app.route("/admin/cadastrar_salas/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def cadastrar_salas(edital):
@@ -3497,7 +3497,7 @@ def cadastrar_salas(edital):
         flash(u"Sessão incluída com sucesso")
         return(redirect(url_for('listar_salas',edital=edital)))
 
-@app.route("/listar_salas/<edital>", methods=['GET'])
+@app.route("/admin/listar_salas/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def listar_salas(edital):
@@ -3507,7 +3507,7 @@ def listar_salas(edital):
     nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
     return(render_template('listar_salas.html',sessoes=linhas,nome_longo=nome_longo,edital=edital))
 
-@app.route("/salvar_salas", methods=['POST'])
+@app.route("/admin/salvar_salas", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_salas():
@@ -3525,7 +3525,7 @@ def salvar_salas():
     atualizar(consulta)
     return("OK")
 
-@app.route("/remover_salas/<id_salas>", methods=['GET'])
+@app.route("/admin/remover_salas/<id_salas>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_salas(id_salas):
@@ -3534,7 +3534,7 @@ def remover_salas(id_salas):
     edital = obterColunaUnica('salas','edital','id',id_salas)
     return(redirect(url_for('listar_salas',edital=edital)))
 
-@app.route("/submissoes/<edital>", methods=['GET'])
+@app.route("/admin/submissoes/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def listar_submissoes(edital):
@@ -3582,7 +3582,7 @@ def listar_submissoes(edital):
     nome_longo = obterColunaUnica('editais', 'nome_longo', 'id', edital)
     return render_template('submissoes.html', projetos=projetos, edital=edital, nome_longo=nome_longo)
 
-@app.route("/salvar_submissao", methods=['POST'])
+@app.route("/admin/salvar_submissao", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_submissao():
@@ -3592,7 +3592,7 @@ def salvar_submissao():
     atualizar(consulta)
     return "OK"
 
-@app.route("/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
+@app.route("/admin/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_submissao(id_projeto, edital):
@@ -3600,7 +3600,7 @@ def remover_submissao(id_projeto, edital):
     flash(u"Submissão removida com sucesso!")
     return redirect(url_for('listar_submissoes', edital=edital))
 
-@app.route("/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
+@app.route("/admin/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def editar_submissao(id_projeto):
@@ -3667,7 +3667,7 @@ def editar_submissao(id_projeto):
     subareas_cnpq = getSubAreasCNPQ()
     return render_template('editarSubmissao.html', projeto=projeto, subareas_cnpq=subareas_cnpq)
 
-@app.route("/local_apresentacao/<edital>", methods=['GET'])
+@app.route("/admin/local_apresentacao/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def local_apresentacao(edital):
@@ -3685,7 +3685,7 @@ def local_apresentacao(edital):
     descricao = obterColunaUnica('editais','nome_longo','id',edital)
     return(render_template('local_apresentacao.html',novos=linhas,total_novos=total,descricao=descricao,edital=edital))
 
-@app.route("/salvar_local_data", methods=['POST'])
+@app.route("/admin/salvar_local_data", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_local_data():
@@ -3705,7 +3705,7 @@ def salvar_local_data():
     atualizar(consulta)
     return("OK")
 
-@app.route("/cadastrar_usuario/<operacao>", methods=['GET','POST'])
+@app.route("/admin/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def cadastrar_usuario(operacao):
@@ -3747,7 +3747,7 @@ def cadastrar_usuario(operacao):
             atualizar(consulta,valores=(username,password,permission,roles,nome,email,id_usuario))
             return("OK")
 
-@app.route("/remover_usuario/<id_usuario>", methods=['GET','POST'])
+@app.route("/admin/remover_usuario/<id_usuario>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_usuario(id_usuario):
@@ -3758,7 +3758,7 @@ def remover_usuario(id_usuario):
     flash(u"Usuário removido com sucesso!")
     return(redirect(url_for('cadastrar_usuario',operacao=1)))
 
-@app.route("/avaliador_sala/<edital>", methods=['GET','POST'])
+@app.route("/admin/avaliador_sala/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def avaliador_sala(edital):
@@ -3791,7 +3791,7 @@ def avaliador_sala(edital):
         return(redirect(url_for('avaliador_sala_listar',edital=edital)))
         #return("SUCESSO")
 
-@app.route("/avaliador_sala_listar/<edital>", methods=['GET','POST'])
+@app.route("/admin/avaliador_sala_listar/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def avaliador_sala_listar(edital):
@@ -3822,7 +3822,7 @@ def avaliador_sala_listar(edital):
 
     return(render_template('avaliador_sala_listar.html',linhas=linhas,edital=edital,nome_longo=nome_longo,usuarios=usuarios,datas=datas))
 
-@app.route("/avaliador_sala_remover/<id_avaliador_sala>/<edital>", methods=['GET','POST'])
+@app.route("/admin/avaliador_sala_remover/<id_avaliador_sala>/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def avaliador_sala_remover(id_avaliador_sala,edital):
@@ -3833,7 +3833,7 @@ def avaliador_sala_remover(id_avaliador_sala,edital):
     flash(u"Atribuição removida com sucesso!")
     return(redirect(url_for('avaliador_sala_listar',edital=edital)))
 
-@app.route("/salvar_avaliador_sala", methods=['POST'])
+@app.route("/admin/salvar_avaliador_sala", methods=['POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar_avaliador_sala():
@@ -3876,7 +3876,7 @@ def get_image_file_as_base64_data(image):
     with open(image, 'rb') as image_file:
         return base64.b64encode(image_file.read()).decode()
 
-@app.route("/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
+@app.route("/admin/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def salvar(tabela,valor_id,coluna,novo_valor):
@@ -3887,7 +3887,7 @@ def salvar(tabela,valor_id,coluna,novo_valor):
     atualizar(consulta)
     return("OK")
 
-@app.route("/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
+@app.route("/admin/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def detalhes(tabela,valor_id,coluna):
@@ -3905,7 +3905,7 @@ FROM `editalProjeto` WHERE tipo=9 and valendo=1 and premiacao=1
 ORDER BY ua,media DESC
 '''
 
-@app.route('/premiados/<edital>')
+@app.route('/admin/premiados/<edital>')
 @auth.login_required(role=['admin'])
 @log_required
 def premiados(edital):
@@ -3976,7 +3976,7 @@ def premiados(edital):
     nome = obterColunaUnica('editais','nome_longo','id',str(edital))
     return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,humanidades_pg=humanidades_pg,vida_pg=vida_pg,exatas_pg=exatas_pg,nome_edital=nome))
 
-@app.route('/links_avaliadores/<edital>')
+@app.route('/admin/links_avaliadores/<edital>')
 @auth.login_required(role=['admin'])
 @log_required
 def links_avaliadores(edital):
@@ -4139,6 +4139,73 @@ def trocarSenha():
 @app.route("/seguranca", methods=['GET'])
 def seguranca():
     return (render_template('seguranca.html'))
+
+# Redirects das URLs antigas (rotas exclusivas de admin, agora sob /admin).
+# 308 preserva método e corpo (POST); 301 nas rotas somente GET.
+ROTAS_ADMIN_LEGADAS = [
+    ("/avaliacoesNegadas", "avaliacoesNegadas", ["GET", "POST"]),
+    ("/inserirAvaliador", "inserirAvaliador", ["GET", "POST"]),
+    ("/editalProjeto/<edital>", "editalProjeto", ["GET", "POST"]),
+    ("/estatisticas", "estatisticas", ["GET", "POST"]),
+    ("/parcial/<edital>", "parcial", ["GET"]),
+    ("/resultados", "resultados", ["GET", "POST"]),
+    ("/distribuirSalas", "distribuirSalas", ["GET", "POST"]),
+    ("/programacao", "programacao", ["GET", "POST"]),
+    ("/mapa", "mapa", ["GET", "POST"]),
+    ("/premiacao", "premiacao", ["GET", "POST"]),
+    ("/emailInformacoes/<edital>", "emailInformacoes", ["GET", "POST"]),
+    ("/emailInstrucoes/<edital>", "emailInstrucoes", ["GET", "POST"]),
+    ("/emailPosEvento", "emailPosEvento", ["GET", "POST"]),
+    ("/emailInstrucoesAvaliador/<edital>", "emailInstrucoesAvaliador", ["GET", "POST"]),
+    ("/mapaavaliadores", "mapaavaliadores", ["GET", "POST"]),
+    ("/emailSolicitarAvaliacao", "email_solicitar_avaliacao", ["GET", "POST"]),
+    ("/toggleSchedulerAvaliadores", "toggle_scheduler_avaliadores", ["GET"]),
+    ("/jobsAgendados", "jobs_agendados", ["GET"]),
+    ("/usuariosOnline", "usuarios_online", ["GET"]),
+    ("/salvarEdital/<operacao>", "salvar_edital", ["GET", "POST"]),
+    ("/cadastrar_edital", "cadastrar_edital", ["GET", "POST"]),
+    ("/ver_imagem/<qual>", "ver_imagem", ["GET", "POST"]),
+    ("/salvar_projeto", "salvar_projeto", ["POST"]),
+    ("/listar_consultores/<id_projeto>", "listar_consultores", ["GET"]),
+    ("/listar_consultores_edital/<edital>", "listar_consultores_edital", ["GET"]),
+    ("/salvar_consultores", "salvar_consultores", ["POST"]),
+    ("/remover_avaliacao/<id_avaliacao>/<id_projeto>", "remover_avaliacao", ["GET"]),
+    ("/cadastrar_salas/<edital>", "cadastrar_salas", ["GET", "POST"]),
+    ("/listar_salas/<edital>", "listar_salas", ["GET"]),
+    ("/salvar_salas", "salvar_salas", ["POST"]),
+    ("/remover_salas/<id_salas>", "remover_salas", ["GET"]),
+    ("/submissoes/<edital>", "listar_submissoes", ["GET"]),
+    ("/salvar_submissao", "salvar_submissao", ["POST"]),
+    ("/remover_submissao/<id_projeto>/<edital>", "remover_submissao", ["GET"]),
+    ("/editar_submissao/<id_projeto>", "editar_submissao", ["GET", "POST"]),
+    ("/local_apresentacao/<edital>", "local_apresentacao", ["GET"]),
+    ("/salvar_local_data", "salvar_local_data", ["POST"]),
+    ("/cadastrar_usuario/<operacao>", "cadastrar_usuario", ["GET", "POST"]),
+    ("/remover_usuario/<id_usuario>", "remover_usuario", ["GET", "POST"]),
+    ("/avaliador_sala/<edital>", "avaliador_sala", ["GET", "POST"]),
+    ("/avaliador_sala_listar/<edital>", "avaliador_sala_listar", ["GET", "POST"]),
+    ("/avaliador_sala_remover/<id_avaliador_sala>/<edital>", "avaliador_sala_remover", ["GET", "POST"]),
+    ("/salvar_avaliador_sala", "salvar_avaliador_sala", ["POST"]),
+    ("/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", "salvar", ["GET"]),
+    ("/detalhes/<tabela>/<valor_id>/<coluna>", "detalhes", ["GET"]),
+    ("/premiados/<edital>", "premiados", ["GET"]),
+    ("/links_avaliadores/<edital>", "links_avaliadores", ["GET"]),
+]
+
+def _registrar_redirects_admin_legados():
+    def criar(funcao, codigo):
+        def redirecionar(**kwargs):
+            destino = url_for(funcao, **kwargs)
+            if request.query_string:
+                destino += "?" + request.query_string.decode()
+            return redirect(destino, code=codigo)
+        return redirecionar
+    for caminho, funcao, metodos in ROTAS_ADMIN_LEGADAS:
+        codigo = 301 if metodos == ["GET"] else 308
+        app.add_url_rule(caminho, endpoint="legado_" + funcao, view_func=criar(funcao, codigo), methods=metodos)
+
+_registrar_redirects_admin_legados()
+
 
 if __name__ == "__main__":
     from app_api import Submissoes,Editais,Avaliacoes,Trabalhos,Apresentador
