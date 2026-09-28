@@ -1503,7 +1503,10 @@ def esqueciMinhaSenha():
 def enviarMinhaSenha():
     if request.method == "POST":
         if ('email' in request.form):
-            email = str(request.form['email'])
+            email = str(request.form['email']).strip()
+            #Flask-Mail/smtplib só aceitam endereços ASCII (ex.: "júlia@..." gera UnicodeEncodeError no envio)
+            if not email.isascii():
+                return(render_template('login.html',mensagem=u'E-mail inválido: não use acentos ou caracteres especiais no endereço de e-mail.'))
             #ENVIAR E-MAIL
             consulta = """SELECT username,password FROM users WHERE email=%s"""
             linhas,total = executarSelect(consulta,1,valores=(email,))
