@@ -190,20 +190,15 @@
   </script>
 
   <script>
-      function baixarDados(cpf) {
-        if (validarCPF(cpf) == false) {
-          alert('CPF inválido!');
-          document.getElementById('identificacao').focus();
-          return;
-        }
-        cpf = cpf.replace(/[^\d]+/g,'');
-        axios.get('{{ root_site }}/pesquisa/indicacao/' + cpf)
+      // Indicações do usuário logado no Yoko Pesquisa: o back-end usa o CPF da sessão
+      // (o e-mail fica sempre o da conta logada)
+      function baixarDados() {
+        axios.get('{{ url_for("minhasIndicacoes") }}')
           .then(function (response) {
 
             let total = response.data.length;
             if (response.data.length==0) {
               document.getElementById('autores').value = '';
-              document.getElementById('email').value = '';
               let select = document.getElementById('projeto');
               for (let i=1; i<select.length; i++) {
                 select.remove(i);
@@ -220,7 +215,6 @@
                 }
             }
             document.getElementById('autores').value = response.data[total]['nome'];
-            document.getElementById('email').value = response.data[total]['email'];
             document.getElementById('tipo_vinculo').value = response.data[total]['tipo_vinculo'];
             if (document.getElementById('tipo_vinculo').value == 1) {
               document.getElementById('fomento').value = response.data[total]['fomento'];
@@ -500,7 +494,7 @@
 </form>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    baixarDados('{{ session["cpf"] }}');
+    baixarDados();
   });
 </script>
 {% endblock %}
