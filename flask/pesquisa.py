@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,session
+from flask import request,url_for,send_from_directory,redirect,flash,session,Response
 from flask_httpauth import HTTPBasicAuth
 import datetime
 #import MySQLdb
@@ -36,6 +36,7 @@ from flask_wtf.csrf import CSRFProtect
 import math
 import json
 import boto3
+import requests
 from botocore.config import Config
 from botocore.exceptions import ClientError,BotoCoreError
 import time
@@ -671,6 +672,38 @@ def submissao():
     editaisAbertos = getEditaisAbertos()
     subareas_cnpq = getSubAreasCNPQ()
     return (render_template('cadastrarProjeto.html',abertos=editaisAbertos,PRODUCAO=PRODUCAO,subareas_cnpq=subareas_cnpq,root_site=ROOT_SITE))
+
+# Consulta interna ao Yoko Pesquisa (mesma EC2): /cppgi/PESQUISA_INTERNAL_URL e /cppgi/PESQUISA_API_KEY no SSM
+PESQUISA_INTERNAL_URL = os.getenv('PESQUISA_INTERNAL_URL', '').rstrip('/')
+PESQUISA_API_KEY = os.getenv('PESQUISA_API_KEY', '')
+CAMPOS_INDICACAO = ('nome', 'tipo_vinculo', 'fomento', 'idProjeto', 'dados')
+
+def consultar_indicacoes_pesquisa(cpf):
+    """Indicações do CPF no Yoko Pesquisa, pela rede interna e com a chave compartilhada.
+    X-Forwarded-Proto: o Talisman da pesquisa redireciona para https o que chega como http."""
+    if len(cpf) != 11 or not PESQUISA_INTERNAL_URL or not PESQUISA_API_KEY:
+        return []
+    try:
+        resposta = requests.get(PESQUISA_INTERNAL_URL + '/indicacao/' + cpf, timeout=5, allow_redirects=False,
+                                headers={'X-Chave-Interna': PESQUISA_API_KEY, 'X-Forwarded-Proto': 'https'})
+        if resposta.status_code != 200:
+            logging.warning("minhasIndicacoes: Yoko Pesquisa respondeu HTTP %s", resposta.status_code)
+            return []
+        dados = resposta.json()
+    except (requests.RequestException, ValueError) as e:
+        logging.warning("minhasIndicacoes: falha ao consultar o Yoko Pesquisa (%s)", type(e).__name__)
+        return []
+    return [{campo: d.get(campo) for campo in CAMPOS_INDICACAO} for d in dados if isinstance(d, dict)]
+
+@app.route("/minhasIndicacoes", methods=['GET'])
+@log_required
+def minhasIndicacoes():
+    """Indicações do usuário logado, para preencher a submissão. O CPF é sempre o da sessão:
+    o navegador não escolhe de quem consultar."""
+    if not autenticado():
+        return Response(json.dumps([]), status=401, mimetype='application/json')
+    cpf = re.sub(r'\D', '', str(session.get('cpf', '')))
+    return Response(json.dumps(consultar_indicacoes_pesquisa(cpf)), mimetype='application/json')
 
 @app.route("/declaracao", methods=['GET', 'POST'])
 def declaracao():
