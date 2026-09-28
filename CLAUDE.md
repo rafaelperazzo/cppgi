@@ -96,6 +96,10 @@ Key pieces inside `pesquisa.py`:
   CSRF, CORS, logging (level depends on `producao` flag in `.env`).
 - `executarSelect` / `executarSelect2` / `atualizar` / `inserir`: thin raw-SQL helpers over `MySQLdb` — almost all
   DB access in this codebase is hand-written SQL via these helpers, not an ORM.
+- Rotas exclusivas de admin (`role=['admin']` apenas) ficam sob o prefixo `/admin/` (ex.: `/admin/resultados`). As URLs
+  antigas sem prefixo continuam existindo como redirects (301 em rotas só-GET, 308 nas que aceitam POST), registrados
+  por `ROTAS_ADMIN_LEGADAS` / `_registrar_redirects_admin_legados()` antes do `__main__`. Ao criar uma nova rota
+  admin-only, use o prefixo `/admin/` direto; os templates devem usar `url_for()`, nunca o caminho escrito à mão.
 - `flask_httpauth.HTTPBasicAuth` (`auth`) with `get_user_roles` driving `@auth.login_required(role=[...])` checks
   (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes.
 - Certificate generation (`gerarCertificado*` functions): builds PDFs/PNGs from templates in
