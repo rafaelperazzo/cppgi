@@ -4048,17 +4048,23 @@ def cadastro():
             u'Este e-mail já está em uso. Utilize a opção "Esqueci minha senha" caso seja sua conta.')))
 
     token = gerar_token_seguro()
-    expira = datetime.datetime.now() + datetime.timedelta(hours=24)
     try:
+        #Expiração calculada pelo próprio banco, para comparar com o NOW() de confirmarEmail no mesmo fuso
         consulta = """INSERT INTO users
         (username,password,nome,email,roles,permission,email_verificado,token_verificacao,token_verificacao_expira)
-        VALUES (%s,%s,%s,%s,'user',1,0,%s,%s)"""
-        inserir(consulta, (cpf, senha, nome, email, token, expira))
+        VALUES (%s,%s,%s,%s,'user',1,0,%s,NOW() + INTERVAL 24 HOUR)"""
+        inserir(consulta, (cpf, senha, nome, email, token))
     except Exception as e:
         logging.error("Erro ao cadastrar usuario: " + str(e))
         return (render_template('cadastro.html', mensagem=(
             u'Este CPF ou e-mail já possui cadastro. Utilize a opção "Esqueci minha senha".')))
 
+    enviar_email_confirmacao_cadastro(nome, email, token)
+
+    return (render_template('login.html', mensagem=(
+        u'Cadastro realizado! Verifique seu e-mail para confirmar a conta antes de entrar.')))
+
+def enviar_email_confirmacao_cadastro(nome, email, token):
     link_confirmacao = CPPGI_SITE + 'confirmarEmail/' + token
     texto_email = render_template('email_confirmacao_cadastro.html', nome=nome, link=link_confirmacao)
     msg = Message(reply_to=NAO_RESPONDA, subject=u"Plataforma Yoko - Confirme seu cadastro",
@@ -4066,19 +4072,32 @@ def cadastro():
     t = threading.Thread(target=enviar_email, args=(msg,))
     t.start()
 
-    return (render_template('login.html', mensagem=(
-        u'Cadastro realizado! Verifique seu e-mail para confirmar a conta antes de entrar.')))
-
 @app.route("/confirmarEmail/<token>", methods=['GET'])
 @log_required
 def confirmarEmail(token):
-    consulta = """SELECT id FROM users WHERE token_verificacao=%s AND token_verificacao_expira > NOW()"""
+    consulta = """SELECT id, email_verificado, token_verificacao_expira > NOW(), nome, email
+                  FROM users WHERE token_verificacao=%s"""
     linhas, total = executarSelect(consulta, 1, valores=(token,))
     if total == 0:
         return (render_template('login.html', mensagem=u'Token de confirmação inválido ou expirado.'))
 
-    atualizar("""UPDATE users SET email_verificado=1, token_verificacao=NULL, token_verificacao_expira=NULL
-                 WHERE token_verificacao=%s""", (token,))
+    id_usuario, verificado, dentro_do_prazo, nome, email = linhas
+    #O token é mantido após a confirmação: filtros de e-mail (ex.: Safe Links do Outlook) abrem o link
+    #antes do usuário, e um segundo clique não deve exibir erro para uma conta já confirmada
+    if int(verificado) == 1:
+        return (render_template('login.html', mensagem=u'Seu e-mail já está confirmado. Faça login para continuar.'))
+
+    if not dentro_do_prazo:
+        #Sem isso o usuário fica preso: não pode se recadastrar (CPF já existe) nem entrar (e-mail não confirmado)
+        novo_token = gerar_token_seguro()
+        atualizar("""UPDATE users SET token_verificacao=%s, token_verificacao_expira=NOW() + INTERVAL 24 HOUR
+                     WHERE id=%s""", (novo_token, id_usuario))
+        enviar_email_confirmacao_cadastro(nome, email, novo_token)
+        return (render_template('login.html', mensagem=(
+            u'O link de confirmação expirou. Enviamos um novo link para ' + mascarar_email(str(email)) + u'.')))
+
+    atualizar("""UPDATE users SET email_verificado=1, token_verificacao_expira=NULL
+                 WHERE id=%s""", (id_usuario,))
     return (render_template('login.html', mensagem=u'E-mail confirmado com sucesso! Faça login para continuar.'))
 
 @app.route("/trocarSenhaObrigatoria", methods=['GET', 'POST'])

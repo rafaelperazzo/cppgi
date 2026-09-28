@@ -410,13 +410,17 @@ def test_cadastro_token_confirmacao():
                   (datetime.datetime.now() - datetime.timedelta(hours=1), cpf))
         response = client.get('/confirmarEmail/' + token, follow_redirects=True)
         assert response.status_code == 200
-        assert 'inválido ou expirado'.encode() in response.data
-        linhas, total = executarSelect("SELECT email_verificado FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert 'Enviamos um novo link'.encode() in response.data
+        linhas, total = executarSelect("SELECT email_verificado, token_verificacao FROM users WHERE username=%s", 1, valores=(cpf,))
         assert linhas[0] == 0
+        assert linhas[1] != token
 
-        #Token válido confirma, e não pode ser reutilizado depois
-        atualizar("UPDATE users SET token_verificacao_expira=%s WHERE username=%s",
-                  (datetime.datetime.now() + datetime.timedelta(hours=1), cpf))
+        #O token antigo deixa de valer após o reenvio
+        response = client.get('/confirmarEmail/' + token, follow_redirects=True)
+        assert 'inválido ou expirado'.encode() in response.data
+        token = linhas[1]
+
+        #Token válido confirma, e um segundo acesso (ex.: filtro de e-mail abriu o link antes) não exibe erro
         response = client.get('/confirmarEmail/' + token, follow_redirects=True)
         assert response.status_code == 200
         assert 'confirmado com sucesso'.encode() in response.data
@@ -425,7 +429,7 @@ def test_cadastro_token_confirmacao():
 
         response = client.get('/confirmarEmail/' + token, follow_redirects=True)
         assert response.status_code == 200
-        assert 'inválido ou expirado'.encode() in response.data
+        assert 'já está confirmado'.encode() in response.data
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 
