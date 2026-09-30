@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort
+from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort,has_request_context
 from flask_httpauth import HTTPBasicAuth
 import datetime
 #import MySQLdb
@@ -223,7 +223,8 @@ CORS(app)
 
 @app.context_processor
 def inject_institucional():
-    impersonador = session.get('impersonador')
+    #E-mails renderizados em threads/jobs têm app context mas não request: sem sessão, sem faixa de acesso-como
+    impersonador = session.get('impersonador') if has_request_context() else None
     return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE,
                 IMPERSONADOR=impersonador,
                 ACESSO_COMO_CPF=mascarar_cpf(session.get('username', '')) if impersonador else '')

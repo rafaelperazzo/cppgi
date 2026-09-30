@@ -1348,3 +1348,11 @@ def test_recusar_convite_so_antes_de_avaliar():
         assert u'cancelada com sucesso' in rv.data.decode() and aceitou() == 0
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
+
+def test_email_renderiza_fora_de_requisicao():
+    #enviarPedidoAvaliacao e o job agendado renderizam e-mails em threads (app context, sem request/sessão)
+    from flask import render_template
+    with app.app_context():
+        html = render_template('email_avaliador.html', nome_longo='EVENTO', titulo='T', resumo='R', link='L',
+                               link_recusa='LR', deadline='01/01/2027', modalidade=2)
+    assert 'EVENTO' in html
