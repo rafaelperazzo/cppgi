@@ -197,14 +197,14 @@ def test_1_submissao_lista_em_submissoes():
 def test_2_inserir_avaliador():
     id_projeto = get_last_id('editalProjeto')
     edital = obterColunaUnica('editalProjeto','tipo','id',str(id_projeto))
-    csrf_token = get_csrf_token('/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto), auth_required=True)
+    csrf_token = get_csrf_token('/admin/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto), auth_required=True)
     email = random_char(7)
     data = {
         "csrf_token": csrf_token,
         "txtProjeto": str(id_projeto),
         "txtEmail": email,
     }
-    post_res('/inserirAvaliador', data)
+    post_res('/admin/inserirAvaliador', data)
     consulta = """
     SELECT avaliador,idProjeto,aceitou,token FROM avaliacoes WHERE avaliador='%s' AND idProjeto=%s
     """ %(email,id_projeto)
@@ -721,11 +721,11 @@ def test_log_required_grava_auditoria(caplog):
     logger_auditoria.propagate = True
     try:
         with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
-            get_res('/avaliacoesNegadas')
+            get_res('/admin/avaliacoesNegadas')
     finally:
         logger_auditoria.propagate = False
     mensagens = [r.message for r in caplog.records if r.name == 'auditoria_acessos']
-    assert any('rota=/avaliacoesNegadas' in m and 'metodo=GET' in m for m in mensagens)
+    assert any('rota=/admin/avaliacoesNegadas' in m and 'metodo=GET' in m for m in mensagens)
     #CPF nunca deve aparecer em texto puro no log de auditoria
     assert not any(usuario in m for m in mensagens)
     assert any(re.search(r'cpf=\d{3}\*+\d{2}\b', m) for m in mensagens)
