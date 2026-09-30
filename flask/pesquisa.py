@@ -42,6 +42,7 @@ from botocore.exceptions import ClientError,BotoCoreError
 import time
 import secrets
 import mimetypes
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import sentry_sdk
 from functools import wraps
 from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
@@ -635,6 +636,30 @@ def upload_e_apaga(arquivo):
 #direto: cada clique em /enviar_arquivo gera uma URL nova.
 VALIDADE_URL_S3 = 60 #segundos
 
+#Links do app para arquivos (/enviar_arquivo/<arquivo>?t=...) levam uma assinatura com validade embutida: 30 dias no
+#botão da página do avaliador, 2 h nas demais páginas (que geram links novos a cada carregamento). A chave é o AES_KEY
+#(estável, do .env/SSM) e não o SECRET_KEY do Flask, que é regenerado a cada reinício diário.
+VALIDADE_LINK_ARQUIVO = 2*3600
+VALIDADE_LINK_ARQUIVO_AVALIADOR = 30*24*3600
+_assinador_arquivos = URLSafeTimedSerializer(AES_KEY, salt='enviar_arquivo')
+
+def link_arquivo(arquivo, validade=VALIDADE_LINK_ARQUIVO, externo=False):
+    """URL assinada de /enviar_arquivo. Nos templates: {{ link_arquivo(nome) }} (nunca url_for('enviar_arquivo'))."""
+    assinatura = _assinador_arquivos.dumps({'a': str(arquivo), 'v': int(validade)})
+    return url_for('enviar_arquivo', filename=arquivo, t=assinatura, _external=externo)
+
+app.jinja_env.globals['link_arquivo'] = link_arquivo
+
+def _assinatura_valida(arquivo, assinatura):
+    try:
+        payload, emitido_em = _assinador_arquivos.loads(assinatura, max_age=VALIDADE_LINK_ARQUIVO_AVALIADOR, return_timestamp=True)
+    except (BadSignature, SignatureExpired):
+        return False
+    if not isinstance(payload, dict) or payload.get('a') != arquivo:
+        return False
+    idade = (datetime.datetime.now(datetime.timezone.utc) - emitido_em).total_seconds()
+    return idade <= int(payload.get('v', 0))
+
 def url_assinada_s3(arquivo, validade=VALIDADE_URL_S3):
     """URL pré-assinada (GET) de cppgi/uploads/<arquivo>, ou None se o objeto não existir no bucket."""
     chave = 'cppgi/' + UPLOAD_FOLDER + arquivo
@@ -658,6 +683,9 @@ def enviar_arquivo(filename):
     arquivo = secure_filename(filename)
     if not arquivo:
         return("Arquivo não encontrado!", 404)
+    if not _assinatura_valida(arquivo, request.args.get('t', '')):
+        logger_auditoria.info('evento=download_negado arquivo=%s motivo=assinatura ip=%s', arquivo, obter_ip_cliente(request))
+        return("Link expirado ou inválido. Volte à página e clique novamente no arquivo.", 403)
     #Reserva local: dev (sem S3), versões finais antigas que só existem no disco e o intervalo até o upload em thread
     if os.path.isfile(UPLOAD_FOLDER + arquivo):
         return(send_from_directory(app.config['UPLOADED_DOCUMENTS_DEST'], arquivo))
@@ -928,7 +956,7 @@ def getPaginaAvaliacao():
             #Submissões gravam '' quando não há arquivo; registros antigos usam '0'
             link_trabalho = None
             if arquivos and str(arquivos[0] or '').strip() not in ('', '0', 'None'):
-                link_trabalho = url_for('enviar_arquivo',filename=str(arquivos[0]))
+                link_trabalho = link_arquivo(str(arquivos[0]), VALIDADE_LINK_ARQUIVO_AVALIADOR)
             if int(finalizado)==0:
                 atualizar("UPDATE avaliacoes SET aceitou=1 WHERE id=%s", (id_avaliacao,))
                 modalidade = obterColunaUnica('editalProjeto','modalidade','id',str(idProjeto))
@@ -1073,7 +1101,15 @@ def consultar(consulta,valores=None):
 def recusarConvite():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
-        atualizar("UPDATE avaliacoes SET aceitou=0 WHERE token=%s", (tokenAvaliacao,))
+        avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
+        if avaliacao is None:
+            return("Link inválido.", 404)
+        #Só antes do envio e dentro do prazo: um link de recusa vazado não pode desfazer uma avaliação
+        if int(avaliacao[2]) != 0:
+            return("Esta avaliação já foi enviada; não é possível recusar.")
+        if not podeAvaliar(avaliacao[1]):
+            return("Prazo de avaliação encerrado.")
+        atualizar("UPDATE avaliacoes SET aceitou=0 WHERE id=%s", (avaliacao[0],))
         return("Avaliação cancelada com sucesso. Agradecemos a atenção.")
     else:
         return("OK")

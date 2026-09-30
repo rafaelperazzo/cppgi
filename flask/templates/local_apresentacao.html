@@ -82,7 +82,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="hidden" id="id_projeto" name="id_projeto" value="{{linha[0]}}">
 
-            <td><a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=linha[11])}}">{{linha[0]}}</a></td>
+            <td><a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[11])}}">{{linha[0]}}</a></td>
             <td>{{linha[1]}}</td>
             <td>{{linha[2]}}</td>
             <td>{{linha[3]}}</td>

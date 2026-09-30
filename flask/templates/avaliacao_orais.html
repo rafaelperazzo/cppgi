@@ -27,10 +27,10 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
   <div class="alert-info"><h3 class="text-lg font-bold">Arquivos do projeto</h3></div>
-  <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=arquivo)}}">TEXTO DO TRABALHO</a>
+  <a class="text-brand-700 hover:underline" href="{{link_arquivo(arquivo)}}">TEXTO DO TRABALHO</a>
 
   {% if final!="0" %}
-  <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=final)}}">TEXTO FINAL DO TRABALHO</a>
+  <a class="text-brand-700 hover:underline" href="{{link_arquivo(final)}}">TEXTO FINAL DO TRABALHO</a>
   {% endif %}
 
   <input type="hidden" id="idProjeto" name="idProjeto" value="{{id}}">

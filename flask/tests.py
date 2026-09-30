@@ -1140,6 +1140,11 @@ TESTES: /enviar_arquivo com URL pré-assinada do S3 (S3 falso via monkeypatch, s
 **************************************************************
 '''
 
+def _link(nome, validade=None):
+    import pesquisa
+    with app.test_request_context('/'):
+        return pesquisa.link_arquivo(nome) if validade is None else pesquisa.link_arquivo(nome, validade)
+
 class _S3Falso:
     def __init__(self, existe=True):
         self.existe = existe
@@ -1162,7 +1167,7 @@ def test_enviar_arquivo_local_nao_consulta_s3(monkeypatch):
     with open(ATTACHMENTS_DIR + nome, 'wb') as f:
         f.write(b'%PDF-teste')
     try:
-        rv = client.get('/enviar_arquivo/' + nome)
+        rv = client.get(_link(nome))
         assert rv.status_code == 200 and rv.data == b'%PDF-teste'
         assert falso.chamadas == []
     finally:
@@ -1173,7 +1178,7 @@ def test_enviar_arquivo_redireciona_para_url_assinada(monkeypatch):
     falso = _S3Falso(existe=True)
     monkeypatch.setattr(pesquisa, 's3', falso)
     nome = 'TRABALHO.' + id_generator(10) + '.pdf'
-    rv = client.get('/enviar_arquivo/' + nome)
+    rv = client.get(_link(nome))
     assert rv.status_code == 302
     assert rv.headers['Location'].startswith('https://s3.exemplo/cppgi/uploads/' + nome)
     assert rv.headers['Cache-Control'] == 'no-store'
@@ -1186,12 +1191,12 @@ def test_enviar_arquivo_inexistente_e_path_traversal(monkeypatch):
     import pesquisa
     falso = _S3Falso(existe=False)
     monkeypatch.setattr(pesquisa, 's3', falso)
-    rv = client.get('/enviar_arquivo/NAOEXISTE.pdf')
+    rv = client.get(_link('NAOEXISTE.pdf'))
     assert rv.status_code == 404 and u'Arquivo não encontrado' in rv.data.decode()
     #"..%2F..%2Fpesquisa.py" vira "pesquisa.py" (secure_filename): não sai de uploads/
     falso.chamadas.clear()
-    rv = client.get('/enviar_arquivo/..%2F..%2Fpesquisa.py')
-    assert rv.status_code == 404
+    rv = client.get('/enviar_arquivo/..%2F..%2Fpesquisa.py?' + _link('pesquisa.py').split('?')[1])
+    assert rv.status_code in (403, 404)
     assert all(ch[1] == 'cppgi/uploads/pesquisa.py' for ch in falso.chamadas if ch[0] == 'head_object')
 
 def test_uploadCR_envia_versao_final_ao_s3(monkeypatch):
@@ -1266,4 +1271,80 @@ def test_uploadCR_e_link_exigem_dono_e_prazo(monkeypatch):
         f = final()
         if f and f != '0' and os.path.exists(ATTACHMENTS_DIR + f):
             os.remove(ATTACHMENTS_DIR + f)
+        _remover_avaliacao_temporaria(edital, projeto)
+
+
+'''
+**************************************************************
+TESTES: links de arquivo assinados (30 dias avaliador / 2 h demais) e recusa só antes de avaliar
+**************************************************************
+'''
+
+def _assinatura_com_idade(nome, validade, idade_segundos, monkeypatch):
+    #assina "no passado": itsdangerous usa time.time() para o timestamp
+    import pesquisa, time as _time
+    real = _time.time
+    monkeypatch.setattr(_time, 'time', lambda: real() - idade_segundos)
+    try:
+        return pesquisa._assinador_arquivos.dumps({'a': nome, 'v': validade})
+    finally:
+        monkeypatch.setattr(_time, 'time', real)
+
+def test_enviar_arquivo_exige_assinatura_valida(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=True)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TRABALHO.' + id_generator(10) + '.pdf'
+    #sem t, t de outro arquivo e t adulterado
+    assert client.get('/enviar_arquivo/' + nome).status_code == 403
+    outro = _link('OUTRO.pdf').split('t=')[1]
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, outro)).status_code == 403
+    valido = _link(nome).split('t=')[1]
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, valido[:-2] + 'xx')).status_code == 403
+    assert falso.chamadas == []
+    #validade embutida: 3 h de idade -> link de 2 h expirou, link de 30 dias ainda vale
+    t2h = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO, 3*3600, monkeypatch)
+    t30d = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO_AVALIADOR, 3*3600, monkeypatch)
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t2h)).status_code == 403
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t30d)).status_code == 302
+    #31 dias: nem o do avaliador vale
+    t31d = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO_AVALIADOR, 31*24*3600, monkeypatch)
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t31d)).status_code == 403
+
+def test_botao_do_avaliador_vale_30_dias():
+    import pesquisa, urllib.parse
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        html = client.get('/avaliacao?token=' + token).data.decode()
+        href = re.search(r'href="(/enviar_arquivo/[^"]+)"', html).group(1).replace('&amp;', '&')
+        t = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)['t'][0]
+        assert pesquisa._assinador_arquivos.loads(t)['v'] == 30*24*3600
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_templates_usam_link_assinado():
+    import glob
+    for caminho in glob.glob(WORKING_DIR + 'templates/*.html'):
+        conteudo = open(caminho, encoding='utf-8').read()
+        assert "url_for('enviar_arquivo'" not in conteudo.replace(' ', ''), caminho
+
+def test_recusar_convite_so_antes_de_avaliar():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    aceitou = lambda: executarSelect("SELECT aceitou FROM avaliacoes WHERE token=%s", 1, valores=(token,))[0][0]
+    try:
+        assert client.get('/recusarConvite?token=inexistente').status_code == 404
+        #finalizada: não altera
+        atualizar("UPDATE avaliacoes SET finalizado=1, aceitou=1 WHERE token=%s", (token,))
+        client.get('/recusarConvite?token=' + token)
+        assert aceitou() == 1
+        #não finalizada, mas fora do prazo: não altera
+        atualizar("UPDATE avaliacoes SET finalizado=0 WHERE token=%s", (token,))
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s", (datetime.datetime.now() - datetime.timedelta(days=1), edital))
+        client.get('/recusarConvite?token=' + token)
+        assert aceitou() == 1
+        #dentro do prazo e não finalizada: recusa
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s", (datetime.datetime.now() + datetime.timedelta(days=5), edital))
+        rv = client.get('/recusarConvite?token=' + token)
+        assert u'cancelada com sucesso' in rv.data.decode() and aceitou() == 0
+    finally:
         _remover_avaliacao_temporaria(edital, projeto)

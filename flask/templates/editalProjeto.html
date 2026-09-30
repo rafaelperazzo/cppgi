@@ -181,7 +181,7 @@ $(document).ready(function(){
                 SEM AVALIAÇÕES!
               </td>
             {%endif%}
-            <td><a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=linha[4])}}">{{linha[0]}}</a></td>
+            <td><a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[4], externo=True)}}">{{linha[0]}}</a></td>
             <td><textarea type="text" class="form-textarea campo" id="nome_{{linha[0]}}" name="nome_{{linha[0]}}" placeholder="NOMES DOS AUTORES" required="required" rows="5">{{linha[1]}}</textarea>
             </td>
             <td>

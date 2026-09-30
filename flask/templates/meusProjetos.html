@@ -109,7 +109,7 @@
             APRESENTAÇÃO EM POSTER
           {% endif %}
         </td>  <!-- TIPO DE APRESENTAÇÃO -->
-        <td><a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo',filename=linha[6])}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
+        <td><a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[6])}}">{{linha[4]}}</a></td> <!-- TITULO E ARQUIVO DO PROJETO -->
         <!-- SITUAÇÃO DO PROJETO -->
         <td>
             {% if linha[13]==1 %}
@@ -131,7 +131,7 @@
                   <a class="text-brand-700 hover:underline" href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ENVIAR VERSÃO FINAL</a><br><br>
               {% else %}
               <img src="{{ url_for('static', filename='help.png')}}" alt="" align="center" class="cursor-pointer" onclick="document.getElementById('modalVersaoFinal').style.display='flex'">
-                  <a href="{{url_for('enviar_arquivo',filename=linha[12])}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><br><br>
+                  <a href="{{link_arquivo(linha[12])}}"><img src="{{ url_for('static', filename='pdf.png')}}" alt="" align="center"></a><br><br>
                   <a class="text-brand-700 hover:underline" href="{{url_for('enviarVersaoFinal',id_trabalho=linha[0])}}">ATUALIZAR VERSÃO FINAL</a><br><br>
               {% endif %}
           {% endif %}

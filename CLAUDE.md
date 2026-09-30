@@ -77,6 +77,13 @@ docker-compose logs -f cppgi
   pages: SigV4 caps presigned URLs at 7 days and, signed with the instance role's temporary credentials in
   production, they die when those credentials rotate (hours) — app links + a new URL per click is the design.
   Uploads (`cadastrarProjeto` and the final version in `uploadCR`) go to S3 via `upload_e_apaga()` in production.
+  `/enviar_arquivo` itself only answers links carrying a valid `t` signature (403 otherwise): templates must use the
+  Jinja global `link_arquivo(nome)` (or `link_arquivo(nome, externo=True)` in pages also rendered by pdfkit), never
+  `url_for('enviar_arquivo', ...)` — `tests.py::test_templates_usam_link_assinado` enforces it. The signature is
+  itsdangerous with `AES_KEY` + `salt='enviar_arquivo'` (not `SECRET_KEY`, which changes on every restart) and embeds
+  its own validity: `VALIDADE_LINK_ARQUIVO_AVALIADOR` (30 days) for the button on the evaluator's `/avaliacao`
+  page, `VALIDADE_LINK_ARQUIVO` (2 h) everywhere else (pages re-sign on each load). `/recusarConvite` only works
+  before the evaluation is sent and within `deadline_avaliacao`.
 
 ## Tests
 
