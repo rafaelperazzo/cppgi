@@ -947,3 +947,49 @@ def test_declaracao_avaliador_pdf_em_memoria():
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
         os.remove(CERTIFICADOS_TEMPLATE_DIR + modelo)
+
+#Funções que montam SQL só com identificadores fixos no código (ou trechos de "%s"), ou que ficaram fora da
+#parametrização por decisão explícita (rotas genéricas salvar/detalhes). Valores de usuário NUNCA entram por concatenação.
+EXCECOES_SQL_DINAMICO = {
+    ('pesquisa.py', 'obterColunaUnica'),            #identificadores fixos nas chamadas; valor via %s
+    ('pesquisa.py', 'salvar'),                      #rota genérica mantida como está (decisão do usuário)
+    ('pesquisa.py', 'cadastrar_edital'),            #colunas de CAMPOS_EDITAL
+    ('pesquisa.py', 'editar_edital'),
+    ('pesquisa.py', '_salvar_modelos_certificado'), #colunas de CERTIFICADOS_EDITAL
+    ('pesquisa.py', '_obter_edital'),
+    ('app_api.py', 'consultar'),                    #concatena o trecho de filtros_modalidade_area (só %s)
+    ('app_api.py', 'totais'),
+}
+
+def _sql_dinamico(caminho):
+    import ast
+    sql = re.compile(r'\b(SELECT|UPDATE|INSERT|DELETE)\b', re.I)
+    def literal_sql(n):
+        return any(isinstance(x, ast.Constant) and isinstance(x.value, str) and sql.search(x.value) for x in ast.walk(n))
+    def seguro(n):
+        #",".join(["%s"]*len(itens)): placeholders para IN (...)
+        if isinstance(n, ast.Constant):
+            return True
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == 'join':
+            return all(x.value == '%s' for x in ast.walk(n) if isinstance(x, ast.Constant) and isinstance(x.value, str) and x.value.strip(',') != '')
+        if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Add):
+            return seguro(n.left) and seguro(n.right)
+        return False
+    arvore = ast.parse(open(caminho, encoding='utf-8').read())
+    achados = []
+    for funcao in ast.walk(arvore):
+        if not isinstance(funcao, ast.FunctionDef):
+            continue
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.BinOp) and isinstance(n.op, (ast.Add, ast.Mod)) and literal_sql(n):
+                if isinstance(n.op, ast.Mod) or not (seguro(n.left) and seguro(n.right)):
+                    achados.append((os.path.basename(caminho), funcao.name, n.lineno))
+            elif isinstance(n, ast.JoinedStr) and literal_sql(n):
+                achados.append((os.path.basename(caminho), funcao.name, n.lineno))
+    return achados
+
+def test_guardrail_sql_sem_concatenacao():
+    achados = []
+    for arquivo in ('pesquisa.py', 'app_api.py'):
+        achados += [a for a in _sql_dinamico(WORKING_DIR + arquivo) if (a[0], a[1]) not in EXCECOES_SQL_DINAMICO]
+    assert achados == [], "SQL montado por concatenação/format (use %%s + valores): %s" % sorted(set(achados))
