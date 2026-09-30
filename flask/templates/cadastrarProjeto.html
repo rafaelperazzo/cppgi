@@ -3,6 +3,7 @@
 {% block title %}SUBMISSÃO DE TRABALHO CIENTÍFICO{% endblock %}
 
 {% block head_extra %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% include "_validators.html" %}
 <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 <script>
@@ -168,6 +169,11 @@
                     campoOrientador.focus();
                     avisandoOrientadorVazio = false;
                   }, 0);
+                  return (false);
+              }
+              var captcha = document.querySelector('[name="cf-turnstile-response"]');
+              if (!captcha || captcha.value == '') { //a validação que vale é a do servidor (turnstile_valido)
+                  alert('Aguarde a verificação de segurança (ou marque a caixa) antes de enviar.');
                   return (false);
               }
               if (validarCPF(username)) {
@@ -481,11 +487,9 @@
     </select>
   </div>
 
-  {% if PRODUCAO==1 %}
-    <div class="flex justify-center">
-      <div class="g-recaptcha" data-sitekey="6LcTP7IrAAAAAEGXU_wjThN5GsBZ3mZCy67tzQyH"></div>
-    </div>
-  {% endif %}
+  <div class="flex justify-center">
+    <div class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}" data-language="pt-br"></div>
+  </div>
 
   <div class="flex flex-col items-center gap-3">
     <input class="btn-secondary cursor-pointer" name="btnEnviar" id="btnEnviar" value="Enviar" formenctype="multipart/form-data" type="submit">

@@ -2,11 +2,26 @@
 
 {% block title %}Cadastre-se{% endblock %}
 
+{% block head_extra %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script>
+//Só melhora a experiência: a validação que vale é a do servidor (turnstile_valido)
+function humano() {
+  var token = document.querySelector('[name="cf-turnstile-response"]');
+  if (!token || token.value == "") {
+    alert("Aguarde a verificação de segurança abaixo (ou marque a caixa) para continuar...");
+    return (false);
+  }
+  return (true);
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <h2 class="page-title text-center">Cadastre-se</h2>
 
 <div class="mx-auto mt-4 max-w-md card">
-  <form action="{{ url_for('cadastro') }}" method="POST" class="flex flex-col gap-4">
+  <form action="{{ url_for('cadastro') }}" method="POST" onsubmit="return humano()" class="flex flex-col gap-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     {% if mensagem %}
@@ -33,6 +48,10 @@
     <div>
       <label class="form-label" for="senha">Senha (mínimo 12 caracteres, com maiúscula, minúscula, número e caractere especial)</label>
       <input class="form-input" type="password" id="senha" name="senha" required minlength="12">
+    </div>
+
+    <div class="flex justify-center">
+      <div class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}" data-language="pt-br"></div>
     </div>
 
     <button class="btn-primary" type="submit">Cadastrar</button>

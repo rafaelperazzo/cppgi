@@ -170,6 +170,21 @@ try:
 except:
     NAO_RESPONDA = "NAO-RESPONDA@ufca.edu.br"
 
+#Cloudflare Turnstile (captcha): chaves em /cppgi/TURNSTILE_KEY e /cppgi/TURNSTILE_SECRET_KEY no SSM (produção)
+#ou no .env. Em dev, sem chaves, usa as chaves de teste oficiais da Cloudflare (widget visível, sempre aprova).
+TURNSTILE_CHAVES_TESTE = ('1x00000000000000000000AA', '1x0000000000000000000000000000000AA')
+
+def chaves_turnstile(ambiente, producao):
+    chave = str(ambiente.get('TURNSTILE_KEY', '')).strip()
+    segredo = str(ambiente.get('TURNSTILE_SECRET_KEY', '')).strip()
+    if chave and segredo:
+        return chave, segredo
+    if producao == 1:
+        raise RuntimeError("TURNSTILE_KEY/TURNSTILE_SECRET_KEY ausentes (SSM /cppgi): o captcha é obrigatório em produção")
+    return TURNSTILE_CHAVES_TESTE
+
+TURNSTILE_KEY, TURNSTILE_SECRET_KEY = chaves_turnstile(config['DEFAULT'], PRODUCAO)
+
 #Em produção (EC2), AWS_S3_KEY_ID/AWS_S3_SECRET_KEY não são configurados de propósito: o acesso ao S3 vem
 #da IAM role da instância. Passar credenciais explícitas vazias pro boto3 quebraria essa role (ele tentaria
 #autenticar com chave/segredo em branco em vez de cair no credential chain padrão) - só passamos as chaves
@@ -225,7 +240,7 @@ def inject_institucional():
     #E-mails renderizados em threads/jobs têm app context mas não request: sem sessão, sem faixa de acesso-como
     impersonador = session.get('impersonador') if has_request_context() else None
     return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE,
-                IMPERSONADOR=impersonador,
+                IMPERSONADOR=impersonador, TURNSTILE_KEY=TURNSTILE_KEY,
                 ACESSO_COMO_CPF=mascarar_cpf(session.get('username', '')) if impersonador else '')
 
 mail = Mail(app)
@@ -337,6 +352,29 @@ def registrar_falha_login(username, ip):
 
 def limpar_falhas_login(username):
     atualizar("DELETE FROM tentativas_login WHERE username=%s", (username,))
+
+TURNSTILE_SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+MENSAGEM_CAPTCHA = u'Confirme que você não é um robô e tente novamente.'
+
+def turnstile_valido():
+    """Valida no servidor o token do Cloudflare Turnstile enviado pelo formulário (campo cf-turnstile-response).
+    Fail-closed: sem token, resposta negativa ou falha na API da Cloudflare -> False."""
+    token = str(request.form.get('cf-turnstile-response', '')).strip()
+    ip = obter_ip_cliente(request)
+    codigos = ['token-ausente']
+    if token:
+        try:
+            resposta = requests.post(TURNSTILE_SITEVERIFY, timeout=5,
+                                     data={'secret': TURNSTILE_SECRET_KEY, 'response': token, 'remoteip': ip})
+            dados = resposta.json()
+            if dados.get('success') is True:
+                return True
+            codigos = dados.get('error-codes', [])
+        except (requests.RequestException, ValueError) as e:
+            logging.error("Turnstile: falha ao validar o captcha na Cloudflare (%s)", e)
+            codigos = ['falha-api']
+    logger_auditoria.info('evento=captcha_recusado rota=%s ip=%s codigos=%s', request.path, ip, ','.join(map(str, codigos)))
+    return False
 
 #Obtendo senhas
 PASSWORD = config['DEFAULT']['DB_PASSWORD']
@@ -848,6 +886,8 @@ def cadastrarProjeto():
     destino = paraInt(request.form['destino'])
     if not editalAbertoParaSubmissao(destino):
         return(u"As submissões para este edital não estão abertas.")
+    if not turnstile_valido():
+        return(MENSAGEM_CAPTCHA)
     tipo = paraInt(request.form['tipo_apresentacao'])
     tipo_trabalho = paraInt(request.form['tipo_trabalho'])
     categoria_trabalho = paraInt(request.form.get('categoria_trabalho', -1))
@@ -1541,6 +1581,8 @@ def login():
     if login_bloqueado(siape, ip):
         logger_auditoria.info('evento=login_bloqueado cpf=%s ip=%s', mascarar_cpf(siape), ip)
         return(render_template('login.html',mensagem=u'Muitas tentativas. Aguarde 15 minutos e tente novamente.',next=destino or ''))
+    if not turnstile_valido():
+        return(render_template('login.html',mensagem=MENSAGEM_CAPTCHA,next=destino or ''))
     session.clear() #evita fixação de sessão e encerra qualquer acesso-como
     if autenticar_usuario(siape,senha):
         limpar_falhas_login(siape)
@@ -1556,6 +1598,8 @@ def esqueciMinhaSenha():
 @app.route("/enviarMinhaSenha", methods=['GET', 'POST'])
 def enviarMinhaSenha():
     if request.method == "POST":
+        if not turnstile_valido():
+            return(render_template('login.html',mensagem=MENSAGEM_CAPTCHA))
         if ('email' in request.form):
             email = str(request.form['email']).strip()
             #Flask-Mail/smtplib só aceitam endereços ASCII (ex.: "júlia@..." gera UnicodeEncodeError no envio)
@@ -4183,6 +4227,8 @@ def cadastro():
         return (render_template('cadastro.html'))
 
     csrf.protect()
+    if not turnstile_valido():
+        return (render_template('cadastro.html', mensagem=MENSAGEM_CAPTCHA))
     cpf = re.sub(r'\D', '', str(request.form.get('cpf', '')))
     email = str(request.form.get('email', '')).strip().lower()
     nome = str(request.form.get('nome', '')).strip()

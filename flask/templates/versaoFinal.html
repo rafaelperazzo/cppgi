@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<form name="frmCadastroVersaoFinal" action="/cppgi/uploadCR" onsubmit="return humano()" method="POST"
+<form name="frmCadastroVersaoFinal" action="/cppgi/uploadCR" method="POST"
   enctype="multipart/form-data" class="mx-auto max-w-2xl flex flex-col gap-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
