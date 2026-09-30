@@ -721,7 +721,9 @@ def test_log_required_grava_auditoria(caplog):
     logger_auditoria.propagate = True
     try:
         with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
-            get_res('/admin/avaliacoesNegadas')
+            #sem parâmetros a rota responde 400, mas passa pelo @log_required antes: basta para auditar
+            credenciais = base64.b64encode(usuario_senha).decode("utf-8")
+            aplicacao.get('/admin/avaliacoesNegadas', headers={"Authorization": "Basic " + credenciais})
     finally:
         logger_auditoria.propagate = False
     mensagens = [r.message for r in caplog.records if r.name == 'auditoria_acessos']
@@ -993,3 +995,68 @@ def test_guardrail_sql_sem_concatenacao():
     for arquivo in ('pesquisa.py', 'app_api.py'):
         achados += [a for a in _sql_dinamico(WORKING_DIR + arquivo) if (a[0], a[1]) not in EXCECOES_SQL_DINAMICO]
     assert achados == [], "SQL montado por concatenação/format (use %%s + valores): %s" % sorted(set(achados))
+
+'''
+**************************************************************
+TESTES: correções de bugs pré-existentes (certificado individual, notasApresentacoes, cruzarDados,
+distribuirSalas sem sala de pôster, avaliacoesNegadas)
+**************************************************************
+'''
+
+def _auth_headers():
+    return {"Authorization": "Basic " + base64.b64encode(usuario_senha).decode("utf-8")}
+
+def test_certificado_individual_grava_token_na_tabela_certa():
+    from PIL import Image
+    from pesquisa import CERTIFICADOS_TEMPLATE_DIR
+    modelo = 'modelo_teste_' + id_generator(8) + '.png'
+    Image.new('RGB', (40, 30), 'white').save(CERTIFICADOS_TEMPLATE_DIR + modelo)
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        atualizar("UPDATE editais SET certificado_demais=%s WHERE id=%s", (modelo, edital))
+        inserir("INSERT INTO certificados_moderador (edital,nome,tipo,token) VALUES (%s,'MODERADOR TMP','moderou','0')", (edital,))
+        id_certificado = executarSelect("SELECT max(id) FROM certificados_moderador WHERE edital=%s", 1, valores=(edital,))[0][0]
+        #trabalho com o mesmo id do certificado: o bug antigo sobrescrevia o token dele
+        token_trabalho_antes = obterColunaUnica('editalProjeto', 'token', 'id', str(id_certificado))
+        rv = client.get('/baixarCertificadoIndividual/%s' % id_certificado)
+        assert rv.status_code == 200 and rv.mimetype == 'application/pdf'
+        token_certificado = obterColunaUnica('certificados_moderador', 'token', 'id', str(id_certificado))
+        assert token_certificado not in ('0', '')
+        assert obterColunaUnica('editalProjeto', 'token', 'id', str(id_certificado)) == token_trabalho_antes
+        #segunda emissão reaproveita o mesmo token (antes era regenerado a cada download)
+        client.get('/baixarCertificadoIndividual/%s' % id_certificado)
+        assert obterColunaUnica('certificados_moderador', 'token', 'id', str(id_certificado)) == token_certificado
+    finally:
+        atualizar("DELETE FROM certificados_moderador WHERE edital=%s", (edital,))
+        _remover_avaliacao_temporaria(edital, projeto)
+        os.remove(CERTIFICADOS_TEMPLATE_DIR + modelo)
+
+def test_notas_apresentacoes_exige_admin():
+    assert client.get('/admin/notasApresentacoes/1').status_code == 401
+    rv = client.get('/notasApresentacoes/1')
+    assert rv.status_code == 308 and rv.headers['Location'].endswith('/admin/notasApresentacoes/1')
+
+def test_cruzar_dados_removida():
+    assert client.get('/cruzarDados?ano=2026').status_code == 404
+
+def test_distribuir_salas_sem_sala_de_poster():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        atualizar("UPDATE editalProjeto SET categoria=1, situacao=1 WHERE id=%s", (projeto,))
+        rv = client.get('/admin/distribuirSalas?edital=%s' % edital, headers=_auth_headers(), follow_redirects=True)
+        assert rv.status_code == 200
+        assert u'cadastre uma sala do tipo pôster' in rv.data.decode()
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_avaliacoes_negadas_parametros():
+    rv = client.get('/admin/avaliacoesNegadas?edital=1', headers=_auth_headers())
+    assert rv.status_code == 400
+    assert b'SELECT' not in rv.data
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        assert client.get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital, projeto), headers=_auth_headers()).status_code == 200
+        rv = client.get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital + 1, projeto), headers=_auth_headers())
+        assert rv.status_code == 404
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
