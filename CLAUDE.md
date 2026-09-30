@@ -93,8 +93,9 @@ docker-compose exec cppgi python -m pytest -vv -s /home/perazzo/cppgi/tests.py
 
 (see `test.sh` for the exact invocation). Tests in `flask/tests.py` hit a real
 running Flask test client (`app.test_client()`) against the real MySQL database configured in `flask/.env` —
-there's no mocking layer. HTTP Basic Auth credentials for tests come from `config['DEFAULT']['usuario']` /
-`['senha']` in `flask/.env`.
+there's no mocking layer. The admin test account comes from `config['DEFAULT']['usuario']` / `['senha']` in
+`flask/.env` (must be an existing admin with an 11-digit CPF-like username and a strong password); tests log in
+through the `/login` form (`logar(c, ...)`, `_cliente_admin()`), while the shared `client` stays anonymous.
 
 `flask/teste.py` is an ad hoc manual scratch script, not part of the pytest suite.
 
@@ -121,19 +122,25 @@ Key pieces inside `pesquisa.py`:
   antigas sem prefixo continuam existindo como redirects (301 em rotas só-GET, 308 nas que aceitam POST), registrados
   por `ROTAS_ADMIN_LEGADAS` / `_registrar_redirects_admin_legados()` antes do `__main__`. Ao criar uma nova rota
   admin-only, use o prefixo `/admin/` direto; os templates devem usar `url_for()`, nunca o caminho escrito à mão.
-- `flask_httpauth.HTTPBasicAuth` (`auth`) with `get_user_roles` driving `@auth.login_required(role=[...])` checks
-  (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes. Two auth modes coexist: the
-  `/login` form calls `verify_password()` directly to fill the session, while `@auth.login_required` routes re-run
-  `verify_password()` on **every** request from the browser's cached HTTP Basic header — which normally rewrites the
-  session with that user. `auth.username()` is always the Basic-header user; `auth.current_user()` / the `user`
-  argument of `get_user_roles(user)` is whatever `verify_password` returned (the *effective* user) — use those, not
-  `auth.username()`, for authorization.
+- **Authentication is session-only** (Flask-HTTPAuth / HTTP Basic was removed — don't bring it back). The `/login`
+  form is the single entry point: `autenticar_usuario()` checks `users` and fills the session (`username`, `roles`,
+  `user_id`, `forcar_troca_senha`, `ultimo_acesso`); it always returns True/False (errors deny). Protected routes use
+  `@login_required(role=[...])` (defined next to `log_required`, always followed by `@log_required` — enforced by a
+  test), which **re-reads the user from `users` on every request** (role changes / deleted users take effect
+  immediately; roles: `admin`, `avaliador`, `monitor`, `user`), redirects anonymous users to
+  `/login?next=<request.script_root + path>` (the `/cppgi` prefix matters in production) and returns 403 for missing
+  roles. `/login` only follows `next` if it's a same-site relative path (`_destino_seguro`), clears the session before
+  authenticating (no fixation) and is rate-limited by `login_bloqueado()`: 5 failures per CPF or 20 per IP (campus
+  NAT) within 15 min, stored in the `tentativas_login` table (missing table → logs and doesn't block). Sessions expire
+  after `INATIVIDADE_MAXIMA` = 2 h without requests (`verificar_inatividade`, registered before the forced
+  password-change hook). E-mails must link to plain app URLs — never `https://user:pass@host` (test enforced); the
+  password is still sent as text in the instruction e-mails (user decision, plaintext passwords are kept).
 - **Admin "acessar como"** (`POST /admin/acessarComo/<user_id>`, button in `listar_usuarios.html`; `POST /voltarAdmin`
   from the banner in `layout.html`): the admin navigates as a non-admin user (admins can't be targeted) and can do
-  everything that user can. The real admin is kept in `session['impersonador']`; while it's set, `verify_password`
-  keeps the target's session and returns the target's username (so `get_user_roles` evaluates the target's roles and
-  admin routes return 403 until `/voltarAdmin`). A weak/leaked admin password or a form `/login` ends the
-  impersonation. `log_required` appends `impersonador_id=` to every audit line, plus `acesso_como inicio/fim` events.
+  everything that user can. The real admin is kept in `session['impersonador']` while the regular session fields hold
+  the target, so `login_required` evaluates the target's roles (admin routes → 403 until `/voltarAdmin`). A form
+  `/login` ends the impersonation. `log_required` appends `impersonador_id=` to every audit line, plus
+  `acesso_como inicio/fim` events.
 - Certificate generation (`gerarCertificado*` functions): builds PDFs/PNGs from templates in
   `flask/documentos/` using Pillow + `fonts/Times_New_Roman*.ttf`, plus `pdfkit`/`wkhtmltopdf` for HTML→PDF
   declarations.

@@ -6,7 +6,6 @@ from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
 from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort,has_request_context
-from flask_httpauth import HTTPBasicAuth
 import datetime
 #import MySQLdb
 import mariadb as MySQLdb
@@ -229,7 +228,6 @@ def inject_institucional():
                 IMPERSONADOR=impersonador,
                 ACESSO_COMO_CPF=mascarar_cpf(session.get('username', '')) if impersonador else '')
 
-auth = HTTPBasicAuth()
 mail = Mail(app)
 app.config['MAIL_SERVER'] = 'localhost'
 app.config['MAIL_PORT'] = 25
@@ -282,6 +280,63 @@ def log_required(f):
             logging.error("Erro ao registrar auditoria: " + str(e))
         return f(*args, **kwargs)
     return decorado
+
+def _caminho_atual():
+    """Caminho da requisição com o prefixo (/cppgi em produção), para voltar a ele depois do login."""
+    caminho = request.script_root + request.full_path
+    return caminho[:-1] if caminho.endswith('?') else caminho
+
+def _destino_seguro(destino):
+    """Só aceita caminhos relativos do próprio site (evita open redirect via ?next=)."""
+    destino = str(destino or '')
+    if not destino.startswith('/') or destino.startswith('//') or '\\' in destino or urlparse(destino).netloc:
+        return None
+    return destino
+
+def login_required(role=None):
+    """Exige login por sessão e, se role for dado, ao menos um desses papéis. Relê o usuário a cada requisição
+    (papel alterado ou usuário removido valem na hora). Durante o acesso-como, o usuário é o acessado."""
+    def decorador(f):
+        @wraps(f)
+        def decorado(*args, **kwargs):
+            user_id = session.get('user_id')
+            usuario = _obter_usuario_por_id(user_id) if user_id else None
+            if usuario is None or int(usuario[6]) == 0:
+                if user_id:
+                    session.clear()
+                flash(u'Faça login para continuar.')
+                return redirect(url_for('login', next=_caminho_atual()))
+            session['roles'] = str(usuario[3]).split(',')
+            if role and not set(role) & set(session['roles']):
+                return (u'Acesso negado. <a href="' + url_for('usuario') + u'">Voltar</a>', 403)
+            return f(*args, **kwargs)
+        return decorado
+    return decorador
+
+#Limite de tentativas de login (tabela tentativas_login): por usuário e por IP (a universidade sai por NAT)
+MAX_FALHAS_LOGIN_USUARIO = 5
+MAX_FALHAS_LOGIN_IP = 20
+JANELA_FALHAS_LOGIN_MINUTOS = 15
+
+def login_bloqueado(username, ip):
+    try:
+        consulta = """SELECT
+        (SELECT count(*) FROM tentativas_login WHERE username=%s AND ocorrido_em > NOW() - INTERVAL %s MINUTE),
+        (SELECT count(*) FROM tentativas_login WHERE ip=%s AND ocorrido_em > NOW() - INTERVAL %s MINUTE)"""
+        resultado = executarSelect(consulta, tipo=1, valores=(username, JANELA_FALHAS_LOGIN_MINUTOS, ip, JANELA_FALHAS_LOGIN_MINUTOS))
+        if not resultado or not resultado[0]:
+            return False #sem a tabela (deploy antes do SQL): não bloqueia
+        return resultado[0][0] >= MAX_FALHAS_LOGIN_USUARIO or resultado[0][1] >= MAX_FALHAS_LOGIN_IP
+    except Exception as e:
+        logging.error("Erro ao verificar tentativas de login: %s", e)
+        return False
+
+def registrar_falha_login(username, ip):
+    atualizar("INSERT INTO tentativas_login (username, ip) VALUES (%s, %s)", (str(username)[:20], str(ip)[:45]))
+    atualizar("DELETE FROM tentativas_login WHERE ocorrido_em < NOW() - INTERVAL 1 DAY")
+
+def limpar_falhas_login(username):
+    atualizar("DELETE FROM tentativas_login WHERE username=%s", (username,))
 
 #Obtendo senhas
 PASSWORD = config['DEFAULT']['DB_PASSWORD']
@@ -486,63 +541,30 @@ def _obter_usuario_por_id(user_id):
     FROM users WHERE id=%s""", tipo=1, valores=(user_id,))
     return resultado[0] if resultado and resultado[0] else None
 
-@auth.verify_password
-def verify_password(username, password):
-    """This function is called to check if a username /
-    password combination is valid.
-    """
+def autenticar_usuario(username, password):
+    """Confere usuário/senha do formulário /login e carrega a sessão. Sempre devolve True/False (erro = recusa)."""
     try:
-        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-        conn.select_db('cppgi')
-        cursor  = conn.cursor()
-        consulta = """SELECT
-        id,
-        username,
-        permission,
-        roles,
-        nome,
-        email,
-        email_verificado,
-        forcar_troca_senha
-        FROM users
-        WHERE username = %s AND password = %s """
-        cursor.execute(consulta,(username,password))
-        total = cursor.rowcount
-        if (total==0): #Se não encontrou o usuário
-            return (False)
-        else:
-            linha = cursor.fetchone()
-            if int(linha[6]) == 0:
-                flash(u'Confirme seu e-mail antes de acessar o sistema.')
-                return (False)
-
-            forcar = bool(int(linha[7]))
-            senha_ok, _ = senha_forte(password)
-            if credencial_vazada(request.headers) or not senha_ok:
-                if not forcar:
-                    atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
-                forcar = True
-
-            #Acesso-como: o navegador reenvia o HTTP Basic do admin a cada requisição. Se é o próprio admin que iniciou
-            #o acesso (e segue admin, com senha em dia), a sessão continua sendo a do usuário acessado.
-            impersonador = session.get('impersonador')
-            if impersonador and impersonador.get('username') == str(linha[1]):
-                if 'admin' in str(linha[3]).split(',') and not forcar:
-                    return session['username']
-                session.pop('impersonador', None) #senha fraca/vazada ou deixou de ser admin: encerra o acesso-como
-
-            _carregar_sessao_usuario(linha)
-            session['forcar_troca_senha'] = forcar
-            #return (True)
-            return username
-    except:
-        e = sys.exc_info()[0]
-        logging.error(e)
-        logging.error("ERRO Na função check_auth. Ver consulta abaixo.")
-        logging.error(consulta)
-    finally:
-        cursor.close()
-        conn.close()
+        resultado = executarSelect("""SELECT id,username,permission,roles,nome,email,email_verificado,forcar_troca_senha
+        FROM users WHERE username = %s AND password = %s""", tipo=1, valores=(username,password))
+        if not resultado or not resultado[0]:
+            return False
+        linha = resultado[0]
+        if int(linha[6]) == 0:
+            flash(u'Confirme seu e-mail antes de acessar o sistema.')
+            return False
+        forcar = bool(int(linha[7]))
+        senha_ok, _ = senha_forte(password)
+        if credencial_vazada(request.headers) or not senha_ok:
+            if not forcar:
+                atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
+            forcar = True
+        _carregar_sessao_usuario(linha)
+        session['forcar_troca_senha'] = forcar
+        session['ultimo_acesso'] = time.time()
+        return True
+    except Exception as e:
+        logging.error("ERRO em autenticar_usuario: %s", e)
+        return False
 
 def autenticado():
     if ('username') in session:
@@ -579,23 +601,9 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
         conn.close()
         
 
-@auth.get_user_roles
-def get_user_roles(user):
-    #user = valor retornado por verify_password: durante o acesso-como é o usuário acessado, não o admin do header
-    consulta = """SELECT roles FROM users WHERE username=%s"""
-    linhas,total = executarSelect(consulta,valores=(user,))
-    if total>0:
-        for linha in linhas:
-            roles = str(linha[0])
-            roles = roles.split(',')
-            session['roles'] = roles
-            return (roles)
-    else:
-        return (['user'])
-
 def avaliadorTemPermissao(edital, data,sala):
     consulta = "SELECT id FROM usuarios_salas WHERE username=%s and data=%s and sala=%s"
-    linhas,total = executarSelect(consulta,valores=(auth.current_user(),data,sala))
+    linhas,total = executarSelect(consulta,valores=(session.get('username'),data,sala))
     if total>0:
         return (True)
     else:
@@ -720,6 +728,22 @@ def atualizar_usuario_online():
         inserir(consulta,valores)
     except Exception as e:
         logging.error("Erro ao registrar presença online: " + str(e))
+
+#Sessão expira após INATIVIDADE_MAXIMA sem requisições (registrado antes de verificar_troca_senha_obrigatoria)
+INATIVIDADE_MAXIMA = 2*3600
+ROTAS_ISENTAS_INATIVIDADE = {'static', 'login'}
+
+@app.before_request
+def verificar_inatividade():
+    if request.endpoint is None or request.endpoint in ROTAS_ISENTAS_INATIVIDADE or not session.get('user_id'):
+        return
+    agora = time.time()
+    ultimo = session.get('ultimo_acesso')
+    if ultimo and agora - ultimo > INATIVIDADE_MAXIMA:
+        session.clear()
+        flash(u'Sua sessão expirou por inatividade. Faça login novamente.')
+        return redirect(url_for('login', next=_caminho_atual()))
+    session['ultimo_acesso'] = agora
 
 ROTAS_ISENTAS_TROCA_SENHA = {'login', 'encerrarSessao', 'trocarSenhaObrigatoria',
                               'cadastro', 'confirmarEmail', 'static', 'voltar_admin'}
@@ -1116,7 +1140,7 @@ def recusarConvite():
         return("OK")
 
 @app.route("/admin/avaliacoesNegadas", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def avaliacoesNegadas():
     """Formulário para incluir avaliador(es) num trabalho (links de editalProjeto/submissoes/listar_avaliadores)."""
@@ -1148,7 +1172,7 @@ def avaliacoesNegadas():
     return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos,avaliadores_area=lista_area,area=area))
 
 @app.route("/admin/inserirAvaliador", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def inserirAvaliador():
     if request.method == "POST":
@@ -1252,7 +1276,7 @@ OPCOES_PDF_RESULTADOS = {
 }
 
 @app.route("/admin/editalProjeto/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def editalProjeto(edital):
 
@@ -1470,7 +1494,7 @@ def getNome(username):
     return("INDEFINIDO")
 
 @app.route("/avaliador/<edital>", methods=['GET'])
-@auth.login_required(role=['avaliador','admin'])
+@login_required(role=['avaliador','admin'])
 @log_required
 def avaliador(edital):
     session['edital'] = edital
@@ -1506,20 +1530,24 @@ Método que ativa a sessão com os dados do usuário
 @app.route("/login", methods=['GET', 'POST'])
 @log_required
 def login():
-    if request.method == "POST":
-        if (('siape' in request.form) and ('senha' in request.form)):
-            siape = str(request.form['siape'])
-            senha = str(request.form['senha'])
-            session.pop('impersonador', None) #login explícito sempre encerra o acesso-como
-            if verify_password(siape,senha)!=False:
-                registrar_acesso('/login',request.remote_addr,siape)
-                return(redirect(url_for('usuario')))
-            else:
-                return(render_template('login.html',mensagem='Problemas com o usuario/senha.'))
-        else:
-            return(render_template('login.html',mensagem='Problemas com o usuario/senha.'))
-    else:
-        return(render_template('login.html',mensagem=''))
+    if request.method != "POST":
+        return(render_template('login.html',mensagem='',next=_destino_seguro(request.args.get('next')) or ''))
+    destino = _destino_seguro(request.form.get('next'))
+    if not (('siape' in request.form) and ('senha' in request.form)):
+        return(render_template('login.html',mensagem='Problemas com o usuario/senha.',next=destino or ''))
+    siape = str(request.form['siape'])
+    senha = str(request.form['senha'])
+    ip = obter_ip_cliente(request)
+    if login_bloqueado(siape, ip):
+        logger_auditoria.info('evento=login_bloqueado cpf=%s ip=%s', mascarar_cpf(siape), ip)
+        return(render_template('login.html',mensagem=u'Muitas tentativas. Aguarde 15 minutos e tente novamente.',next=destino or ''))
+    session.clear() #evita fixação de sessão e encerra qualquer acesso-como
+    if autenticar_usuario(siape,senha):
+        limpar_falhas_login(siape)
+        registrar_acesso('/login',request.remote_addr,siape)
+        return(redirect(destino or url_for('usuario')))
+    registrar_falha_login(siape, ip)
+    return(render_template('login.html',mensagem='Problemas com o usuario/senha.',next=destino or ''))
 
 @app.route("/esqueciMinhaSenha", methods=['GET', 'POST'])
 def esqueciMinhaSenha():
@@ -1602,7 +1630,7 @@ def verArquivo():
         return("OK")
 
 @app.route("/admin/estatisticas", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def estatisticas():
 
@@ -1653,7 +1681,7 @@ def estatisticas():
         return("Acesso negado.")
 
 @app.route("/admin/parcial/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def parcial(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
@@ -1677,7 +1705,7 @@ def parcial(edital):
     return(redirect(url_for('admin',edital=edital)))
 
 @app.route("/admin/resultados", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def resultados():
     if request.method == "GET":
@@ -1832,7 +1860,7 @@ def distribuirIgualmente(local,turno,linhas,edital):
     distribuir(local,turno,uas,trabalhos_uas)
 
 @app.route("/admin/distribuirSalas", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def distribuirSalas():
     if request.method == "GET":
@@ -1889,7 +1917,7 @@ def distribuirSalas():
         return("OK")
 
 @app.route("/admin/programacao", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def programacao():
     if request.method == "GET":
@@ -1923,7 +1951,7 @@ def programacao():
         return("OK")
 
 @app.route("/admin/mapa", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def mapa():
     if 'edital' in request.args:
@@ -2059,7 +2087,7 @@ def cadastrarLinkApresentacao():
     return(redirect(url_for('meusProjetos')))
 
 @app.route("/admin/premiacao", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def premiacao():
     if request.method == "GET":
@@ -2112,7 +2140,7 @@ def getLinkSala(edital,sala):
         return(str(linha[0]))
     
 @app.route("/apresentacoes", methods=['GET', 'POST'])
-@auth.login_required(role=['admin','avaliador','monitor'])
+@login_required(role=['admin','avaliador','monitor'])
 @log_required
 def apresentacoes():
     if request.method == "GET":
@@ -2262,7 +2290,7 @@ def processar_emails_informacoes_apresentacao(linhas,edital):
                         app.logger.error(str(e))
 
 @app.route("/admin/emailInformacoes/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def emailInformacoes(edital):
     if request.method == "GET":
@@ -2337,7 +2365,7 @@ def processar_emails_instrucoes_apresentacao(linhas,edital):
                 app.logger.error("Erro no processamento dos e-mails com instrucoes de avaliacao: " + str(e))
 
 @app.route("/admin/emailInstrucoes/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def emailInstrucoes(edital):
     """
@@ -2367,7 +2395,7 @@ def emailInstrucoes(edital):
 
 
 @app.route("/admin/emailPosEvento", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def emailPosEvento():
     if request.method == "GET":
@@ -2424,7 +2452,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
                 app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
 
 @app.route("/admin/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def emailInstrucoesAvaliador(edital):
     """
@@ -2492,7 +2520,7 @@ def getMapaApresentacoes(edital):
 
 
 @app.route("/organizacao", methods=['GET', 'POST'])
-@auth.login_required(role=['admin','monitor'])
+@login_required(role=['admin','monitor'])
 @log_required
 def organizacao():
     if request.method == "GET":
@@ -2507,7 +2535,7 @@ def organizacao():
         return ("OK")
 
 @app.route("/admin", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
@@ -2521,7 +2549,7 @@ def root():
     return(render_template('index.html',titulo=titulo,root=CPPGI_SITE,linhas=linhas))
 
 @app.route("/admin/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def admin(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
@@ -2544,7 +2572,7 @@ def admin(edital):
     return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo,versao_final_ativo=versao_final_ativo))
 
 @app.route("/admin/mapaavaliadores", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def mapaavaliadores():
     if request.method == "GET":
@@ -2570,7 +2598,7 @@ def mapaavaliadores():
         return("OK")
 
 @app.route("/gerarCertificadoAvaliador", methods=['GET'])
-@auth.login_required(role=['avaliador'])
+@login_required(role=['avaliador'])
 @log_required
 def gerarCertificadoAvaliador():
     """
@@ -2666,7 +2694,7 @@ def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, outp
 
 
 @app.route("/baixarCertificado/<id_projeto>", methods=['GET'])
-@auth.login_required(role=['user','admin'])
+@login_required(role=['user','admin'])
 @log_required
 def baixarCertificado(id_projeto):
     """
@@ -2760,7 +2788,7 @@ def certificadoIndividual(id_certificado):
             return ("Erro ao gerar certificado", 500)
 
 @app.route("/confirmar", methods=['GET', 'POST'])
-@auth.login_required(role=['avaliador','admin'])
+@login_required(role=['avaliador','admin'])
 @log_required
 def confirmar():
 
@@ -2813,7 +2841,7 @@ def confirmar():
         return("ERRO")
 
 @app.route("/admin/notasApresentacoes/<edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def notasApresentacoes(edital):
     if request.method == "GET":
@@ -3127,7 +3155,7 @@ def job_solicitar_versao_final():
 Envia solicitação para os avaliadores dos trabalhos escritos
 """
 @app.route("/admin/emailSolicitarAvaliacao", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def email_solicitar_avaliacao():
     t = threading.Thread(target=enviar_email_avaliadores)
@@ -3192,26 +3220,26 @@ def alternar_job(job_id, usuario=''):
     return u"Agendamento '" + nome + u"' LIGADO."
 
 @app.route("/admin/toggleSchedulerAvaliadores")
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def toggle_scheduler_avaliadores():
-    flash(alternar_job('enviar_email_avaliadores', auth.username()))
+    flash(alternar_job('enviar_email_avaliadores', session.get('username')))
     return(redirect(url_for('root')))
 
 @app.route("/admin/toggleJob/<job_id>", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def toggle_job(job_id):
     if job_id not in NOMES_JOBS_AGENDADOS:
         abort(404)
-    flash(alternar_job(job_id, auth.username()))
+    flash(alternar_job(job_id, session.get('username')))
     edital = paraInt(request.form.get('edital')) #enviado pelo admin.html para voltar à página do edital
     if edital > 0:
         return(redirect(url_for('admin', edital=edital)))
     return(redirect(url_for('jobs_agendados')))
 
 @app.route("/admin/jobsAgendados")
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def jobs_agendados():
     jobs = []
@@ -3228,7 +3256,7 @@ def jobs_agendados():
     return(render_template('jobs_agendados.html', jobs=jobs))
 
 @app.route("/admin/usuariosOnline")
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def usuarios_online():
     consulta = """
@@ -3392,7 +3420,7 @@ def _obter_edital(edital):
     return dict(zip(colunas,resultado[0]))
 
 @app.route("/admin/salvarEdital/<operacao>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_edital(operacao):
     edital = int(request.form['codigo_edital'])
@@ -3411,7 +3439,7 @@ def salvar_edital(operacao):
         return(redirect(url_for('root')))
 
 @app.route("/admin/editais", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def listar_editais():
     consulta = """
@@ -3423,7 +3451,7 @@ def listar_editais():
     return(render_template('listar_editais.html',linhas=linhas))
 
 @app.route("/admin/cadastrar_edital", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def cadastrar_edital():
     if request.method == "GET":
@@ -3448,7 +3476,7 @@ def cadastrar_edital():
     return(redirect(url_for('listar_editais')))
 
 @app.route("/admin/editar_edital/<int:edital>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def editar_edital(edital):
     atual = _obter_edital(edital)
@@ -3469,13 +3497,13 @@ def editar_edital(edital):
     return(redirect(url_for('listar_editais')))
 
 @app.route("/admin/ver_imagem/<qual>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def ver_imagem(qual):
     return (send_from_directory(CERTIFICADOS_TEMPLATE_DIR, qual))
 
 @app.route("/admin/salvar_projeto", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_projeto():
     nome = str(request.form['nome'])
@@ -3491,7 +3519,7 @@ def salvar_projeto():
     return("OK")
 
 @app.route("/admin/listar_consultores/<id_projeto>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def listar_consultores(id_projeto):
     
@@ -3508,7 +3536,7 @@ def listar_consultores(id_projeto):
     return(render_template('listar_avaliadores.html',avaliacoes=avaliacoes,id_projeto=id_projeto,titulo=titulo,autores=autores,edital=edital,area=area))
 
 @app.route("/admin/listar_consultores_edital/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def listar_consultores_edital(edital):
     consulta = """
@@ -3525,7 +3553,7 @@ def listar_consultores_edital(edital):
     return(render_template('listar_avaliadores_edital.html',avaliacoes=avaliacoes,edital=edital,nome_longo=nome_longo))
 
 @app.route("/admin/salvar_consultores", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_consultores():
     id_avaliacao = request.form['id_avaliacao']
@@ -3541,7 +3569,7 @@ def salvar_consultores():
     return(str(id_avaliacao))
 
 @app.route("/admin/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def remover_avaliacao(id_avaliacao,id_projeto):
     consulta = """
@@ -3552,7 +3580,7 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
 @app.route("/admin/cadastrar_salas/<edital>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def cadastrar_salas(edital):
     if request.method=='GET':
@@ -3572,7 +3600,7 @@ def cadastrar_salas(edital):
         return(redirect(url_for('listar_salas',edital=edital)))
 
 @app.route("/admin/listar_salas/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def listar_salas(edital):
     consulta = """
@@ -3582,7 +3610,7 @@ def listar_salas(edital):
     return(render_template('listar_salas.html',sessoes=linhas,nome_longo=nome_longo,edital=edital))
 
 @app.route("/admin/salvar_salas", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_salas():
     tipo = request.form['tipo']
@@ -3600,7 +3628,7 @@ def salvar_salas():
     return("OK")
 
 @app.route("/admin/remover_salas/<id_salas>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def remover_salas(id_salas):
     consulta = """DELETE FROM salas WHERE id=%s"""
@@ -3609,7 +3637,7 @@ def remover_salas(id_salas):
     return(redirect(url_for('listar_salas',edital=edital)))
 
 @app.route("/admin/submissoes/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def listar_submissoes(edital):
     consulta = """
@@ -3657,7 +3685,7 @@ def listar_submissoes(edital):
     return render_template('submissoes.html', projetos=projetos, edital=edital, nome_longo=nome_longo)
 
 @app.route("/admin/salvar_submissao", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_submissao():
     id_projeto = request.form['id_projeto']
@@ -3666,7 +3694,7 @@ def salvar_submissao():
     return "OK"
 
 @app.route("/admin/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def remover_submissao(id_projeto, edital):
     atualizar("DELETE FROM editalProjeto WHERE id=%s", (id_projeto,))
@@ -3674,7 +3702,7 @@ def remover_submissao(id_projeto, edital):
     return redirect(url_for('listar_submissoes', edital=edital))
 
 @app.route("/admin/editar_submissao/<id_projeto>", methods=['GET', 'POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def editar_submissao(id_projeto):
     if request.method == 'POST':
@@ -3741,7 +3769,7 @@ def editar_submissao(id_projeto):
     return render_template('editarSubmissao.html', projeto=projeto, subareas_cnpq=subareas_cnpq)
 
 @app.route("/admin/local_apresentacao/<edital>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def local_apresentacao(edital):
     consulta = u"""
@@ -3759,7 +3787,7 @@ def local_apresentacao(edital):
     return(render_template('local_apresentacao.html',novos=linhas,total_novos=total,descricao=descricao,edital=edital))
 
 @app.route("/admin/salvar_local_data", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_local_data():
     id_projeto = request.form['id_projeto']
@@ -3779,7 +3807,7 @@ def salvar_local_data():
     return("OK")
 
 @app.route("/admin/cadastrar_usuario/<operacao>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def cadastrar_usuario(operacao):
     if request.method=='GET':
@@ -3821,7 +3849,7 @@ def cadastrar_usuario(operacao):
             return("OK")
 
 @app.route("/admin/remover_usuario/<id_usuario>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def remover_usuario(id_usuario):
     consulta = """
@@ -3835,7 +3863,7 @@ def remover_usuario(id_usuario):
 #session['impersonador']; verify_password/get_user_roles respeitam isso nas rotas com HTTP Basic, e o log de
 #auditoria registra impersonador_id em cada requisição.
 @app.route("/admin/acessarComo/<int:user_id>", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def acessar_como(user_id):
     if session.get('impersonador'):
@@ -3875,7 +3903,7 @@ def voltar_admin():
     return(redirect(url_for('root')))
 
 @app.route("/admin/avaliador_sala/<edital>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def avaliador_sala(edital):
     if request.method=='GET':
@@ -3908,7 +3936,7 @@ def avaliador_sala(edital):
         #return("SUCESSO")
 
 @app.route("/admin/avaliador_sala_listar/<edital>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def avaliador_sala_listar(edital):
     consulta = """
@@ -3939,7 +3967,7 @@ def avaliador_sala_listar(edital):
     return(render_template('avaliador_sala_listar.html',linhas=linhas,edital=edital,nome_longo=nome_longo,usuarios=usuarios,datas=datas))
 
 @app.route("/admin/avaliador_sala_remover/<id_avaliador_sala>/<edital>", methods=['GET','POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def avaliador_sala_remover(id_avaliador_sala,edital):
     consulta = """
@@ -3950,7 +3978,7 @@ def avaliador_sala_remover(id_avaliador_sala,edital):
     return(redirect(url_for('avaliador_sala_listar',edital=edital)))
 
 @app.route("/admin/salvar_avaliador_sala", methods=['POST'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar_avaliador_sala():
     username = request.form['username']
@@ -4023,7 +4051,7 @@ def responder_pdf(html, options, nome_download='certificado.pdf'):
                     headers={'Content-Disposition': 'inline; filename="' + nome_download + '"'})
 
 @app.route("/admin/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def salvar(tabela,valor_id,coluna,novo_valor):
     consulta = """
@@ -4034,7 +4062,7 @@ def salvar(tabela,valor_id,coluna,novo_valor):
     return("OK")
 
 @app.route("/admin/detalhes/<tabela>/<valor_id>/<coluna>", methods=['GET'])
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
@@ -4047,7 +4075,7 @@ ORDER BY ua,media DESC
 '''
 
 @app.route('/admin/premiados/<edital>')
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def premiados(edital):
     ############ GRADUAÇÃO
@@ -4118,7 +4146,7 @@ def premiados(edital):
     return(render_template('premiados.html',humanidades=humanidades,exatas=exatas,vida=vida,humanidades_pg=humanidades_pg,vida_pg=vida_pg,exatas_pg=exatas_pg,nome_edital=nome))
 
 @app.route('/admin/links_avaliadores/<edital>')
-@auth.login_required(role=['admin'])
+@login_required(role=['admin'])
 @log_required
 def links_avaliadores(edital):
     """

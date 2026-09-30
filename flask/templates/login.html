@@ -19,6 +19,7 @@ function humano() {
 <div class="mx-auto max-w-md card">
   <form action="{{ url_for('login') }}" method="POST" onsubmit="return humano()" class="flex flex-col gap-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="next" value="{{ next or '' }}"/>
 
     <div class="alert-success">
       <div>
