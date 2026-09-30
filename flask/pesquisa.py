@@ -952,7 +952,7 @@ def enviarAvaliacao():
             e = sys.exc_info()[0]
             logging.error(e)
             logging.error("[AVALIACAO] ERRO ao gravar a avaliação: " + id_avaliacao)
-            return("Não foi possível gravar a avaliação. Favor entrar contactar " + REMETENTE + ".")
+            return("Não foi possível gravar a avaliação. Favor entrar em contato com " + SUPORTE + ".")
         #Enviando e-mail para o avaliador com o link
         texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
         msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
@@ -1046,49 +1046,33 @@ def recusarConvite():
 @auth.login_required(role=['admin'])
 @log_required
 def avaliacoesNegadas():
-    if request.method == "GET":
-        conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-        conn.select_db('cppgi')
-        cursor  = conn.cursor()
-        if 'edital' in request.args:
-            codigoEdital = str(request.args.get('edital'))
-            if 'id' in request.args:
-                idProjeto = str(request.args.get('id'))
-                consulta = "SELECT id,titulo FROM editalProjeto WHERE tipo=%s AND id=%s"
-                valores = (codigoEdital,idProjeto)
-                identificador = obterColunaUnica('editalProjeto','siape','id',idProjeto)
-                area = obterColunaUnica('editalProjeto','ua','id',idProjeto)
-                possiveis_avaliadores = """
-                SELECT DISTINCT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
-                INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
-                WHERE editalProjeto.siape=%s
-                AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
-                """
-                avaliadores_sugeridos,total = executarSelect(possiveis_avaliadores,valores=(identificador,))
-                avaliadores_area = """
-                SELECT DISTINCT avaliacoes.avaliador,UPPER(avaliacoes.nome_avaliador) FROM avaliacoes 
-                INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
-                WHERE editalProjeto.ua=%s
-                AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
-                """
-                lista_area,total = executarSelect(avaliadores_area,valores=(area,))
-            else:
-                consulta = "SELECT resumoGeralAvaliacoes.id,CONCAT(SUBSTRING(resumoGeralAvaliacoes.titulo,1,80),\" - (\",resumoGeralAvaliacoes.nome,\" )\"),(resumoGeralAvaliacoes.aceites+resumoGeralAvaliacoes.rejeicoes) as resultado,resumoGeralAvaliacoes.indefinido FROM resumoGeralAvaliacoes WHERE ((aceites+rejeicoes<2) OR (aceites=rejeicoes)) AND tipo=%s ORDER BY aceites+rejeicoes, id"
-                valores = (codigoEdital,)
-            try:
-                cursor.execute(consulta,valores)
-                linha = cursor.fetchall()
-                total = cursor.rowcount
-                return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos,avaliadores_area=lista_area,area=area))
-            except:
-                e = sys.exc_info()[0]
-                logging.error(e)
-                logging.error(consulta)
-                return(consulta)
-        else:
-            return ("OK")
-    else:
+    """Formulário para incluir avaliador(es) num trabalho (links de editalProjeto/submissoes/listar_avaliadores)."""
+    if request.method != "GET":
         return("OK")
+    if 'edital' not in request.args or 'id' not in request.args:
+        return("Informe o edital e o trabalho.", 400)
+    codigoEdital = str(request.args.get('edital'))
+    idProjeto = str(request.args.get('id'))
+    linha,total = executarSelect("SELECT id,titulo FROM editalProjeto WHERE tipo=%s AND id=%s",valores=(codigoEdital,idProjeto))
+    if not linha:
+        return("Trabalho não encontrado neste edital.", 404)
+    identificador = obterColunaUnica('editalProjeto','siape','id',idProjeto)
+    area = obterColunaUnica('editalProjeto','ua','id',idProjeto)
+    possiveis_avaliadores = """
+    SELECT DISTINCT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
+    INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
+    WHERE editalProjeto.siape=%s
+    AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
+    """
+    avaliadores_sugeridos,total_sugeridos = executarSelect(possiveis_avaliadores,valores=(identificador,))
+    avaliadores_area = """
+    SELECT DISTINCT avaliacoes.avaliador,UPPER(avaliacoes.nome_avaliador) FROM avaliacoes 
+    INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
+    WHERE editalProjeto.ua=%s
+    AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
+    """
+    lista_area,total_area = executarSelect(avaliadores_area,valores=(area,))
+    return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos,avaliadores_area=lista_area,area=area))
 
 @app.route("/admin/inserirAvaliador", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -1518,36 +1502,6 @@ def projetoAprovado(idProjeto):
         else:
             return(False)
 
-def tuplaDeEditais(ano):
-    """Ids dos editais (não contínuos) com deadline entre abril e dezembro do ano; lista vazia se não houver."""
-    inicio = str(ano) + "-04-01"
-    fim = str(ano) + "-12-31"
-    consulta = """SELECT id FROM editais WHERE DATE(deadline)>%s AND DATE(deadline)<%s AND nome not like '%contínuo%'"""
-    resultado = executarSelect(consulta,valores=(inicio,fim))
-    return [int(linha[0]) for linha in resultado[0]] if resultado else []
-
-
-@app.route("/cruzarDados", methods=['GET', 'POST'])
-def cruzarDados():
-    if request.method == "GET":
-        #Recuperando o ano dos editais
-        if 'ano' in request.args:
-            ano = str(request.args.get('ano'))
-            if ((autenticado()) and (session['permissao']==0)):
-                editais = tuplaDeEditais(ano)
-                if editais:
-                    consulta = """SELECT siape,editalProjeto.nome,sum(bolsas_concedidas),GROUP_CONCAT(editais.nome ORDER BY tipo SEPARATOR '<BR>') as editais, GROUP_CONCAT(modalidades.descricao ORDER BY tipo SEPARATOR '<BR>') as tipos FROM editalProjeto,modalidades,editais WHERE modalidades.id=editalProjeto.modalidade AND editalProjeto.tipo=editais.id AND valendo=1 and tipo in (""" + ",".join(["%s"]*len(editais)) + """) AND modalidade in (1,2,3) GROUP BY siape ORDER BY nome"""
-                    linhas,total = executarSelect(consulta,valores=tuple(editais))
-                    return(render_template('bolsasPorAno.html',linhas=linhas,ano=ano,total=total))
-                else:
-                    return("Sem dados disponíveis!")
-            else:
-                return("Acesso negado!")
-        else:
-            return("OK")
-    else:
-        return("OK")
-
 def idSiape(id,siape):
     siapeObtido = obterColunaUnica('editalProjeto','siape','id',id)
     if siape=="0":
@@ -1826,8 +1780,14 @@ def distribuirSalas():
             #POSTERS
             consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=%s ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"""
             principal,total = executarSelect(consulta_principal,valores=(edital,))
+            if not principal:
+                return(redirect(url_for('programacao',edital=edital)))
+            sessao_posters = getSessoesPosters(edital)
+            if sessao_posters is None:
+                flash(u"Apresentações orais distribuídas, mas os pôsteres não: cadastre uma sala do tipo pôster para este edital.")
+                return(redirect(url_for('programacao',edital=edital)))
             i = 0
-            data_apresentacao,inicio,local_todos = getSessoesPosters(edital)
+            data_apresentacao,inicio,local_todos = sessao_posters
             data_apresentacao = data_apresentacao + " " + inicio
             quantidade_por_avaliador = math.ceil(int(total)/len(local_todos))
             j = 1
@@ -2687,7 +2647,7 @@ def certificadoIndividual(id_certificado):
         token = obterColunaUnica('certificados_moderador','token','id',id_certificado)
         if token=='0':
             token = id_generator()
-            atualizar("UPDATE editalProjeto SET token=%s WHERE id=%s", (token,id_certificado))
+            atualizar("UPDATE certificados_moderador SET token=%s WHERE id=%s", (token,id_certificado))
 
         #Gerando QrCode
         qrcode_url = url_for('autenticar_certificado',tipo=2,codigo=token,id_projeto=id_certificado,_external=True)
@@ -2754,7 +2714,9 @@ def confirmar():
     else:
         return("ERRO")
 
-@app.route("/notasApresentacoes/<edital>", methods=['GET', 'POST'])
+@app.route("/admin/notasApresentacoes/<edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+@log_required
 def notasApresentacoes(edital):
     if request.method == "GET":
         #Recuperando o edital
@@ -3912,7 +3874,7 @@ def modelo_certificado_base64(nome_arquivo):
     return get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + nome)
 
 def resposta_modelo_ausente():
-    return ("O modelo de certificado deste edital ainda não foi cadastrado. Entre em contato com " + REMETENTE + ".", 404)
+    return ("O modelo de certificado deste edital ainda não foi cadastrado. Entre em contato com " + SUPORTE + ".", 404)
 
 def responder_pdf(html, options, nome_download='certificado.pdf'):
     pdf = pdfkit.from_string(html, False, options=options)
@@ -4222,6 +4184,7 @@ ROTAS_ADMIN_LEGADAS = [
     ("/mapaavaliadores", "mapaavaliadores", ["GET", "POST"]),
     ("/emailSolicitarAvaliacao", "email_solicitar_avaliacao", ["GET", "POST"]),
     ("/toggleSchedulerAvaliadores", "toggle_scheduler_avaliadores", ["GET"]),
+    ("/notasApresentacoes/<edital>", "notasApresentacoes", ["GET", "POST"]),
     ("/jobsAgendados", "jobs_agendados", ["GET"]),
     ("/usuariosOnline", "usuarios_online", ["GET"]),
     ("/salvarEdital/<operacao>", "salvar_edital", ["GET", "POST"]),

@@ -1,5 +1,5 @@
 from flask_restful import Resource
-from pesquisa import executarSelect,getLinkSala
+from pesquisa import executarSelect,getLinkSala,paraInt
 def filtros_modalidade_area(modalidade,area):
     """Trecho SQL e parâmetros dos filtros opcionais de modalidade (4 = todas) e área ("TODAS")."""
     trecho = ""
@@ -163,7 +163,7 @@ class Trabalhos(Resource):
         local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao 
         FROM editalProjeto 
         WHERE valendo=1 AND categoria=0 AND tipo=%s ORDER BY ua,modalidade DESC,nome,titulo"""
-        if apresentacao==1:
+        if paraInt(apresentacao)==1: #vem da URL como texto
             linhas,total = executarSelect(consulta_oral,valores=(id_edital,))
         else:
             linhas,total = executarSelect(consulta_poster,valores=(id_edital,))
