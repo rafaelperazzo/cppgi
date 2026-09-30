@@ -221,7 +221,10 @@ CORS(app)
 
 @app.context_processor
 def inject_institucional():
-    return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE)
+    impersonador = session.get('impersonador')
+    return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE,
+                IMPERSONADOR=impersonador,
+                ACESSO_COMO_CPF=mascarar_cpf(session.get('username', '')) if impersonador else '')
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
@@ -265,9 +268,13 @@ def log_required(f):
             user_id = session.get('user_id', 'anonimo')
             ip = obter_ip_cliente(request)
             pais, cidade = extrair_geolocalizacao_cloudflare(request.headers)
-            logger_auditoria.info(
-                'user_id=%s cpf=%s rota=%s metodo=%s ip=%s pais=%s cidade=%s',
-                user_id, cpf_log, request.path, request.method, ip, pais, cidade)
+            formato = 'user_id=%s cpf=%s rota=%s metodo=%s ip=%s pais=%s cidade=%s'
+            valores = [user_id, cpf_log, request.path, request.method, ip, pais, cidade]
+            impersonador = session.get('impersonador')
+            if impersonador: #acesso-como: registra também o admin real
+                formato += ' impersonador_id=%s'
+                valores.append(impersonador.get('user_id'))
+            logger_auditoria.info(formato, *valores)
         except Exception as e:
             logging.error("Erro ao registrar auditoria: " + str(e))
         return f(*args, **kwargs)
@@ -460,6 +467,22 @@ def executarSelect2(consulta,tipo=0,valores=()):
 INÍCIO AUTENTICAÇÃO
 **************************************************************
 '''
+def _carregar_sessao_usuario(linha):
+    """Dados do usuário na sessão, a partir de (id, username, permission, roles, nome, email, ...) de users."""
+    session['username'] = str(linha[1])
+    session['permissao'] = int(linha[2])
+    session['roles'] = str(linha[3]).split(',')
+    session['nome'] = str(linha[4])
+    session['cpf'] = str(linha[1])
+    session['email'] = str(linha[5])
+    session['user_id'] = int(linha[0])
+
+def _obter_usuario_por_id(user_id):
+    #mesmas colunas, na mesma ordem, do SELECT de verify_password (usadas por _carregar_sessao_usuario)
+    resultado = executarSelect("""SELECT id,username,permission,roles,nome,email,email_verificado,forcar_troca_senha
+    FROM users WHERE id=%s""", tipo=1, valores=(user_id,))
+    return resultado[0] if resultado and resultado[0] else None
+
 @auth.verify_password
 def verify_password(username, password):
     """This function is called to check if a username /
@@ -490,22 +513,22 @@ def verify_password(username, password):
                 flash(u'Confirme seu e-mail antes de acessar o sistema.')
                 return (False)
 
-            session['username'] = str(linha[1])
-            session['permissao'] = int(linha[2])
-            roles = str(linha[3])
-            roles = roles.split(',')
-            session['roles'] = roles
-            session['nome'] = str(linha[4])
-            session['cpf'] = str(linha[1])
-            session['email'] = str(linha[5])
-            session['user_id'] = int(linha[0])
-
             forcar = bool(int(linha[7]))
             senha_ok, _ = senha_forte(password)
             if credencial_vazada(request.headers) or not senha_ok:
                 if not forcar:
                     atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
                 forcar = True
+
+            #Acesso-como: o navegador reenvia o HTTP Basic do admin a cada requisição. Se é o próprio admin que iniciou
+            #o acesso (e segue admin, com senha em dia), a sessão continua sendo a do usuário acessado.
+            impersonador = session.get('impersonador')
+            if impersonador and impersonador.get('username') == str(linha[1]):
+                if 'admin' in str(linha[3]).split(',') and not forcar:
+                    return session['username']
+                session.pop('impersonador', None) #senha fraca/vazada ou deixou de ser admin: encerra o acesso-como
+
+            _carregar_sessao_usuario(linha)
             session['forcar_troca_senha'] = forcar
             #return (True)
             return username
@@ -555,8 +578,9 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
 
 @auth.get_user_roles
 def get_user_roles(user):
+    #user = valor retornado por verify_password: durante o acesso-como é o usuário acessado, não o admin do header
     consulta = """SELECT roles FROM users WHERE username=%s"""
-    linhas,total = executarSelect(consulta,valores=(auth.username(),))
+    linhas,total = executarSelect(consulta,valores=(user,))
     if total>0:
         for linha in linhas:
             roles = str(linha[0])
@@ -568,7 +592,7 @@ def get_user_roles(user):
 
 def avaliadorTemPermissao(edital, data,sala):
     consulta = "SELECT id FROM usuarios_salas WHERE username=%s and data=%s and sala=%s"
-    linhas,total = executarSelect(consulta,valores=(auth.username(),data,sala))
+    linhas,total = executarSelect(consulta,valores=(auth.current_user(),data,sala))
     if total>0:
         return (True)
     else:
@@ -657,7 +681,7 @@ def atualizar_usuario_online():
         logging.error("Erro ao registrar presença online: " + str(e))
 
 ROTAS_ISENTAS_TROCA_SENHA = {'login', 'encerrarSessao', 'trocarSenhaObrigatoria',
-                              'cadastro', 'confirmarEmail', 'static'}
+                              'cadastro', 'confirmarEmail', 'static', 'voltar_admin'}
 
 @app.before_request
 def verificar_troca_senha_obrigatoria():
@@ -1437,6 +1461,7 @@ def login():
         if (('siape' in request.form) and ('senha' in request.form)):
             siape = str(request.form['siape'])
             senha = str(request.form['senha'])
+            session.pop('impersonador', None) #login explícito sempre encerra o acesso-como
             if verify_password(siape,senha)!=False:
                 registrar_acesso('/login',request.remote_addr,siape)
                 return(redirect(url_for('usuario')))
@@ -3732,6 +3757,49 @@ def remover_usuario(id_usuario):
     atualizar(consulta,valores=(id_usuario,))
     flash(u"Usuário removido com sucesso!")
     return(redirect(url_for('cadastrar_usuario',operacao=1)))
+
+#Acesso-como: o admin passa a navegar como outro usuário (não-admin) sem a senha dele. O admin real fica em
+#session['impersonador']; verify_password/get_user_roles respeitam isso nas rotas com HTTP Basic, e o log de
+#auditoria registra impersonador_id em cada requisição.
+@app.route("/admin/acessarComo/<int:user_id>", methods=['POST'])
+@auth.login_required(role=['admin'])
+@log_required
+def acessar_como(user_id):
+    if session.get('impersonador'):
+        flash(u"Volte para a sua conta de administrador antes de acessar como outro usuário.")
+        return(redirect(url_for('cadastrar_usuario',operacao=1)))
+    alvo = _obter_usuario_por_id(user_id)
+    if alvo is None:
+        return("Usuário não encontrado.", 404)
+    if 'admin' in str(alvo[3]).split(','):
+        flash(u"Não é possível acessar como outro administrador.")
+        return(redirect(url_for('cadastrar_usuario',operacao=1)))
+    session['impersonador'] = {'user_id': session['user_id'], 'username': session['username'], 'nome': session['nome']}
+    _carregar_sessao_usuario(alvo)
+    session['forcar_troca_senha'] = False #o admin não deve ser levado a trocar a senha do usuário
+    logger_auditoria.info('acesso_como inicio admin_id=%s alvo_id=%s ip=%s',
+                          session['impersonador']['user_id'], alvo[0], obter_ip_cliente(request))
+    flash(u"Você está acessando como " + str(alvo[4]) + u".")
+    return(redirect(url_for('usuario')))
+
+@app.route("/voltarAdmin", methods=['POST'])
+@log_required
+def voltar_admin():
+    #Sem login_required: durante o acesso-como os papéis são os do usuário acessado
+    impersonador = session.get('impersonador')
+    if not impersonador:
+        return(redirect(url_for('home')))
+    admin = _obter_usuario_por_id(impersonador.get('user_id'))
+    if admin is None or 'admin' not in str(admin[3]).split(','):
+        session.clear()
+        return(redirect(url_for('login')))
+    alvo_id = session.get('user_id')
+    session.pop('impersonador', None)
+    _carregar_sessao_usuario(admin)
+    session['forcar_troca_senha'] = bool(int(admin[7]))
+    logger_auditoria.info('acesso_como fim admin_id=%s alvo_id=%s ip=%s', admin[0], alvo_id, obter_ip_cliente(request))
+    flash(u"Você voltou para a sua conta de administrador.")
+    return(redirect(url_for('root')))
 
 @app.route("/admin/avaliador_sala/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])

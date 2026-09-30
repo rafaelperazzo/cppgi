@@ -1060,3 +1060,76 @@ def test_avaliacoes_negadas_parametros():
         assert rv.status_code == 404
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
+
+'''
+**************************************************************
+TESTES: admin "acessar como" outro usuário e "voltar para admin"
+**************************************************************
+'''
+
+def _usuario_comum_temporario():
+    cpf = str(random.randint(10**10, 10**11 - 1))
+    _garantir_usuario_teste(cpf, cpf + '@teste.local', 'Senha#Forte123', 1)
+    return cpf, int(obterColunaUnica('users', 'id', 'username', cpf))
+
+def _csrf_admin(c):
+    rv = c.get('/admin/cadastrar_usuario/1', headers=_auth_headers())
+    return re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+
+def test_acessar_como_e_voltar_admin(caplog):
+    c = app.test_client()
+    H = _auth_headers()
+    cpf, id_alvo = _usuario_comum_temporario()
+    logger_auditoria = logging.getLogger('auditoria_acessos')
+    try:
+        csrf = _csrf_admin(c)
+        rv = c.get('/admin/cadastrar_usuario/1', headers=H)
+        assert ('acessarComo/%d' % id_alvo) in rv.data.decode()
+        rv = c.post('/admin/acessarComo/%d' % id_alvo, headers=H, data={'csrf_token': csrf})
+        assert rv.status_code == 302
+        with c.session_transaction() as s:
+            assert s['username'] == cpf
+            assert s['impersonador']['username'] == usuario
+        #rota de sessão: age como o usuário, com a faixa de aviso
+        rv = c.get('/meusProjetos', headers=H)
+        assert rv.status_code == 200 and u'Voltar para admin' in rv.data.decode()
+        #rota admin com o HTTP Basic do admin: papéis do usuário acessado (403) e a sessão NÃO volta para o admin
+        logger_auditoria.propagate = True
+        with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
+            assert c.get('/admin/editais', headers=H).status_code == 403
+            c.get('/minhasIndicacoes', headers=H) #rota do usuário com @log_required
+        logger_auditoria.propagate = False
+        with c.session_transaction() as s:
+            assert s['username'] == cpf
+            id_admin = s['impersonador']['user_id']
+        assert any(('impersonador_id=%s' % id_admin) in r.message for r in caplog.records if r.name == 'auditoria_acessos')
+        #voltar para admin
+        rv = c.post('/voltarAdmin', headers=H, data={'csrf_token': csrf})
+        assert rv.status_code == 302
+        with c.session_transaction() as s:
+            assert s['username'] == usuario and 'impersonador' not in s
+        assert c.get('/admin/editais', headers=H).status_code == 200
+    finally:
+        logger_auditoria.propagate = False
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_acessar_como_recusa_admin_e_nao_aninha():
+    c = app.test_client()
+    H = _auth_headers()
+    cpf, id_alvo = _usuario_comum_temporario()
+    try:
+        csrf = _csrf_admin(c)
+        id_admin = int(obterColunaUnica('users', 'id', 'username', usuario))
+        c.post('/admin/acessarComo/%d' % id_admin, headers=H, data={'csrf_token': csrf})
+        with c.session_transaction() as s:
+            assert s['username'] == usuario and 'impersonador' not in s
+        assert c.post('/admin/acessarComo/999999999', headers=H, data={'csrf_token': csrf}).status_code == 404
+        #voltarAdmin sem acesso ativo: só redireciona
+        assert c.post('/voltarAdmin', data={'csrf_token': csrf}).status_code == 302
+        #login explícito durante o acesso-como encerra o acesso
+        c.post('/admin/acessarComo/%d' % id_alvo, headers=H, data={'csrf_token': csrf})
+        c.post('/login', data={'csrf_token': csrf, 'siape': cpf, 'senha': 'Senha#Forte123'})
+        with c.session_transaction() as s:
+            assert s['username'] == cpf and 'impersonador' not in s
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))

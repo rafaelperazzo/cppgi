@@ -107,7 +107,18 @@ Key pieces inside `pesquisa.py`:
   por `ROTAS_ADMIN_LEGADAS` / `_registrar_redirects_admin_legados()` antes do `__main__`. Ao criar uma nova rota
   admin-only, use o prefixo `/admin/` direto; os templates devem usar `url_for()`, nunca o caminho escrito à mão.
 - `flask_httpauth.HTTPBasicAuth` (`auth`) with `get_user_roles` driving `@auth.login_required(role=[...])` checks
-  (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes.
+  (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes. Two auth modes coexist: the
+  `/login` form calls `verify_password()` directly to fill the session, while `@auth.login_required` routes re-run
+  `verify_password()` on **every** request from the browser's cached HTTP Basic header — which normally rewrites the
+  session with that user. `auth.username()` is always the Basic-header user; `auth.current_user()` / the `user`
+  argument of `get_user_roles(user)` is whatever `verify_password` returned (the *effective* user) — use those, not
+  `auth.username()`, for authorization.
+- **Admin "acessar como"** (`POST /admin/acessarComo/<user_id>`, button in `listar_usuarios.html`; `POST /voltarAdmin`
+  from the banner in `layout.html`): the admin navigates as a non-admin user (admins can't be targeted) and can do
+  everything that user can. The real admin is kept in `session['impersonador']`; while it's set, `verify_password`
+  keeps the target's session and returns the target's username (so `get_user_roles` evaluates the target's roles and
+  admin routes return 403 until `/voltarAdmin`). A weak/leaked admin password or a form `/login` ends the
+  impersonation. `log_required` appends `impersonador_id=` to every audit line, plus `acesso_como inicio/fim` events.
 - Certificate generation (`gerarCertificado*` functions): builds PDFs/PNGs from templates in
   `flask/documentos/` using Pillow + `fonts/Times_New_Roman*.ttf`, plus `pdfkit`/`wkhtmltopdf` for HTML→PDF
   declarations.

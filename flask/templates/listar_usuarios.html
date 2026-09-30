@@ -61,6 +61,7 @@
               <th>Nome</th>
               <th>Email</th>
               <th>Remover</th>
+              <th>Acessar como</th>
             </tr>
         </thead>
         <tbody>
@@ -106,6 +107,15 @@
                         <td><a href="{{url_for('remover_usuario',id_usuario=linha[0])}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
                             <img src="{{url_for('static',filename='delete.png')}}"></a></td>
                     </form>
+                    <td>
+                        {% if 'admin' not in (linha[4] or '').split(',') %}
+                        <form action="{{url_for('acessar_como',user_id=linha[0])}}" method="POST"
+                              onsubmit='return confirm({{ ("Acessar o sistema como " ~ linha[5] ~ "? Suas ações ficarão registradas em seu nome de administrador.")|tojson }})'>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn-outline text-xs py-0.5 px-2 cursor-pointer">Acessar como</button>
+                        </form>
+                        {% endif %}
+                    </td>
                 </tr>
             {%endfor%}
         </tbody>
