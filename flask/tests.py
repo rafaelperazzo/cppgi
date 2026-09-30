@@ -1133,3 +1133,137 @@ def test_acessar_como_recusa_admin_e_nao_aninha():
             assert s['username'] == cpf and 'impersonador' not in s
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+'''
+**************************************************************
+TESTES: /enviar_arquivo com URL pré-assinada do S3 (S3 falso via monkeypatch, sem credenciais AWS)
+**************************************************************
+'''
+
+class _S3Falso:
+    def __init__(self, existe=True):
+        self.existe = existe
+        self.chamadas = []
+    def head_object(self, Bucket, Key):
+        self.chamadas.append(('head_object', Key))
+        if not self.existe:
+            from botocore.exceptions import ClientError
+            raise ClientError({'Error': {'Code': '404', 'Message': 'Not Found'}}, 'HeadObject')
+        return {}
+    def generate_presigned_url(self, operacao, Params, ExpiresIn):
+        self.chamadas.append(('presigned', operacao, Params, ExpiresIn))
+        return 'https://s3.exemplo/' + Params['Key'] + '?X-Amz-Expires=' + str(ExpiresIn)
+
+def test_enviar_arquivo_local_nao_consulta_s3(monkeypatch):
+    import pesquisa
+    falso = _S3Falso()
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TESTE.' + id_generator(10) + '.pdf'
+    with open(ATTACHMENTS_DIR + nome, 'wb') as f:
+        f.write(b'%PDF-teste')
+    try:
+        rv = client.get('/enviar_arquivo/' + nome)
+        assert rv.status_code == 200 and rv.data == b'%PDF-teste'
+        assert falso.chamadas == []
+    finally:
+        os.remove(ATTACHMENTS_DIR + nome)
+
+def test_enviar_arquivo_redireciona_para_url_assinada(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=True)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TRABALHO.' + id_generator(10) + '.pdf'
+    rv = client.get('/enviar_arquivo/' + nome)
+    assert rv.status_code == 302
+    assert rv.headers['Location'].startswith('https://s3.exemplo/cppgi/uploads/' + nome)
+    assert rv.headers['Cache-Control'] == 'no-store'
+    _, operacao, params, expira = falso.chamadas[-1]
+    assert operacao == 'get_object' and expira == 60
+    assert params['Key'] == 'cppgi/uploads/' + nome
+    assert params['ResponseContentType'] == 'application/pdf'
+
+def test_enviar_arquivo_inexistente_e_path_traversal(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=False)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    rv = client.get('/enviar_arquivo/NAOEXISTE.pdf')
+    assert rv.status_code == 404 and u'Arquivo não encontrado' in rv.data.decode()
+    #"..%2F..%2Fpesquisa.py" vira "pesquisa.py" (secure_filename): não sai de uploads/
+    falso.chamadas.clear()
+    rv = client.get('/enviar_arquivo/..%2F..%2Fpesquisa.py')
+    assert rv.status_code == 404
+    assert all(ch[1] == 'cppgi/uploads/pesquisa.py' for ch in falso.chamadas if ch[0] == 'head_object')
+
+def test_uploadCR_envia_versao_final_ao_s3(monkeypatch):
+    import io, pesquisa
+    enviados = []
+    monkeypatch.setattr(pesquisa, 'PRODUCAO', 1)
+    monkeypatch.setattr(pesquisa, 'upload_s3', lambda origem, destino: enviados.append(destino))
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    c = app.test_client()
+    try:
+        csrf = get_csrf_token_cliente(c, '/avaliacao?token=' + token)
+        with c.session_transaction() as s:
+            s['username'] = '0' #siape do trabalho criado por _criar_avaliacao_temporaria
+        c.post('/uploadCR', data={'csrf_token': csrf, 'idTrabalho': str(projeto),
+                                  'arquivo_trabalho': (io.BytesIO(b'docx'), 'final.docx')},
+               content_type='multipart/form-data')
+        import time
+        for _ in range(20): #upload_e_apaga dispara uma thread
+            if enviados: break
+            time.sleep(0.05)
+        final = obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+        assert final.startswith('FINAL.') and final.endswith('.docx')
+        assert enviados == ['cppgi/uploads/' + final]
+    finally:
+        final = obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+        if final and os.path.exists(ATTACHMENTS_DIR + final):
+            os.remove(ATTACHMENTS_DIR + final)
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def get_csrf_token_cliente(c, res):
+    rv = c.get(res)
+    return re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+
+def test_uploadCR_e_link_exigem_dono_e_prazo(monkeypatch):
+    import io, pesquisa
+    enviados = []
+    monkeypatch.setattr(pesquisa, 'upload_s3', lambda origem, destino: enviados.append(destino))
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    c = app.test_client()
+    def post_final():
+        return c.post('/uploadCR', data={'csrf_token': csrf, 'idTrabalho': str(projeto),
+                                         'arquivo_trabalho': (io.BytesIO(b'docx'), 'final.docx')},
+                      content_type='multipart/form-data')
+    def post_link(link):
+        return c.post('/cadastrarLinkApresentacao', data={'csrf_token': csrf, 'idTrabalho': str(projeto), 'link': link})
+    final = lambda: obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+    link_atual = lambda: obterColunaUnica('editalProjeto', 'link_apresentacao', 'id', str(projeto))
+    try:
+        csrf = get_csrf_token_cliente(c, '/avaliacao?token=' + token)
+        antes_final, antes_link = final(), link_atual()
+        #sem login
+        post_final(); post_link('https://exemplo.org/sala')
+        assert final() == antes_final and link_atual() == antes_link
+        #logado, mas o trabalho é de outro usuário
+        with c.session_transaction() as s:
+            s['username'] = '11122233344'
+        post_final(); post_link('https://exemplo.org/sala')
+        assert final() == antes_final and link_atual() == antes_link
+        #dono: link javascript: é recusado; https é aceito
+        with c.session_transaction() as s:
+            s['username'] = '0'
+        post_link('javascript:alert(1)')
+        assert link_atual() == antes_link
+        post_link('https://exemplo.org/sala')
+        assert link_atual() == 'https://exemplo.org/sala'
+        #dono, mas fora do prazo
+        atualizar("UPDATE editais SET deadline_versao_final=%s, deadline_apresentacao=%s WHERE id=%s",
+                  (datetime.datetime.now() - datetime.timedelta(days=2), datetime.datetime.now() - datetime.timedelta(days=2), edital))
+        post_final(); post_link('https://exemplo.org/outra')
+        assert final() == antes_final and link_atual() == 'https://exemplo.org/sala'
+    finally:
+        f = final()
+        if f and f != '0' and os.path.exists(ATTACHMENTS_DIR + f):
+            os.remove(ATTACHMENTS_DIR + f)
+        _remover_avaliacao_temporaria(edital, projeto)

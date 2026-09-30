@@ -41,6 +41,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError,BotoCoreError
 import time
 import secrets
+import mimetypes
 import sentry_sdk
 from functools import wraps
 from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
@@ -178,7 +179,7 @@ if AWS_S3_KEY_ID and AWS_S3_SECRET_KEY:
     _s3_credenciais = {'aws_access_key_id': AWS_S3_KEY_ID, 'aws_secret_access_key': AWS_S3_SECRET_KEY}
 
 s3 = boto3.client('s3', region_name=AWS_REGION,
-                  config=Config(use_dualstack_endpoint=True),
+                  config=Config(use_dualstack_endpoint=True, signature_version='s3v4'),
                   **_s3_credenciais)
 
 
@@ -628,33 +629,44 @@ def upload_e_apaga(arquivo):
         thread_s3_upload = threading.Thread(target=upload_s3, args=(origem,destino,))
         thread_s3_upload.start()
 
-def esperar(arquivo):
-    # Espera o tempo definido em segundos
-    time.sleep(3)
-    #check if file exists
-    if os.path.exists(arquivo):
-        #remove file
-        try:
-            os.remove(arquivo)
-        except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo,str(e))
-    if os.path.exists(arquivo + '.gpg'):
-        #remove file
-        try:
-            os.remove(arquivo + '.gpg')
-        except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo + '.gpg',str(e))
+#Download: o app só gera uma URL pré-assinada curta e redireciona; o navegador baixa direto do bucket (privado).
+#Links longos não são viáveis: SigV4 limita a 7 dias e, em produção, a assinatura com a IAM role da instância
+#expira junto com a credencial temporária. Por isso os links do app (e dos avaliadores) nunca apontam para o S3
+#direto: cada clique em /enviar_arquivo gera uma URL nova.
+VALIDADE_URL_S3 = 60 #segundos
+
+def url_assinada_s3(arquivo, validade=VALIDADE_URL_S3):
+    """URL pré-assinada (GET) de cppgi/uploads/<arquivo>, ou None se o objeto não existir no bucket."""
+    chave = 'cppgi/' + UPLOAD_FOLDER + arquivo
+    try:
+        s3.head_object(Bucket=AWS_S3_BUCKET, Key=chave)
+        url = s3.generate_presigned_url('get_object', Params={
+            'Bucket': AWS_S3_BUCKET,
+            'Key': chave,
+            #garante o tipo pela extensão (inline no navegador), independente do ContentType gravado no objeto
+            'ResponseContentType': mimetypes.guess_type(arquivo)[0] or 'application/octet-stream',
+            'ResponseContentDisposition': 'inline; filename="' + arquivo + '"',
+        }, ExpiresIn=validade)
+    except (ClientError, BotoCoreError) as e:
+        app.logger.info("[S3] Arquivo %s indisponível no S3: %s", chave, e)
+        return None
+    logger_auditoria.info('evento=download_s3 arquivo=%s validade=%s ip=%s', arquivo, validade, obter_ip_cliente(request))
+    return url
 
 @app.route("/enviar_arquivo/<filename>", methods=['GET'])
 def enviar_arquivo(filename):
     arquivo = secure_filename(filename)
-    try:
-        s3.download_file(AWS_S3_BUCKET, 'cppgi/' + UPLOAD_FOLDER + arquivo, UPLOAD_FOLDER + arquivo)
-        thread = threading.Thread(target=esperar,args=(ATTACHMENTS_DIR + arquivo,))
-        thread.start()
+    if not arquivo:
+        return("Arquivo não encontrado!", 404)
+    #Reserva local: dev (sem S3), versões finais antigas que só existem no disco e o intervalo até o upload em thread
+    if os.path.isfile(UPLOAD_FOLDER + arquivo):
         return(send_from_directory(app.config['UPLOADED_DOCUMENTS_DEST'], arquivo))
-    except Exception:
-        return("Arquivo não encontrado!")
+    url = url_assinada_s3(arquivo)
+    if url is None:
+        return("Arquivo não encontrado!", 404)
+    resposta = redirect(url, 302)
+    resposta.headers['Cache-Control'] = 'no-store' #a URL expira: o navegador não pode reaproveitar o redirect
+    return resposta
 
 @app.before_request
 def iniciar_sessao():
@@ -1948,42 +1960,66 @@ def enviarApresentacao(id_trabalho):
         return(redirect(url_for('meusProjetos')))
     
 
-@app.route("/uploadCR", methods=['POST'])
-def uploadCR():
-    if request.method == "POST":
-        idTrabalho = str(request.form['idTrabalho'])
-        nomeDoArquivoTrabalho = ""
-        if 'arquivo_trabalho' in request.files:
-            token = id_generator()
-            arquivo = request.files['arquivo_trabalho'].filename
-            extensao = arquivo[arquivo.rfind('.'):]
-            permitidos = [".odt",".doc",".docx"]
-            if extensao not in permitidos:
-                flash("O arquivo deve ser do tipo odt, doc ou docx")
-                return(redirect(url_for('meusProjetos')))
-            nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
-            filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
-            atualizar("UPDATE editalProjeto SET arquivo_projeto_final=%s WHERE id=%s",(nomeDoArquivoTrabalho,idTrabalho))
-            return(redirect(url_for('meusProjetos')))
-    else:
-        return("OK")
+def edital_do_trabalho_do_usuario(idTrabalho):
+    """Edital do trabalho se ele pertence ao usuário logado (mesma regra de enviarVersaoFinal/enviarApresentacao),
+    senão None. Usado pelos POSTs que alteram o trabalho, que antes não conferiam login nem dono."""
+    if not autenticado():
+        return None
+    linhas,total = executarSelect("SELECT tipo FROM editalProjeto WHERE id=%s AND siape=%s",
+                                  valores=(idTrabalho,str(session['username'])))
+    return str(linhas[0][0]) if linhas else None
 
-@app.route("/cadastrarLinkApresentacao", methods=['GET', 'POST'])
+def prazo_expirado(edital, coluna_deadline):
+    deadline = obterColunaUnica('editais','DATE(' + coluna_deadline + ')','id',edital)
+    return datetime.datetime.now().strftime("%Y-%m-%d") > deadline
+
+@app.route("/uploadCR", methods=['POST'])
+@log_required
+def uploadCR():
+    idTrabalho = str(request.form.get('idTrabalho', ''))
+    edital = edital_do_trabalho_do_usuario(idTrabalho)
+    if edital is None:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+    if prazo_expirado(edital, 'deadline_versao_final'):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    arquivo_enviado = request.files.get('arquivo_trabalho')
+    if not arquivo_enviado or not arquivo_enviado.filename:
+        flash("Selecione o arquivo da versão final.")
+        return(redirect(url_for('enviarVersaoFinal',id_trabalho=idTrabalho)))
+    arquivo = arquivo_enviado.filename
+    extensao = arquivo[arquivo.rfind('.'):].lower()
+    permitidos = [".odt",".doc",".docx"]
+    if extensao not in permitidos:
+        flash("O arquivo deve ser do tipo odt, doc ou docx")
+        return(redirect(url_for('meusProjetos')))
+    token = id_generator()
+    nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
+    filename = anexos.save(arquivo_enviado,name=nomeDoArquivoTrabalho)
+    upload_e_apaga(filename)
+    atualizar("UPDATE editalProjeto SET arquivo_projeto_final=%s WHERE id=%s",(nomeDoArquivoTrabalho,idTrabalho))
+    flash("Versão final enviada com sucesso!")
+    return(redirect(url_for('meusProjetos')))
+
+@app.route("/cadastrarLinkApresentacao", methods=['POST'])
+@log_required
 def cadastrarLinkApresentacao():
-    if request.method == "POST":
-        idTrabalho = str(request.form['idTrabalho'])
-        edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
-        deadline = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
-        agora = datetime.datetime.now()
-        agora = agora.strftime("%Y-%m-%d")
-        if (agora>deadline):
-            return("Prazo expirado!")
-        if 'link' in request.form:
-            link = str(request.form['link'])
-            atualizar("UPDATE editalProjeto SET link_apresentacao=%s WHERE id=%s",(link,idTrabalho))
-            return(redirect(url_for('meusProjetos')))
-    else:
-        return("OK")
+    idTrabalho = str(request.form.get('idTrabalho', ''))
+    edital = edital_do_trabalho_do_usuario(idTrabalho)
+    if edital is None:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+    if prazo_expirado(edital, 'deadline_apresentacao'):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    link = str(request.form.get('link', '')).strip()
+    if not re.match(r'^https?://', link, re.I):
+        flash("Informe um link iniciado por http:// ou https://")
+        return(redirect(url_for('enviarApresentacao',id_trabalho=idTrabalho)))
+    atualizar("UPDATE editalProjeto SET link_apresentacao=%s WHERE id=%s",(link,idTrabalho))
+    flash("Link da apresentação cadastrado com sucesso!")
+    return(redirect(url_for('meusProjetos')))
 
 @app.route("/admin/premiacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -3966,11 +4002,6 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
-'''
-@app.route('/enviar_arquivo/<filename>')
-def enviar_arquivo(filename):
-    return(send_from_directory(ATTACHMENTS_DIR,filename))
-'''
 
 '''
 SELECT id,nome,titulo,ua,(media1+media2)/2 as media 

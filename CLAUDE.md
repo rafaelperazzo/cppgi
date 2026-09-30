@@ -69,6 +69,14 @@ docker-compose logs -f cppgi
   role instead. They're only needed in local dev (`.env`), which has no IAM role. Don't "fix" this by
   always passing them — an empty string is a valid (wrong) credential to boto3, not "unset", and would
   break S3 auth in production instead of falling back to the instance role.
+  **File downloads** (`/enviar_arquivo/<arquivo>`, used by every template/e-mail flow, including the evaluator's
+  `/avaliacao` page) never proxy bytes through the app: if the file is still on local disk (`uploads/`, e.g. dev
+  or before the background upload finishes) it's served directly, otherwise `url_assinada_s3()` does a
+  `head_object` and 302-redirects to a fresh SigV4 presigned GET URL for `cppgi/uploads/<arquivo>` valid for
+  `VALIDADE_URL_S3` = 60 s (with `Cache-Control: no-store`). Don't put S3 URLs directly into e-mails or long-lived
+  pages: SigV4 caps presigned URLs at 7 days and, signed with the instance role's temporary credentials in
+  production, they die when those credentials rotate (hours) — app links + a new URL per click is the design.
+  Uploads (`cadastrarProjeto` and the final version in `uploadCR`) go to S3 via `upload_e_apaga()` in production.
 
 ## Tests
 
