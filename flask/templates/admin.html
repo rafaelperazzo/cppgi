@@ -19,7 +19,10 @@
 {% endif %}
 {% endwith %}
 
-<a href="{{url_for('root')}}" class="btn-outline mb-4 inline-block">Voltar</a>
+<div class="mb-4 flex flex-wrap gap-2">
+  <a href="{{url_for('root')}}" class="btn-outline">Voltar</a>
+  <a href="{{url_for('editar_edital',edital=edital)}}" class="btn-outline">Editar edital</a>
+</div>
 
 <h2 class="mb-2 text-lg font-semibold text-slate-800">DURANTE O PERÍODO DE AVALIAÇÃO</h2>
 <div class="table-wrapper mb-6">

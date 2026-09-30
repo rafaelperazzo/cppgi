@@ -793,3 +793,63 @@ def test_link_login_logout_no_layout():
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 
+
+'''
+**************************************************************
+TESTES: cadastro/edição de editais e janela de submissão (inicio_submissao)
+**************************************************************
+'''
+
+def _form_edital(nome, inicio, deadline):
+    formato = '%Y-%m-%dT%H:%M'
+    return {'nome_curto': "TESTE D'EDITAL", 'nome': nome, 'nome_longo': "CONGRESSO D'ÁGUA", 'periodo': '1 a 5',
+            'local': 'Juazeiro do Norte', 'situacao': 'N/A', 'isbn': '123', 'logo': 'logo_cppgi.jpg',
+            'ficha': 'cppgi_ficha.png', 'mensagem': "Resultado d'água",
+            'inicio_submissao': inicio.strftime(formato), 'deadline': deadline.strftime(formato),
+            'deadline_avaliacao': deadline.strftime(formato), 'deadline_versao_final': deadline.strftime(formato),
+            'deadline_apresentacao': deadline.strftime(formato)}
+
+def test_cadastrar_editar_edital():
+    from pesquisa import editalAbertoParaSubmissao, getEditaisAbertos
+    nome = "EDITAL D'TESTE " + id_generator(10)
+    agora = datetime.datetime.now()
+    dados = _form_edital(nome, agora - datetime.timedelta(days=1), agora + datetime.timedelta(days=10))
+    dados['csrf_token'] = get_csrf_token('/admin/cadastrar_edital', auth_required=True)
+    post_res('/admin/cadastrar_edital', dados)
+    linhas, total = executarSelect("SELECT id,periodo,local,mensagem,nome_longo FROM editais WHERE nome=%s", valores=(nome,))
+    assert len(linhas) == 1
+    id_edital = linhas[0][0]
+    try:
+        assert linhas[0][1:] == ('1 a 5', 'Juazeiro do Norte', "Resultado d'água", "CONGRESSO D'ÁGUA")
+        assert editalAbertoParaSubmissao(id_edital)
+        assert id_edital in [e[0] for e in getEditaisAbertos()]
+
+        # início no futuro: some da lista de abertos e a submissão é recusada
+        dados = _form_edital(nome, agora + datetime.timedelta(days=2), agora + datetime.timedelta(days=10))
+        dados['periodo'] = '6 a 9'
+        dados['csrf_token'] = get_csrf_token('/admin/editar_edital/%s' % id_edital, auth_required=True)
+        post_res('/admin/editar_edital/%s' % id_edital, dados)
+        linhas, total = executarSelect("SELECT periodo FROM editais WHERE id=%s", valores=(id_edital,))
+        assert linhas[0][0] == '6 a 9'
+        assert not editalAbertoParaSubmissao(id_edital)
+        assert id_edital not in [e[0] for e in getEditaisAbertos()]
+
+        # deadline vencido também fecha a janela
+        atualizar("UPDATE editais SET inicio_submissao=%s, deadline=%s WHERE id=%s",
+                  (agora - datetime.timedelta(days=10), agora - datetime.timedelta(days=1), id_edital))
+        assert not editalAbertoParaSubmissao(id_edital)
+    finally:
+        atualizar("DELETE FROM editais WHERE id=%s", (id_edital,))
+
+def test_cadastrar_edital_inicio_depois_do_deadline():
+    nome = "EDITAL INVALIDO " + id_generator(10)
+    agora = datetime.datetime.now()
+    dados = _form_edital(nome, agora + datetime.timedelta(days=5), agora + datetime.timedelta(days=1))
+    dados['csrf_token'] = get_csrf_token('/admin/cadastrar_edital', auth_required=True)
+    rv = post_res('/admin/cadastrar_edital', dados)
+    assert u'deve ser anterior' in rv.data.decode()
+    linhas, total = executarSelect("SELECT id FROM editais WHERE nome=%s", valores=(nome,))
+    assert len(linhas) == 0
+
+def test_listar_editais():
+    get_res('/admin/editais')

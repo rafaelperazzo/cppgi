@@ -64,7 +64,7 @@ function addForm() {
 </div>
 
 <nav class="mb-4 flex flex-wrap gap-2 rounded-md border border-slate-200 bg-white p-3">
-  <a class="btn-outline" href="{{url_for('cadastrar_edital')}}">Cadastrar Novo Edital</a>
+  <a class="btn-outline" href="{{url_for('listar_editais')}}">Editais</a>
   <a class="btn-outline" href="{{url_for('email_solicitar_avaliacao')}}">Enviar E-mail para os avaliadores</a>
   <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=0)}}">Cadastrar Novo Usuário</a>
   <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=1)}}">Listar Usuários</a>
@@ -79,7 +79,8 @@ function addForm() {
         <th class="w-[9%]">Nome curto</th>
         <th class="w-[18%]">Nome longo do edital<br>Período<br>Local</th>
         <th class="w-[15%]">
-          Deadline Submissão
+          Início Submissão
+          <br>Deadline Submissão
           <br>Deadline Avaliação
           <br>Deadline versão final
           <br>Deadline Apresentação
@@ -98,6 +99,7 @@ function addForm() {
             <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
             <td>
               <a class="text-brand-700 hover:underline" href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
+              <a class="btn-outline text-xs py-0.5 px-2 mt-1 inline-block" href="{{url_for('editar_edital',edital=linha[0])}}">Editar</a>
             </td>
             <td>
               <input type="text" class="form-input" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required" value="{{linha[4]}}">
@@ -111,6 +113,7 @@ function addForm() {
             </td>
             <td>
               <div class="flex flex-col gap-1">
+                <span class="text-xs text-slate-600" title="Editável na página Editar">Início: {{linha[17]}}</span>
                 <input class="form-input" type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
                 <input class="form-input" type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
                 <input type="datetime-local" class="form-input" id="deadline_final" name="deadline_final" value="{{linha[6]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">

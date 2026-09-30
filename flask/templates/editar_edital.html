@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block title %}Editar edital{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">EDITAR EDITAL {{edital.id}}</h2>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-wrap gap-2">
+    <a href="{{url_for('listar_editais')}}" class="btn-outline">Voltar</a>
+    <a href="{{url_for('admin', edital=edital.id)}}" class="btn-outline">Módulo do edital</a>
+</div>
+{% with action=url_for('editar_edital', edital=edital.id) %}
+{% include "_form_edital.html" %}
+{% endwith %}
+{% endblock %}
