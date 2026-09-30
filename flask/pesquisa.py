@@ -858,74 +858,45 @@ def cadastrarProjeto():
 
 #Devolve os nomes dos arquivos do projeto e dos planos, caso existam
 def getFiles(idProjeto):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-    conn.select_db('cppgi')
-    cursor  = conn.cursor()
-    consulta = "SELECT arquivo_projeto,arquivo_plano1,arquivo_plano2 FROM editalProjeto WHERE id=" + idProjeto
-    cursor.execute(consulta)
-    linha = cursor.fetchone()
-    conn.close()
-    return(linha)
+    resultado = executarSelect("SELECT arquivo_projeto,arquivo_plano1,arquivo_plano2 FROM editalProjeto WHERE id=%s",
+                               tipo=1, valores=(idProjeto,))
+    return resultado[0] if resultado else None
 
-def naoEstaFinalizado(token):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-    conn.select_db('cppgi')
-    cursor  = conn.cursor()
-    consulta = "SELECT finalizado FROM avaliacoes WHERE token=\"" + token + "\""
-    cursor.execute(consulta)
-    linha = cursor.fetchone()
-    finalizado = int(linha[0])
-    conn.close()
-    if finalizado==0:
-        return (True)
-    else:
-        return (False)
+def obterAvaliacaoPorToken(token):
+    """(id, idProjeto, finalizado, nome_avaliador) da avaliação dona do token, ou None se o token não existir.
+    Rotas públicas do avaliador: o token (vindo da URL/formulário) só entra no SQL como parâmetro."""
+    resultado = executarSelect("SELECT id,idProjeto,finalizado,nome_avaliador FROM avaliacoes WHERE token=%s",
+                               tipo=1, valores=(str(token),))
+    if not resultado or not resultado[0]:
+        return None
+    return resultado[0]
 
 def podeAvaliar(idProjeto):
-    conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
-    conn.select_db('cppgi')
-    cursor  = conn.cursor()
-    #consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
-    consulta = "SELECT e.id as codigoEdital,e.deadline_avaliacao,p.id FROM editais e, editalProjeto p WHERE p.tipo=e.id and deadline_avaliacao>CURRENT_TIMESTAMP() AND p.id=" + idProjeto
-    cursor.execute(consulta)
-    total = cursor.rowcount
-    cursor.close()
-    conn.close()
-    if (total==0): #Edital com avaliacoes encerradas
-        return(False)
-    else: #Edital com avaliacoes em andamento
-        return(True)
+    consulta = """SELECT p.id FROM editais e, editalProjeto p
+    WHERE p.tipo=e.id AND e.deadline_avaliacao>CURRENT_TIMESTAMP() AND p.id=%s"""
+    resultado = executarSelect(consulta, valores=(idProjeto,))
+    return bool(resultado and resultado[0]) #Vazio: edital com avaliações encerradas
 
 #Gerar pagina de avaliacao para o avaliador
 @app.route("/avaliacao", methods=['GET', 'POST'])
 def getPaginaAvaliacao():
     if request.method == "GET":
-        idProjeto = str(request.args.get('id'))
+        tokenAvaliacao = str(request.args.get('token'))
+        avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
+        if avaliacao is None:
+            return("Link de avaliação inválido!")
+        #O trabalho é o da avaliação dona do token (o parâmetro id da URL não é mais usado)
+        id_avaliacao, idProjeto, finalizado = avaliacao[0], avaliacao[1], avaliacao[2]
         if podeAvaliar(idProjeto): #Se ainda está no prazo para receber avaliações
-            tokenAvaliacao = str(request.args.get('token'))
             arquivos = getFiles(idProjeto)
-            if str(arquivos[0])!="0":
-                link_projeto = url_for('enviar_arquivo',filename=str(arquivos[0]))
-            if str(arquivos[1])!="0":
-                link_plano1 = url_for('enviar_arquivo',filename=str(arquivos[1]))
-            if str(arquivos[2])!="0":
-                link_plano2 = url_for('enviar_arquivo',filename=str(arquivos[2]))
-            links = ""
-            if 'link_projeto' in locals():
-                links = links + "<a href=\"" + link_projeto + "\">TRABALHO</a><BR>"
-            '''
-            if 'link_plano1' in locals():
-                links = links + "<a href=\"" + link_plano1 + "\">ARQUIVO SUPLEMENTAR 1</a><BR>"
-            if 'link_plano2' in locals():
-                links = links + "<a href=\"" + link_plano2 + "\">ARQUIVO SUPLEMENTAR 2</a><BR>"
-            '''
-            links = links + "<input type=\"hidden\" id=\"token\" name=\"token\" value=\"" + tokenAvaliacao + "\">"
-            #links = Markup(links)
-            if naoEstaFinalizado(tokenAvaliacao):
-                consulta = "UPDATE avaliacoes SET aceitou=1 WHERE token=\"" + tokenAvaliacao + "\""
-                atualizar(consulta)
-                modalidade = obterColunaUnica('editalProjeto','modalidade','id',idProjeto)
-                return render_template('avaliacao.html',arquivos=links,modalidade=modalidade)
+            #Submissões gravam '' quando não há arquivo; registros antigos usam '0'
+            link_trabalho = None
+            if arquivos and str(arquivos[0] or '').strip() not in ('', '0', 'None'):
+                link_trabalho = url_for('enviar_arquivo',filename=str(arquivos[0]))
+            if int(finalizado)==0:
+                atualizar("UPDATE avaliacoes SET aceitou=1 WHERE id=%s", (id_avaliacao,))
+                modalidade = obterColunaUnica('editalProjeto','modalidade','id',str(idProjeto))
+                return render_template('avaliacao.html',link_trabalho=link_trabalho,token=tokenAvaliacao,modalidade=modalidade)
             else:
                 logging.debug("[AVALIACAO] Tentativa de reavaliar projeto")
                 return("Projeto já foi avaliado! Não é possível modificar a avaliação!")
@@ -936,26 +907,19 @@ def getPaginaAvaliacao():
 def enviarAvaliacao():
     if request.method == "POST":
         comentarios = str(request.form['txtComentarios'])
-        recomendacao = str(request.form['txtRecomendacao'])
         nome_avaliador = str(request.form['txtNome'])
         token = str(request.form['token'])
-        c1 = str(request.form['c1'])
-        c2 = str(request.form['c2'])
-        c3 = str(request.form['c3'])
-        c4 = str(request.form['c4'])
-        c5 = str(request.form['c5'])
-        c6 = str(request.form['c6'])
-        c7 = str(request.form['c7'])
-        c8 = str(request.form['c8'])
-        identificado = str(request.form['identificado'])
-        consulta = """
-        SELECT id FROM avaliacoes WHERE token="%s"
-        """ %(token)
-        ids,total = executarSelect(consulta)
-        id_avaliacao = str(ids[0][0])
-        id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        notas = [paraInt(request.form['c' + str(i)]) for i in range(1, 9)]
+        identificado = paraInt(request.form['identificado'])
+        if any(nota < 0 or nota > 10 for nota in notas) or identificado not in (0, 1):
+            return("Dados da avaliação inválidos. Volte ao formulário e confira as notas.")
+        avaliacao = obterAvaliacaoPorToken(token)
+        if avaliacao is None:
+            return("Link de avaliação inválido!")
+        id_avaliacao = str(avaliacao[0])
+        id_projeto = str(avaliacao[1])
         modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
-        total = int(c1) + int(c2) + int(c3) + int(c4) + int(c5) + int(c6) + int(c7) + int(c8)
+        total = sum(notas)
         if modalidade == '0':
             total = float((100*total)/40)
         else:
@@ -972,46 +936,17 @@ def enviarAvaliacao():
         link_declaracao = url_for("getDeclaracaoAvaliador",token=token,_external=True)
 
         try:
-            consulta = "UPDATE avaliacoes SET recomendacao=" + recomendacao + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET finalizado=1" + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET data_avaliacao=CURRENT_TIMESTAMP()" + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET nome_avaliador=\"" + nome_avaliador + "\"" + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
             comentarios = comentarios.replace('"',' ')
             comentarios = comentarios.replace("'"," ")
-            consulta = "UPDATE avaliacoes SET comentario=\"" + comentarios + "\"" + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c1=" + c1 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c2=" + c2 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c3=" + c3 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c4=" + c4 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c5=" + c5 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c6=" + c6 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c7=" + c7 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET c8=" + c8 + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
-            consulta = "UPDATE avaliacoes SET identificado=" + identificado + " WHERE token=\"" + token + "\""
-            atualizar(consulta)
+            consulta = """UPDATE avaliacoes SET recomendacao=%s,finalizado=1,data_avaliacao=CURRENT_TIMESTAMP(),
+            nome_avaliador=%s,comentario=%s,c1=%s,c2=%s,c3=%s,c4=%s,c5=%s,c6=%s,c7=%s,c8=%s,identificado=%s
+            WHERE id=%s"""
+            atualizar(consulta,(recomendacao,nome_avaliador,comentarios) + tuple(notas) + (identificado,id_avaliacao))
         except:
             e = sys.exc_info()[0]
             logging.error(e)
-            logging.error("[AVALIACAO] ERRO ao gravar a avaliação: " + token)
+            logging.error("[AVALIACAO] ERRO ao gravar a avaliação: " + id_avaliacao)
             return("Não foi possível gravar a avaliação. Favor entrar contactar " + REMETENTE + ".")
-        data_agora = getData()
-        consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + token + "\""
-        linhas = consultar(consulta)
-        for linha in linhas:
-            descricaoEdital = str(linha[1])
         #Enviando e-mail para o avaliador com o link
         texto_email = render_template('confirmacao_avaliacao.html',titulo=titulo,evento=nome_longo,link=link_declaracao)
         msg = Message(reply_to=NAO_RESPONDA,subject = u"Plataforma Yoko - [" + nome_curto + u"] COMPROVANTE AVALIAÇÃO DE TRABALHO",recipients=[avaliador],html=texto_email)
@@ -1040,25 +975,20 @@ def descricaoEdital(codigoEdital):
 def getDeclaracaoAvaliador():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
-        consulta = "SELECT nome_avaliador FROM avaliacoes WHERE token=\"" + tokenAvaliacao + "\""
-        linhas = consultar(consulta)
-        nome_avaliador = "NAO INFORMADO"
-        for linha in linhas:
-            nome_avaliador = str(linha[0])
-        data_agora = getData()
+        avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
+        if avaliacao is None:
+            return("Declaração não encontrada.", 404)
+        nome_avaliador = str(avaliacao[3])
         #Recuperando descrição do edital
-        consulta = "SELECT editais.id,editais.nome_longo FROM editais,avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=editais.id AND avaliacoes.token=\"" + tokenAvaliacao + "\""
-        linhas = consultar(consulta)
+        consulta = "SELECT e.id,e.nome_longo FROM editais e, editalProjeto p WHERE p.tipo=e.id AND p.id=%s"
+        linhas,total = executarSelect(consulta, valores=(avaliacao[1],))
         for linha in linhas:
             descricaoEdital = str(linha[1])
             edital = str(linha[0])
-        
+
         #Gerando declaração e enviando ao navegador
         token=tokenAvaliacao
-        consulta = "SELECT id FROM avaliacoes WHERE token=\"" + tokenAvaliacao + "\""
-        ids,total = executarSelect(consulta)
-        id_avaliacao = str(ids[0][0])
-        id_projeto = obterColunaUnica('avaliacoes','idProjeto','id',id_avaliacao)
+        id_projeto = str(avaliacao[1])
         titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
         template = obterColunaUnica('editais','declaracao_avaliador','id',edital)
         periodo = obterColunaUnica('editais','periodo','id',edital)
@@ -1105,8 +1035,7 @@ def consultar(consulta):
 def recusarConvite():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
-        consulta = "UPDATE avaliacoes SET aceitou=0 WHERE token=\"" + tokenAvaliacao + "\""
-        atualizar(consulta)
+        atualizar("UPDATE avaliacoes SET aceitou=0 WHERE token=%s", (tokenAvaliacao,))
         return("Avaliação cancelada com sucesso. Agradecemos a atenção.")
     else:
         return("OK")
