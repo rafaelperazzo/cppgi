@@ -2567,9 +2567,9 @@ def admin(edital):
     else:
         mostrar_pos_evento = False
     titulo = u"PÁGINA ADMINISTRATIVA"
-    job = scheduler.get_job('enviar_email_avaliadores')
-    scheduler_ativo = job is not None and job.next_run_time is not None
-    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo))
+    scheduler_ativo = job_ativo('enviar_email_avaliadores')
+    versao_final_ativo = job_ativo('solicitar_versao_final')
+    return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo,versao_final_ativo=versao_final_ativo))
 
 @app.route("/admin/mapaavaliadores", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -3204,25 +3204,80 @@ def email_solicitar_avaliacao():
     flash("Envio de e-mails iniciado!")
     return(redirect(url_for('root')))
 
-@app.route("/admin/toggleSchedulerAvaliadores")
-@auth.login_required(role=['admin'])
-@log_required
-def toggle_scheduler_avaliadores():
-    job = scheduler.get_job('enviar_email_avaliadores')
-    if job is None:
-        flash("Job de agendamento de e-mails para avaliadores não está registrado.")
-    elif job.next_run_time is None:
-        scheduler.resume_job('enviar_email_avaliadores')
-        flash("Agendamento de e-mails para avaliadores LIGADO.")
-    else:
-        scheduler.pause_job('enviar_email_avaliadores')
-        flash("Agendamento de e-mails para avaliadores DESLIGADO.")
-    return(redirect(url_for('root')))
-
 NOMES_JOBS_AGENDADOS = {
     'enviar_email_avaliadores': 'Envio de e-mails para avaliadores',
     'solicitar_versao_final': 'Solicitação de versão final',
 }
+
+def job_ativo(job_id):
+    job = scheduler.get_job(job_id)
+    return job is not None and job.next_run_time is not None
+
+def _ligar_job(job):
+    #resume_job() remove o job quando não há próxima execução (janela encerrada): checa antes
+    if job.trigger.get_next_fire_time(None, datetime.datetime.now(job.trigger.timezone)) is None:
+        return False
+    scheduler.resume_job(job.id)
+    return True
+
+def salvar_estado_job(job_id, ativo, usuario):
+    """Grava a escolha do admin, vinculada ao edital mais recente: num edital novo os jobs voltam a iniciar desligados."""
+    ultimo_edital = obterUltimoEdital()
+    if ultimo_edital is None:
+        return
+    atualizar("""INSERT INTO jobs_agendados_estado (job_id,ativo,edital,atualizado_por) VALUES (%s,%s,%s,%s)
+                 ON DUPLICATE KEY UPDATE ativo=VALUES(ativo),edital=VALUES(edital),atualizado_por=VALUES(atualizado_por)""",
+              (job_id, 1 if ativo else 0, ultimo_edital[0], usuario))
+
+def restaurar_estado_jobs():
+    """Chamada no __main__ depois de scheduler.start(): religa os jobs que um admin deixou ligados para o edital
+    mais recente. Sem registro (ou sem a tabela), o job continua desligado."""
+    ultimo_edital = obterUltimoEdital()
+    if ultimo_edital is None:
+        return
+    for job_id in NOMES_JOBS_AGENDADOS:
+        job = scheduler.get_job(job_id)
+        if job is None:
+            continue
+        resultado = executarSelect("SELECT ativo FROM jobs_agendados_estado WHERE job_id=%s AND edital=%s",
+                                   tipo=1, valores=(job_id, ultimo_edital[0]))
+        if resultado and resultado[0] and resultado[0][0] and _ligar_job(job):
+            logging.info("Job agendado %s religado conforme estado salvo pelo admin", job_id)
+
+def alternar_job(job_id, usuario=''):
+    """Liga/desliga um job agendado e devolve a mensagem para o flash. Os jobs são registrados pausados
+    no __main__ e só rodam depois que um admin os liga aqui (escolha persistida, ver restaurar_estado_jobs)."""
+    nome = NOMES_JOBS_AGENDADOS[job_id]
+    job = scheduler.get_job(job_id)
+    if job is None:
+        return u"Job '" + nome + u"' não está registrado."
+    if job.next_run_time is not None:
+        scheduler.pause_job(job_id)
+        salvar_estado_job(job_id, False, usuario)
+        return u"Agendamento '" + nome + u"' DESLIGADO."
+    if not _ligar_job(job):
+        return u"Agendamento '" + nome + u"' não pode ser ligado: a janela de execução já terminou."
+    salvar_estado_job(job_id, True, usuario)
+    return u"Agendamento '" + nome + u"' LIGADO."
+
+@app.route("/admin/toggleSchedulerAvaliadores")
+@auth.login_required(role=['admin'])
+@log_required
+def toggle_scheduler_avaliadores():
+    flash(alternar_job('enviar_email_avaliadores', auth.username()))
+    return(redirect(url_for('root')))
+
+@app.route("/admin/toggleJob/<job_id>", methods=['POST'])
+@auth.login_required(role=['admin'])
+@log_required
+def toggle_job(job_id):
+    if job_id not in NOMES_JOBS_AGENDADOS:
+        abort(404)
+    flash(alternar_job(job_id, auth.username()))
+    edital = paraInt(request.form.get('edital')) #enviado pelo admin.html para voltar à página do edital
+    if edital > 0:
+        return(redirect(url_for('admin', edital=edital)))
+    return(redirect(url_for('jobs_agendados')))
 
 @app.route("/admin/jobsAgendados")
 @auth.login_required(role=['admin'])
@@ -4337,6 +4392,7 @@ if __name__ == "__main__":
                     minute=59,
                     timezone='America/Fortaleza',
                     end_date=deadline_avaliacao,
+                    next_run_time=None, #registrado pausado: só roda depois que um admin ligar
                 )
 
         ultimo_edital = obterUltimoEdital()
@@ -4353,9 +4409,11 @@ if __name__ == "__main__":
                 timezone='America/Fortaleza',
                 start_date=inicio_versao_final,
                 end_date=deadline_versao_final_ultimo,
+                next_run_time=None, #registrado pausado: só roda depois que um admin ligar
             )
 
         scheduler.start()
+        restaurar_estado_jobs()
 
     serve(app, host='0.0.0.0', port=8090, url_prefix='/cppgi',trusted_proxy='*',trusted_proxy_headers='x-forwarded-for x-forwarded-proto x-forwarded-port',threads=2)
 

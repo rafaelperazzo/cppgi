@@ -8,17 +8,11 @@
 {% endblock %}
 
 {% block content %}
-{% with messages = get_flashed_messages() %}
-{% if messages %}
-    {% for message in messages %}
-    <div class="alert-warning">
-        <strong>{{message}}</strong>
-    </div>
-    {% endfor %}
-{% endif %}
-{% endwith %}
-
 <a href="{{url_for('root')}}" class="btn-outline mb-4 inline-block">Voltar</a>
+
+<div class="alert-info mb-4">
+  Os jobs só executam depois de ligados aqui por um admin. A escolha é mantida nos reinícios da aplicação, mas vale só para o edital mais recente: ao cadastrar um novo edital, os jobs voltam a iniciar <strong>DESLIGADOS</strong>.
+</div>
 
 {% if jobs %}
 <div class="table-wrapper">
@@ -30,6 +24,7 @@
         <th>Próxima execução</th>
         <th>Janela de validade</th>
         <th>Agendamento (cron)</th>
+        <th>Ação</th>
       </tr>
     </thead>
     <tbody>
@@ -48,6 +43,14 @@
           {% if job.fim %}{{job.fim.strftime('%d/%m/%Y %H:%M')}}{% else %}sem fim definido{% endif %}
         </td>
         <td>{{job.trigger}}</td>
+        <td>
+          <form action="{{url_for('toggle_job', job_id=job.id)}}" method="POST" onsubmit="return confirm('Tem certeza?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="{% if job.ativo %}btn-outline{% else %}btn-primary{% endif %} text-xs py-0.5 px-2 cursor-pointer">
+              {% if job.ativo %}Desligar{% else %}Ligar{% endif %}
+            </button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
