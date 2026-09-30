@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,session,Response
+from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort
 from flask_httpauth import HTTPBasicAuth
 import datetime
 #import MySQLdb
@@ -368,12 +368,18 @@ def getEditaisAbertos():
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
-    consulta = """SELECT id,nome,DATE_FORMAT(deadline,'%d/%m/%Y - %H:%i') FROM editais WHERE now()<deadline ORDER BY id DESC"""
+    consulta = """SELECT id,nome,DATE_FORMAT(deadline,'%d/%m/%Y - %H:%i') FROM editais WHERE inicio_submissao<=now() AND now()<deadline ORDER BY id DESC"""
     cursor.execute(consulta)
     linhas = cursor.fetchall()
     cursor.close()
     conn.close()
     return(linhas)
+
+def editalAbertoParaSubmissao(edital):
+    """Mesma janela de getEditaisAbertos(): inicio_submissao <= agora < deadline (relógio do MariaDB)."""
+    consulta = "SELECT id FROM editais WHERE id=%s AND inicio_submissao<=NOW() AND NOW()<deadline"
+    resultado = executarSelect(consulta,valores=(edital,))
+    return bool(resultado and resultado[0])
 
 def getSubAreasCNPQ():
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
@@ -750,6 +756,8 @@ def cadastrarProjeto():
     csrf.protect()
     #CADASTRAR DADOS DO PROPONENTE
     destino = paraInt(request.form['destino'])
+    if not editalAbertoParaSubmissao(destino):
+        return(u"As submissões para este edital não estão abertas.")
     tipo = paraInt(request.form['tipo_apresentacao'])
     tipo_trabalho = paraInt(request.form['tipo_trabalho'])
     categoria_trabalho = paraInt(request.form.get('categoria_trabalho', -1))
@@ -2534,7 +2542,7 @@ def root():
     consulta = """
     SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
     isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado,
-    declaracao_avaliador,periodo,local  
+    declaracao_avaliador,periodo,local,DATE_FORMAT(inicio_submissao,'%d/%m/%Y %H:%i')
     FROM editais
     """
     linhas,total = executarSelect(consulta)
@@ -3320,6 +3328,83 @@ def redimensionar_imagem(certificado,novotamanho):
     imagem.close()
     novaimagem.save(CERTIFICADOS_TEMPLATE_DIR + certificado)
 
+# Campos de texto do edital: (rótulo, tamanho máximo da coluna)
+CAMPOS_TEXTO_EDITAL = {
+    'nome_curto': (u'Nome curto', 100),
+    'nome': (u'Nome', 200),
+    'nome_longo': (u'Nome longo', 150),
+    'periodo': (u'Período', 200),
+    'local': (u'Local', 200),
+    'situacao': (u'Situação', 100),
+    'isbn': (u'ISBN', 30),
+    'logo': (u'Logo dos anais', 50),
+    'ficha': (u'Ficha catalográfica dos anais', 30),
+}
+CAMPOS_DATA_EDITAL = {
+    'inicio_submissao': u'Início das submissões',
+    'deadline': u'Deadline de submissões',
+    'deadline_avaliacao': u'Deadline de avaliações',
+    'deadline_versao_final': u'Deadline da versão final',
+    'deadline_apresentacao': u'Deadline da apresentação',
+}
+CAMPOS_EDITAL = tuple(CAMPOS_TEXTO_EDITAL) + tuple(CAMPOS_DATA_EDITAL) + ('mensagem',)
+#Nome do input de upload -> coluna em editais (colunas nunca vêm do request)
+CERTIFICADOS_EDITAL = {
+    'avaliador': 'declaracao_avaliador',
+    'moderador': 'certificado_moderador',
+    'apresentador': 'certificado_apresentador',
+    'participante': 'certificado_participante',
+    'demais': 'certificado_demais',
+    'convidado': 'certificado_convidado',
+}
+#Mesmos defaults do schema, para o formulário de cadastro
+PADRAO_EDITAL = {
+    'situacao': 'N/A',
+    'local': u'Universidade Federal do Cariri/UFCA em Juazeiro do Norte, Ceará',
+    'logo': 'logo_cppgi.jpg',
+    'ficha': 'cppgi_ficha.png',
+}
+
+def _dados_edital_do_form(form):
+    dados = {}
+    erros = []
+    for campo,(rotulo,tamanho) in CAMPOS_TEXTO_EDITAL.items():
+        dados[campo] = str(form.get(campo,'')).strip()
+        if not dados[campo]:
+            erros.append(u'Campo obrigatório: ' + rotulo)
+        elif len(dados[campo]) > tamanho:
+            erros.append(rotulo + u': máximo de ' + str(tamanho) + u' caracteres')
+    dados['mensagem'] = str(form.get('mensagem','')).strip()
+    for campo,rotulo in CAMPOS_DATA_EDITAL.items():
+        try:
+            dados[campo] = datetime.datetime.fromisoformat(str(form.get(campo,'')).strip())
+        except ValueError:
+            dados[campo] = None
+            erros.append(u'Data inválida: ' + rotulo)
+    if dados['inicio_submissao'] and dados['deadline'] and dados['inicio_submissao'] >= dados['deadline']:
+        erros.append(u'O início das submissões deve ser anterior ao deadline de submissões.')
+    return dados,erros
+
+def _salvar_modelos_certificado(edital,arquivos):
+    for campo,coluna in CERTIFICADOS_EDITAL.items():
+        arquivo = arquivos.get(campo)
+        if not arquivo or not arquivo.filename: #input vazio não pode apagar o modelo atual
+            continue
+        certificado = campo + "_" + str(edital) + ".png"
+        remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
+        certificados.save(arquivo,name=certificado)
+        if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
+            atualizar("UPDATE editais SET " + coluna + "=%s WHERE id=%s",(certificado,edital))
+            redimensionar_imagem(certificado,(1754,1238))
+
+def _obter_edital(edital):
+    colunas = ('id',) + CAMPOS_EDITAL + tuple(CERTIFICADOS_EDITAL.values())
+    consulta = "SELECT " + ",".join(colunas) + " FROM editais WHERE id=%s"
+    resultado = executarSelect(consulta,tipo=1,valores=(edital,))
+    if not resultado or not resultado[0]:
+        return None
+    return dict(zip(colunas,resultado[0]))
+
 @app.route("/admin/salvarEdital/<operacao>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
@@ -3327,108 +3412,75 @@ def salvar_edital(operacao):
     edital = int(request.form['codigo_edital'])
     if int(operacao)==0:
         consulta = """
-        UPDATE editais set deadline='%s',deadline_avaliacao='%s',nome_longo='%s',nome_curto='%s',
-        deadline_apresentacao='%s',deadline_versao_final='%s',situacao='%s',isbn='%s',
-        periodo='%s', local='%s'  
-        WHERE id=%s 
-        """ % (str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['nome']),str(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),str(request.form['situacao']),str(request.form['isbn']),str(request.form['periodo']),str(request.form['local']),str(edital),)
-        atualizar(consulta)
+        UPDATE editais set deadline=%s,deadline_avaliacao=%s,nome_longo=%s,nome_curto=%s,
+        deadline_apresentacao=%s,deadline_versao_final=%s,situacao=%s,isbn=%s,
+        periodo=%s,local=%s
+        WHERE id=%s
+        """
+        valores = (str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['nome']),str(request.form['nome_curto']),str(request.form['deadline_apresentacao']),str(request.form['deadline_final']),str(request.form['situacao']),str(request.form['isbn']),str(request.form['periodo']),str(request.form['local']),edital)
+        atualizar(consulta,valores)
         return("Alterações gravadas com sucesso!")
     else:
-        if 'avaliador' in request.files:
-            certificado = "avaliador_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['avaliador'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set declaracao_avaliador='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-            
-        if 'apresentador' in request.files:
-            certificado = "apresentador_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['apresentador'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set certificado_apresentador='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-            
-        if 'convidado' in request.files:
-            certificado = "convidado_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['convidado'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set certificado_convidado='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-            
-
-        if 'moderador' in request.files:
-            certificado = "moderador_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['moderador'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set certificado_moderador='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-            
-
-        if 'participante' in request.files:
-            certificado = "participante_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['participante'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set certificado_participante='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-            
-
-        if 'demais' in request.files:
-            certificado = "demais_" + str(edital) + ".png"
-            remover_arquivo(CERTIFICADOS_TEMPLATE_DIR + certificado)
-            certificados.save(request.files['demais'],name=certificado)
-            if os.path.getsize(CERTIFICADOS_TEMPLATE_DIR + certificado)!=0:
-                consulta = """
-                UPDATE editais set certificado_demais='%s' WHERE id=%s
-                """ % (certificado,str(edital))
-                atualizar(consulta)
-                novotamanho = (1754,1238)
-                redimensionar_imagem(certificado,novotamanho)
-
+        _salvar_modelos_certificado(edital,request.files)
         return(redirect(url_for('root')))
+
+@app.route("/admin/editais", methods=['GET'])
+@auth.login_required(role=['admin'])
+@log_required
+def listar_editais():
+    consulta = """
+    SELECT id,nome_curto,nome_longo,inicio_submissao,deadline,situacao,
+    CASE WHEN NOW()<inicio_submissao THEN 'EM BREVE' WHEN NOW()<deadline THEN 'ABERTO' ELSE 'ENCERRADO' END
+    FROM editais ORDER BY id DESC
+    """
+    linhas,total = executarSelect(consulta)
+    return(render_template('listar_editais.html',linhas=linhas))
 
 @app.route("/admin/cadastrar_edital", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
 @log_required
 def cadastrar_edital():
     if request.method == "GET":
-        return(render_template('cadastrar_edital.html'))
-    else:
-        try:
-            consulta = """INSERT INTO editais 
-            (nome,nome_curto,nome_longo,deadline,deadline_avaliacao,deadline_versao_final,
-            deadline_apresentacao,situacao,isbn,setor) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,1)"""
-            valores = (str(request.form['nome']),str(request.form['nome_curto']),str(request.form['nome']),str(request.form['deadline']),str(request.form['deadline_avaliacao']),str(request.form['deadline_final']),str(request.form['deadline_apresentacao']),str(request.form['situacao']),str(request.form['isbn']))
-        except Exception as e:
-            return(str(e))
+        edital = dict(PADRAO_EDITAL,inicio_submissao=datetime.datetime.now().replace(second=0,microsecond=0))
+        return(render_template('cadastrar_edital.html',edital=edital))
+    dados,erros = _dados_edital_do_form(request.form)
+    if erros:
+        for erro in erros:
+            flash(erro)
+        return(render_template('cadastrar_edital.html',edital=dados))
+    token = id_generator(40)
+    consulta = "INSERT INTO editais (" + ",".join(CAMPOS_EDITAL) + ",setor,token) VALUES (" + ",".join(["%s"]*(len(CAMPOS_EDITAL)+2)) + ")"
+    valores = tuple(dados[campo] for campo in CAMPOS_EDITAL) + (1,token)
     inserir(consulta,valores)
-    flash('Edital adicionado com sucesso')
-    return(redirect(url_for('root')))
+    #inserir() não devolve o id nem propaga erro: localiza o edital pelo token recém-gerado
+    resultado = executarSelect("SELECT id FROM editais WHERE token=%s",tipo=1,valores=(token,))
+    if not resultado or not resultado[0]:
+        flash(u'Não foi possível cadastrar o edital. Verifique o log da aplicação.')
+        return(render_template('cadastrar_edital.html',edital=dados))
+    _salvar_modelos_certificado(resultado[0][0],request.files)
+    flash(u'Edital adicionado com sucesso')
+    return(redirect(url_for('listar_editais')))
+
+@app.route("/admin/editar_edital/<int:edital>", methods=['GET', 'POST'])
+@auth.login_required(role=['admin'])
+@log_required
+def editar_edital(edital):
+    atual = _obter_edital(edital)
+    if atual is None:
+        abort(404)
+    if request.method == "GET":
+        return(render_template('editar_edital.html',edital=atual))
+    dados,erros = _dados_edital_do_form(request.form)
+    if erros:
+        for erro in erros:
+            flash(erro)
+        return(render_template('editar_edital.html',edital=dict(atual,**dados)))
+    consulta = "UPDATE editais SET " + ",".join(campo + "=%s" for campo in CAMPOS_EDITAL) + " WHERE id=%s"
+    valores = tuple(dados[campo] for campo in CAMPOS_EDITAL) + (edital,)
+    atualizar(consulta,valores)
+    _salvar_modelos_certificado(edital,request.files)
+    flash(u'Edital atualizado com sucesso')
+    return(redirect(url_for('listar_editais')))
 
 @app.route("/admin/ver_imagem/<qual>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])

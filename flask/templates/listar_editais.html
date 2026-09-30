@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block title %}Editais{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">EDITAIS</h2>
+{% endblock %}
+
+{% block content %}
+<div class="alert-info mb-4">
+    <p class="text-sm">Total de editais: <strong>{{linhas|length}}</strong></p>
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a href="{{url_for('cadastrar_edital')}}" class="btn-primary">Novo edital</a>
+    <a href="{{url_for('root')}}" class="btn-outline">Voltar</a>
+</div>
+
+<div class="table-wrapper breakout-90">
+    <table class="table-base">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome curto</th>
+                <th>Nome longo</th>
+                <th>Início das submissões</th>
+                <th>Deadline de submissões</th>
+                <th>Situação</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for linha in linhas %}
+            <tr>
+                <td>{{linha[0]}}</td>
+                <td>{{linha[1]}}</td>
+                <td>{{linha[2]}}</td>
+                <td class="whitespace-nowrap">{{linha[3].strftime('%d/%m/%Y %H:%M') if linha[3] else '-'}}</td>
+                <td class="whitespace-nowrap">{{linha[4].strftime('%d/%m/%Y %H:%M') if linha[4] else '-'}}</td>
+                <td>{{linha[5]}}</td>
+                <td>
+                    <span class="rounded px-2 py-0.5 text-xs font-semibold whitespace-nowrap
+                        {% if linha[6] == 'ABERTO' %}bg-green-100 text-green-800
+                        {% elif linha[6] == 'EM BREVE' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-slate-100 text-slate-600{% endif %}">{{linha[6]}}</span>
+                </td>
+                <td class="whitespace-nowrap">
+                    <a href="{{url_for('editar_edital', edital=linha[0])}}" class="btn-outline text-xs py-0.5 px-2 mr-1">Editar</a>
+                    <a href="{{url_for('admin', edital=linha[0])}}" class="btn-outline text-xs py-0.5 px-2">Módulo do edital</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-slate-500">Nenhum edital cadastrado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

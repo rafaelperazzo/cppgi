@@ -13,6 +13,29 @@
             $.post("{{url_for('salvar_submissao')}}", formValues, function(data){
                 //console.log(data);
             }, "text");
+            if (this.name === "modalidade") {
+                $(this).closest("tr.linha-submissao").attr("data-modalidade", $(this).val());
+                aplicarFiltros();
+            }
+        });
+
+        function aplicarFiltros(){
+            var ua = $("#filtro_ua").val();
+            var modalidade = $("#filtro_modalidade").val();
+            var visiveis = 0;
+            $("tr.linha-submissao").each(function(){
+                var ok = (ua === "" || $(this).attr("data-ua") === ua)
+                      && (modalidade === "" || $(this).attr("data-modalidade") === modalidade);
+                $(this).toggle(ok);
+                if (ok) { visiveis++; }
+            });
+            $("#total_visiveis").text(visiveis);
+        }
+
+        $("#filtro_ua, #filtro_modalidade").on("change", aplicarFiltros);
+        $("#limpar_filtros").on("click", function(){
+            $("#filtro_ua, #filtro_modalidade").val("");
+            aplicarFiltros();
         });
     });
 </script>
@@ -36,11 +59,35 @@
 
 <div class="alert-info mb-4">
     <p><strong>{{nome_longo}}</strong></p>
-    <p class="mt-1 text-sm">Total de submissões: <strong>{{projetos|length}}</strong></p>
+    <p class="mt-1 text-sm">Total de submissões: <strong>{{projetos|length}}</strong>
+        (exibindo <strong id="total_visiveis">{{projetos|length}}</strong>)</p>
 </div>
 
-<div class="mb-4 flex flex-wrap gap-2">
+<div class="mb-4 flex flex-wrap items-end gap-2">
     <a href="{{url_for('admin', edital=edital)}}" class="btn-outline">Voltar</a>
+    <div>
+        <label for="filtro_ua" class="block text-sm font-semibold text-slate-600">UA</label>
+        <select id="filtro_ua" class="form-select">
+            <option value="">Todas</option>
+            {% for ua in projetos | map(attribute=1) | select | unique | sort %}
+            <option value="{{ua}}">{{ua}}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="filtro_modalidade" class="block text-sm font-semibold text-slate-600">Modalidade</label>
+        <select id="filtro_modalidade" class="form-select">
+            <option value="">Todas</option>
+            <option value="0">Resumo Simples</option>
+            <option value="2">Trabalho Completo</option>
+            {% for m in projetos | map(attribute=7) | map('string') | unique | sort %}
+            {% if m not in ['0', '2'] %}
+            <option value="{{m}}">{{m}}</option>
+            {% endif %}
+            {% endfor %}
+        </select>
+    </div>
+    <button type="button" id="limpar_filtros" class="btn-outline">Limpar filtros</button>
 </div>
 
 <div class="table-wrapper breakout-90">
@@ -58,7 +105,7 @@
         </thead>
         <tbody>
             {% for linha in projetos %}
-            <tr>
+            <tr class="linha-submissao" data-ua="{{linha[1]}}" data-modalidade="{{linha[7]}}">
                 <form action="{{url_for('salvar_submissao')}}" id="form_{{linha[0]}}" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="id_projeto" value="{{linha[0]}}">
