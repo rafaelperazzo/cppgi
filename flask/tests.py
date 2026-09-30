@@ -197,14 +197,14 @@ def test_1_submissao_lista_em_submissoes():
 def test_2_inserir_avaliador():
     id_projeto = get_last_id('editalProjeto')
     edital = obterColunaUnica('editalProjeto','tipo','id',str(id_projeto))
-    csrf_token = get_csrf_token('/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto), auth_required=True)
+    csrf_token = get_csrf_token('/admin/avaliacoesNegadas?edital=' + str(edital) + '&id=' + str(id_projeto), auth_required=True)
     email = random_char(7)
     data = {
         "csrf_token": csrf_token,
         "txtProjeto": str(id_projeto),
         "txtEmail": email,
     }
-    post_res('/inserirAvaliador', data)
+    post_res('/admin/inserirAvaliador', data)
     consulta = """
     SELECT avaliador,idProjeto,aceitou,token FROM avaliacoes WHERE avaliador='%s' AND idProjeto=%s
     """ %(email,id_projeto)
@@ -721,11 +721,11 @@ def test_log_required_grava_auditoria(caplog):
     logger_auditoria.propagate = True
     try:
         with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
-            get_res('/avaliacoesNegadas')
+            get_res('/admin/avaliacoesNegadas')
     finally:
         logger_auditoria.propagate = False
     mensagens = [r.message for r in caplog.records if r.name == 'auditoria_acessos']
-    assert any('rota=/avaliacoesNegadas' in m and 'metodo=GET' in m for m in mensagens)
+    assert any('rota=/admin/avaliacoesNegadas' in m and 'metodo=GET' in m for m in mensagens)
     #CPF nunca deve aparecer em texto puro no log de auditoria
     assert not any(usuario in m for m in mensagens)
     assert any(re.search(r'cpf=\d{3}\*+\d{2}\b', m) for m in mensagens)
@@ -853,3 +853,143 @@ def test_cadastrar_edital_inicio_depois_do_deadline():
 
 def test_listar_editais():
     get_res('/admin/editais')
+
+'''
+**************************************************************
+TESTES: fluxo do avaliador (reenvio, prazo) e certificados em memória
+**************************************************************
+'''
+
+def _criar_avaliacao_temporaria(modelo_declaracao=''):
+    """Edital (avaliação aberta) + trabalho + avaliação não finalizada. Devolve (edital, projeto, token)."""
+    agora = datetime.datetime.now()
+    token_edital = id_generator(40)
+    inserir("""INSERT INTO editais (nome,nome_longo,deadline,deadline_avaliacao,deadline_apresentacao,deadline_versao_final,
+               setor,mensagem,token,declaracao_avaliador) VALUES ('EDITAL AVALIACAO TMP','EDITAL AVALIACAO TMP',%s,%s,%s,%s,1,'',%s,%s)""",
+            (agora - datetime.timedelta(days=5), agora + datetime.timedelta(days=10), agora + datetime.timedelta(days=30),
+             agora + datetime.timedelta(days=20), token_edital, modelo_declaracao))
+    edital = executarSelect("SELECT id FROM editais WHERE token=%s", 1, valores=(token_edital,))[0][0]
+    titulo = 'TRABALHO TMP ' + id_generator(10)
+    inserir("""INSERT INTO editalProjeto (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,
+               arquivo_projeto,arquivo_plano1,arquivo_plano2) VALUES (%s,1,2,'AUTOR TMP','0','x@x','UA',%s,'p','r','TRABALHO.tmp.pdf','','')""",
+            (edital, titulo))
+    projeto = executarSelect("SELECT id FROM editalProjeto WHERE titulo=%s", 1, valores=(titulo,))[0][0]
+    token = id_generator(20)
+    inserir("INSERT INTO avaliacoes (idProjeto,token,avaliador,finalizado,aceitou) VALUES (%s,%s,'avaliador@teste.local',0,-1)",
+            (projeto, token))
+    return edital, projeto, token
+
+def _remover_avaliacao_temporaria(edital, projeto):
+    atualizar("DELETE FROM avaliacoes WHERE idProjeto=%s", (projeto,))
+    atualizar("DELETE FROM editalProjeto WHERE id=%s", (projeto,))
+    atualizar("DELETE FROM editais WHERE id=%s", (edital,))
+
+def _dados_avaliacao(token, csrf_token, nota):
+    dados = {"csrf_token": csrf_token, "token": token, "txtNome": "AVALIADOR TMP", "identificado": "0",
+             "txtComentarios": "Comentário de teste", "txtRecomendacao": "1"}
+    dados.update({"c%d" % i: str(nota) for i in range(1, 9)})
+    return dados
+
+def test_avaliar_nao_regrava_avaliacao_finalizada():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        csrf_token = get_csrf_token('/avaliacao?token=' + token)
+        client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 9))
+        rv = client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 1))
+        assert u'já foi avaliado' in rv.data.decode()
+        linhas, total = executarSelect("SELECT finalizado,c1,c8 FROM avaliacoes WHERE token=%s", valores=(token,))
+        assert linhas[0] == (1, 9, 9)
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_avaliar_fora_do_prazo():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        csrf_token = get_csrf_token('/avaliacao?token=' + token)
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s",
+                  (datetime.datetime.now() - datetime.timedelta(days=1), edital))
+        rv = client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 9))
+        assert u'Prazo de avaliação expirado' in rv.data.decode()
+        linhas, total = executarSelect("SELECT finalizado FROM avaliacoes WHERE token=%s", valores=(token,))
+        assert linhas[0][0] == 0
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_declaracao_avaliador_nao_finalizada_e_sem_modelo():
+    edital, projeto, token = _criar_avaliacao_temporaria(modelo_declaracao='')
+    try:
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 403
+        atualizar("UPDATE avaliacoes SET finalizado=1 WHERE token=%s", (token,))
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 404
+        assert u'modelo de certificado' in rv.data.decode()
+        assert client.get('/declaracaoAvaliador?token=inexistente').status_code == 404
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_declaracao_avaliador_pdf_em_memoria():
+    from PIL import Image
+    from pesquisa import CERTIFICADOS_TEMPLATE_DIR
+    modelo = 'modelo_teste_' + id_generator(8) + '.png'
+    Image.new('RGB', (40, 30), 'white').save(CERTIFICADOS_TEMPLATE_DIR + modelo)
+    arquivos_fixos = [app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf', CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png']
+    antes = {a: os.path.getmtime(a) if os.path.exists(a) else None for a in arquivos_fixos}
+    edital, projeto, token = _criar_avaliacao_temporaria(modelo_declaracao=modelo)
+    try:
+        atualizar("UPDATE avaliacoes SET finalizado=1, nome_avaliador='AVALIADOR TMP' WHERE token=%s", (token,))
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 200
+        assert rv.mimetype == 'application/pdf'
+        assert rv.data[:4] == b'%PDF'
+        depois = {a: os.path.getmtime(a) if os.path.exists(a) else None for a in arquivos_fixos}
+        assert depois == antes
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+        os.remove(CERTIFICADOS_TEMPLATE_DIR + modelo)
+
+#Funções que montam SQL só com identificadores fixos no código (ou trechos de "%s"), ou que ficaram fora da
+#parametrização por decisão explícita (rotas genéricas salvar/detalhes). Valores de usuário NUNCA entram por concatenação.
+EXCECOES_SQL_DINAMICO = {
+    ('pesquisa.py', 'obterColunaUnica'),            #identificadores fixos nas chamadas; valor via %s
+    ('pesquisa.py', 'salvar'),                      #rota genérica mantida como está (decisão do usuário)
+    ('pesquisa.py', 'cadastrar_edital'),            #colunas de CAMPOS_EDITAL
+    ('pesquisa.py', 'editar_edital'),
+    ('pesquisa.py', '_salvar_modelos_certificado'), #colunas de CERTIFICADOS_EDITAL
+    ('pesquisa.py', '_obter_edital'),
+    ('app_api.py', 'consultar'),                    #concatena o trecho de filtros_modalidade_area (só %s)
+    ('app_api.py', 'totais'),
+}
+
+def _sql_dinamico(caminho):
+    import ast
+    sql = re.compile(r'\b(SELECT|UPDATE|INSERT|DELETE)\b', re.I)
+    def literal_sql(n):
+        return any(isinstance(x, ast.Constant) and isinstance(x.value, str) and sql.search(x.value) for x in ast.walk(n))
+    def seguro(n):
+        #",".join(["%s"]*len(itens)): placeholders para IN (...)
+        if isinstance(n, ast.Constant):
+            return True
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == 'join':
+            return all(x.value == '%s' for x in ast.walk(n) if isinstance(x, ast.Constant) and isinstance(x.value, str) and x.value.strip(',') != '')
+        if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Add):
+            return seguro(n.left) and seguro(n.right)
+        return False
+    arvore = ast.parse(open(caminho, encoding='utf-8').read())
+    achados = []
+    for funcao in ast.walk(arvore):
+        if not isinstance(funcao, ast.FunctionDef):
+            continue
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.BinOp) and isinstance(n.op, (ast.Add, ast.Mod)) and literal_sql(n):
+                if isinstance(n.op, ast.Mod) or not (seguro(n.left) and seguro(n.right)):
+                    achados.append((os.path.basename(caminho), funcao.name, n.lineno))
+            elif isinstance(n, ast.JoinedStr) and literal_sql(n):
+                achados.append((os.path.basename(caminho), funcao.name, n.lineno))
+    return achados
+
+def test_guardrail_sql_sem_concatenacao():
+    achados = []
+    for arquivo in ('pesquisa.py', 'app_api.py'):
+        achados += [a for a in _sql_dinamico(WORKING_DIR + arquivo) if (a[0], a[1]) not in EXCECOES_SQL_DINAMICO]
+    assert achados == [], "SQL montado por concatenação/format (use %%s + valores): %s" % sorted(set(achados))

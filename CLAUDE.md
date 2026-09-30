@@ -95,7 +95,13 @@ Key pieces inside `pesquisa.py`:
 - App/config setup at the top: working dirs, `.env` loading (via `dotenv_values`), Flask-Mail, Flask-Uploads,
   CSRF, CORS, logging (level depends on `producao` flag in `.env`).
 - `executarSelect` / `executarSelect2` / `atualizar` / `inserir`: thin raw-SQL helpers over `MySQLdb` — almost all
-  DB access in this codebase is hand-written SQL via these helpers, not an ORM.
+  DB access in this codebase is hand-written SQL via these helpers, not an ORM. **Values always go in as `%s`
+  parameters** (`executarSelect(consulta, valores=(...))`, `atualizar(consulta, (...))`, `cursor.execute(consulta,
+  valores)`), never concatenated or `%`-formatted into the SQL string; `IN (...)` lists use
+  `",".join(["%s"]*len(itens))`. Only fixed identifiers from code (table/column names, e.g. in
+  `obterColunaUnica(tabela, coluna, colunaId, valor)`) may be concatenated. `tests.py::test_guardrail_sql_sem_concatenacao`
+  enforces this by AST-scanning `pesquisa.py`/`app_api.py`, with an explicit allowlist (`EXCECOES_SQL_DINAMICO`) —
+  the generic `/admin/salvar/...`/`/admin/detalhes/...` routes are intentionally left as-is (user decision).
 - Rotas exclusivas de admin (`role=['admin']` apenas) ficam sob o prefixo `/admin/` (ex.: `/admin/resultados`). As URLs
   antigas sem prefixo continuam existindo como redirects (301 em rotas só-GET, 308 nas que aceitam POST), registrados
   por `ROTAS_ADMIN_LEGADAS` / `_registrar_redirects_admin_legados()` antes do `__main__`. Ao criar uma nova rota

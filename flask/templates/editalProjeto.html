@@ -3,9 +3,9 @@
 {% block title %}Propostas submetidas a edital{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{url_for('static',filename='js/chosen/chosen.css')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='js/chosen/chosen.css',_external=True)}}">
 <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-<script type="text/javascript" language="javascript" src="{{url_for('static',filename='js/comum.js')}}"></script>
+<script type="text/javascript" language="javascript" src="{{url_for('static',filename='js/comum.js',_external=True)}}"></script>
 <script>
 $(document).ready(function(){
  $("#myInput").on("keyup", function() {
@@ -153,23 +153,23 @@ $(document).ready(function(){
             {%if linha[9] is not none%}
               <td>
                 {% if (linha[9]==0) %}
-                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='interrogacao_vermelha.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
 
                 {% endif %}
                 {% if (linha[9]==1) %}
-                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='interrogacao_amarela.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
 
                 {% endif %}
                 {% if (linha[9]>1) %}
                   {% if linha[12]-linha[11]==0 %}
-                  <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_amarela.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                  <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='interrogacao_amarela.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
 
                   {% else %}
                     {% if linha[12]-linha[11]>0 %}
-                    <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='aprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                    <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='aprovado.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
 
                     {% else %}
-                    <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='reprovado.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                    <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='reprovado.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
 
                     {% endif %}
                   {% endif %}
@@ -177,7 +177,7 @@ $(document).ready(function(){
               </td>
             {%else%}
               <td>
-                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static', filename='interrogacao_vermelha.png')}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
+                <a href="/cppgi/meusPareceres?id={{linha[0]}}&todos=1"><img src="{{ url_for('static',filename='interrogacao_vermelha.png',_external=True)}}?rnd={{ range(1, 10000) | random }}"  alt="" align="center"></a>
                 SEM AVALIAÇÕES!
               </td>
             {%endif%}
@@ -199,7 +199,7 @@ $(document).ready(function(){
             <td><input type="text" class="form-input campo" name="palavras_{{linha[0]}}" id="palavras_{{linha[0]}}" placeholder="PALAVRAS CHAVES" required="required" value="{{linha[13]}}">
             </td>
             <td>{{linha[9]}}</td>
-            <td><a href="{{ url_for('avaliacoesNegadas', edital=codigoEdital, id=linha[0]) }}"><img src="{{url_for('static',filename='avaliador.png')}}"></a></td>
+            <td><a href="{{ url_for('avaliacoesNegadas', edital=codigoEdital, id=linha[0]) }}"><img src="{{url_for('static',filename='avaliador.png',_external=True)}}"></a></td>
             <td><a class="text-brand-700 hover:underline" href="{{url_for('listar_consultores',id_projeto=linha[0])}}">{{linha[5]|safe}}</a></td>
             <td>{{linha[6]|safe}}</td>
             <td>{{linha[7]|safe}}</td>
@@ -233,6 +233,6 @@ Total: {{total_novos}} submissões enviadas.
 {% endblock %}
 
 {% block scripts_extra %}
-<script src="{{url_for('static',filename='js/chosen/chosen.jquery.js')}}" type="text/javascript"></script>
-<script src="{{url_for('static',filename='js/chosen/docsupport/init.js')}}" type="text/javascript" charset="utf-8"></script>
+<script src="{{url_for('static',filename='js/chosen/chosen.jquery.js',_external=True)}}" type="text/javascript"></script>
+<script src="{{url_for('static',filename='js/chosen/docsupport/init.js',_external=True)}}" type="text/javascript" charset="utf-8"></script>
 {% endblock %}

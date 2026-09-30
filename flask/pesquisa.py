@@ -534,10 +534,11 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
-    consulta = "SELECT " + coluna + " FROM " + tabela + " WHERE " + colunaId + "=" + valorId
+    #tabela/coluna/colunaId são identificadores fixos no código; o valor entra só como parâmetro
+    consulta = "SELECT " + coluna + " FROM " + tabela + " WHERE " + colunaId + "=%s"
     resultado = "0"
     try:
-        cursor.execute(consulta)
+        cursor.execute(consulta, (valorId,))
         linhas = cursor.fetchall()
         for linha in linhas:
             resultado = str(linha[0])
@@ -566,8 +567,8 @@ def get_user_roles(user):
         return (['user'])
 
 def avaliadorTemPermissao(edital, data,sala):
-    consulta = """SELECT id FROM usuarios_salas WHERE username='""" + auth.username() + """' and data='""" + data + """' and sala='""" + sala + """'"""
-    linhas,total = executarSelect(consulta)
+    consulta = "SELECT id FROM usuarios_salas WHERE username=%s and data=%s and sala=%s"
+    linhas,total = executarSelect(consulta,valores=(auth.username(),data,sala))
     if total>0:
         return (True)
     else:
@@ -833,9 +834,8 @@ def cadastrarProjeto():
     
     #VERIFICANDO SE O TRABALHO JÁ FOI ENVIADO
     consulta = """
-    SELECT tipo,nome,titulo FROM editalProjeto WHERE tipo=""" + str(destino) + """ 
-    AND titulo='""" + titulo + """' AND siape='""" + identificacao + """'"""
-    linhas,total = executarSelect(consulta)
+    SELECT tipo,nome,titulo FROM editalProjeto WHERE tipo=%s AND titulo=%s AND siape=%s"""
+    linhas,total = executarSelect(consulta,valores=(destino,titulo,identificacao))
     if (total>0):
         return(u"Um trabalho com este mesmo título, CPF e edital já foi enviado ao sistema! Favor entrar em contato com a coordenação do evento!")
     consulta = """INSERT INTO editalProjeto
@@ -916,6 +916,12 @@ def enviarAvaliacao():
         avaliacao = obterAvaliacaoPorToken(token)
         if avaliacao is None:
             return("Link de avaliação inválido!")
+        #Mesmas regras do GET /avaliacao: um POST direto não pode regravar avaliação finalizada nem fora do prazo
+        if int(avaliacao[2]) != 0:
+            logging.debug("[AVALIACAO] Tentativa de reenviar avaliação finalizada")
+            return("Projeto já foi avaliado! Não é possível modificar a avaliação!")
+        if not podeAvaliar(avaliacao[1]):
+            return("Prazo de avaliação expirado!")
         id_avaliacao = str(avaliacao[0])
         id_projeto = str(avaliacao[1])
         modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
@@ -961,8 +967,8 @@ def descricaoEdital(codigoEdital):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
-    consulta = "SELECT id,nome FROM editais WHERE id=" + codigoEdital
-    cursor.execute(consulta)
+    consulta = "SELECT id,nome FROM editais WHERE id=%s"
+    cursor.execute(consulta,(codigoEdital,))
     linhas = cursor.fetchall()
     nomeEdital = "EDITAL NAO DEFINIDO"
     for linha in linhas:
@@ -978,10 +984,14 @@ def getDeclaracaoAvaliador():
         avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
         if avaliacao is None:
             return("Declaração não encontrada.", 404)
+        if int(avaliacao[2]) == 0:
+            return("A declaração fica disponível após a avaliação ser enviada.", 403)
         nome_avaliador = str(avaliacao[3])
         #Recuperando descrição do edital
         consulta = "SELECT e.id,e.nome_longo FROM editais e, editalProjeto p WHERE p.tipo=e.id AND p.id=%s"
         linhas,total = executarSelect(consulta, valores=(avaliacao[1],))
+        if not linhas: #trabalho removido
+            return("Declaração não encontrada.", 404)
         for linha in linhas:
             descricaoEdital = str(linha[1])
             edital = str(linha[0])
@@ -993,40 +1003,32 @@ def getDeclaracaoAvaliador():
         template = obterColunaUnica('editais','declaracao_avaliador','id',edital)
         periodo = obterColunaUnica('editais','periodo','id',edital)
         local = obterColunaUnica('editais','local','id',edital)
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
-        #Gerando QrCode
-        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
 
         #Recuperando template
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-        
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
+        qr_code = qrcode_base64(qrcode_url)
+
         #Gerando certificado em PDF
         try:
-            pdfkit.from_string(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            return responder_pdf(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'declaracao_avaliador.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado avaliador')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
 
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
-
-def consultar(consulta):
+def consultar(consulta,valores=None):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
-    cursor.execute(consulta)
+    if valores is None:
+        cursor.execute(consulta)
+    else:
+        cursor.execute(consulta,valores)
     linhas = cursor.fetchall()
     conn.close()
     return (linhas)
@@ -1052,27 +1054,29 @@ def avaliacoesNegadas():
             codigoEdital = str(request.args.get('edital'))
             if 'id' in request.args:
                 idProjeto = str(request.args.get('id'))
-                consulta = "SELECT id,titulo FROM editalProjeto WHERE tipo=" + codigoEdital + " AND id=" + idProjeto
+                consulta = "SELECT id,titulo FROM editalProjeto WHERE tipo=%s AND id=%s"
+                valores = (codigoEdital,idProjeto)
                 identificador = obterColunaUnica('editalProjeto','siape','id',idProjeto)
                 area = obterColunaUnica('editalProjeto','ua','id',idProjeto)
                 possiveis_avaliadores = """
                 SELECT DISTINCT avaliacoes.avaliador,avaliacoes.nome_avaliador FROM avaliacoes 
                 INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
-                WHERE editalProjeto.siape="%s"
+                WHERE editalProjeto.siape=%s
                 AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
-                """ % (identificador)
-                avaliadores_sugeridos,total = executarSelect(possiveis_avaliadores)
+                """
+                avaliadores_sugeridos,total = executarSelect(possiveis_avaliadores,valores=(identificador,))
                 avaliadores_area = """
                 SELECT DISTINCT avaliacoes.avaliador,UPPER(avaliacoes.nome_avaliador) FROM avaliacoes 
                 INNER JOIN editalProjeto ON editalProjeto.id=avaliacoes.idProjeto
-                WHERE editalProjeto.ua="%s"
+                WHERE editalProjeto.ua=%s
                 AND avaliacoes.finalizado=1 ORDER BY avaliacoes.nome_avaliador
-                """ % (area)
-                lista_area,total = executarSelect(avaliadores_area)
+                """
+                lista_area,total = executarSelect(avaliadores_area,valores=(area,))
             else:
-                consulta = "SELECT resumoGeralAvaliacoes.id,CONCAT(SUBSTRING(resumoGeralAvaliacoes.titulo,1,80),\" - (\",resumoGeralAvaliacoes.nome,\" )\"),(resumoGeralAvaliacoes.aceites+resumoGeralAvaliacoes.rejeicoes) as resultado,resumoGeralAvaliacoes.indefinido FROM resumoGeralAvaliacoes WHERE ((aceites+rejeicoes<2) OR (aceites=rejeicoes)) AND tipo=" + codigoEdital + " ORDER BY aceites+rejeicoes, id"
+                consulta = "SELECT resumoGeralAvaliacoes.id,CONCAT(SUBSTRING(resumoGeralAvaliacoes.titulo,1,80),\" - (\",resumoGeralAvaliacoes.nome,\" )\"),(resumoGeralAvaliacoes.aceites+resumoGeralAvaliacoes.rejeicoes) as resultado,resumoGeralAvaliacoes.indefinido FROM resumoGeralAvaliacoes WHERE ((aceites+rejeicoes<2) OR (aceites=rejeicoes)) AND tipo=%s ORDER BY aceites+rejeicoes, id"
+                valores = (codigoEdital,)
             try:
-                cursor.execute(consulta)
+                cursor.execute(consulta,valores)
                 linha = cursor.fetchall()
                 total = cursor.rowcount
                 return(render_template('inserirAvaliador.html',listaProjetos=linha,totalDeLinhas=total,codigoEdital=codigoEdital,avaliadores=avaliadores_sugeridos,avaliadores_area=lista_area,area=area))
@@ -1115,18 +1119,12 @@ def inserirAvaliador():
                 flash(u"Prazo de avaliação expirado!")
                 return(redirect(url_for('listar_consultores',id_projeto=idProjeto)))
 
-            consulta = "INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,\"" + avaliador1_email + "\", \"" + token + "\", " + str(idProjeto) + ")"
             #Verificando se existe avaliador para o ID
-            consulta2 = """
-            SELECT * from avaliacoes WHERE avaliador='""" + avaliador1_email +"""' AND 
-            idProjeto=""" + str(idProjeto)
-            linhas,total=executarSelect(consulta2)
+            linhas,total=executarSelect("SELECT * from avaliacoes WHERE avaliador=%s AND idProjeto=%s",valores=(avaliador1_email,idProjeto))
             if total==0:
-                atualizar(consulta)
+                atualizar("INSERT INTO avaliacoes (aceitou,avaliador,token,idProjeto) VALUES (-1,%s,%s,%s)",(avaliador1_email,token,idProjeto))
             
-            update = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador='""" + avaliador1_email +"""' AND 
-            idProjeto=""" + str(idProjeto)
-            atualizar(update)
+            atualizar("UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE avaliador=%s AND idProjeto=%s",(avaliador1_email,idProjeto))
             flash(u"Avaliador incluído com sucesso: " + avaliador1_email)
         t = threading.Thread(target=enviarPedidoAvaliacao,args=(idProjeto,))
         t.start()
@@ -1176,8 +1174,8 @@ def avaliacoesEncerradas(codigoEdital):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.select_db('cppgi')
     cursor  = conn.cursor()
-    consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=" + codigoEdital
-    cursor.execute(consulta)
+    consulta = "SELECT deadline_avaliacao,CURRENT_TIMESTAMP() FROM editais WHERE CURRENT_TIMESTAMP()<deadline_avaliacao AND id=%s"
+    cursor.execute(consulta,(codigoEdital,))
     total = cursor.rowcount
     conn.close()
     if (total>0): #Edital com avaliacoes encerradas
@@ -1185,23 +1183,16 @@ def avaliacoesEncerradas(codigoEdital):
     else: #Edital com avaliacoes em andamento
         return(True)
 
-def gerarPDF(template):
-    
-    try:
-        arquivoDeclaracao = app.config['TEMP_FOLDER'] + 'resultados.pdf'
-        options = {
-            'page-size': 'A4',
-            'margin-top': '2cm',
-            'margin-right': '2cm',
-            'margin-bottom': '1cm',
-            'margin-left': '2cm',
-        }
-        pdfkit.from_string(template,arquivoDeclaracao,options=options)
-    except:
-        e = sys.exc_info()[0]
-        logging.error(e)
-        logging.error("ERRO Na função gerarPDF")
-    #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
+OPCOES_PDF_RESULTADOS = {
+    'page-size': 'A4',
+    'margin-top': '2cm',
+    'margin-right': '2cm',
+    'margin-bottom': '1cm',
+    'margin-left': '2cm',
+    #editalProjeto.html referencia JS/ícones por URL relativa, que o wkhtmltopdf não resolve a partir de string
+    'load-error-handling': 'ignore',
+    'load-media-error-handling': 'ignore',
+}
 
 @app.route("/admin/editalProjeto/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -1216,7 +1207,7 @@ def editalProjeto(edital):
 
         consulta = """SELECT id,tipo,categoria,modalidade,nome,email,ua,titulo,arquivo_projeto,arquivo_plano1,arquivo_plano2
         ,DATE_FORMAT(data,'%d/%m/%Y - %H:%i') as data,situacao FROM editalProjeto
-        WHERE tipo=""" + codigoEdital + """ AND valendo=1 ORDER BY ua,nome"""
+        WHERE tipo=%s AND valendo=1 ORDER BY ua,nome"""
         
         consulta_novos = """SELECT editalProjeto.id,nome,ua,titulo,arquivo_projeto,
         GROUP_CONCAT(avaliacoes.avaliador ORDER BY avaliador SEPARATOR '<BR>') as avaliadores,
@@ -1229,36 +1220,39 @@ def editalProjeto(edital):
         sum(if(recomendacao=1,1,0)),
         palavras,editalProjeto.situacao,
         IF(editalProjeto.modalidade=0,'RESUMO SIMPLES',IF(editalProjeto.modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO'))"""
-        consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=""" + codigoEdital + """ AND valendo=1
+        consulta_novos = consulta_novos + """ FROM editalProjeto LEFT JOIN avaliacoes on editalProjeto.id=avaliacoes.idProjeto WHERE tipo=%s AND valendo=1
         GROUP BY editalProjeto.id ORDER BY finalizados,editalProjeto.ua,editalProjeto.modalidade,editalProjeto.id"""
 
-        demanda = """SELECT ua,count(id) FROM editalProjeto WHERE valendo=1 and tipo=""" + codigoEdital + """ GROUP BY ua ORDER BY ua"""
+        demanda = """SELECT ua,count(id) FROM editalProjeto WHERE valendo=1 and tipo=%s GROUP BY ua ORDER BY ua"""
 
         dadosAvaliacoes = """SELECT if(finalizado=1,"FINALIZADO","EM AVALIAÇÃO/NÃO SINALIZOU") as finalizados,count(avaliacoes.id) FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND
-        tipo=""" + codigoEdital + """ AND valendo=1 AND aceitou!=0 GROUP BY finalizado"""
+        tipo=%s AND valendo=1 AND aceitou!=0 GROUP BY finalizado"""
 
         tempoAvaliacao = """SELECT TIMESTAMPDIFF(DAY,data_envio,data_avaliacao) as tempo,count(avaliacoes.id) total FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND valendo=1 and
-        tipo=""" + codigoEdital + """ and finalizado=1 GROUP BY TIMESTAMPDIFF(DAY,data_envio,data_avaliacao)"""
+        tipo=%s and finalizado=1 GROUP BY TIMESTAMPDIFF(DAY,data_envio,data_avaliacao)"""
 
         descricao = descricaoEdital(codigoEdital)
 
-        cursor.execute(consulta)
+        cursor.execute(consulta,(codigoEdital,))
         total = cursor.rowcount
         linhas = cursor.fetchall()
 
-        cursor.execute(consulta_novos)
+        cursor.execute(consulta_novos,(codigoEdital,))
         total_novos = cursor.rowcount
         linhas_novos = cursor.fetchall()
 
-        cursor.execute(demanda)
+        cursor.execute(demanda,(codigoEdital,))
         linhas_demanda = cursor.fetchall()
         cursor.close()
         conn.close()
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
-                return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
+                try:
+                    return responder_pdf(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"),OPCOES_PDF_RESULTADOS,'resultados.pdf')
+                except Exception as e:
+                    logging.error("ERRO ao gerar o PDF de resultados: " + str(e))
+                    return ("Erro ao gerar o PDF de resultados", 500)
             else:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
                 return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
@@ -1276,8 +1270,8 @@ def declaracoesServidor():
             siape = str(request.form['txtSiape'])
             consulta = ""
             try:
-                consulta = "SELECT id,nome,evento,modalidade FROM declaracoes WHERE siape=" + siape
-                declaracoes,total = executarSelect(consulta)
+                consulta = "SELECT id,nome,evento,modalidade FROM declaracoes WHERE siape=%s"
+                declaracoes,total = executarSelect(consulta,valores=(siape,))
                 return(render_template('declaracoes_servidor.html',listaDeclaracoes=declaracoes))
             except:
                 e = sys.exc_info()[0]
@@ -1296,8 +1290,8 @@ def declaracaoEvento():
         #Recuperando o código da declaração
         if 'id' in request.args:
             idDeclaracao = str(request.args.get('id'))
-            consulta = "SELECT nome,siape,participacao,evento,modalidade,periodo,local FROM declaracoes WHERE id=" + idDeclaracao
-            linhas,total = executarSelect(consulta)
+            consulta = "SELECT nome,siape,participacao,evento,modalidade,periodo,local FROM declaracoes WHERE id=%s"
+            linhas,total = executarSelect(consulta,valores=(idDeclaracao,))
             if (total>0):
                 texto = linhas[0]
                 data_agora = getData()
@@ -1341,8 +1335,8 @@ def meusProjetos():
         WHEN HOUR(editalProjeto.data_apresentacao) >= 18 AND HOUR(editalProjeto.data_apresentacao) < 24 THEN 'Noite - 18:30'
         ELSE 'Indefinido'
     	END AS turno 
-        FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape='""" + str(session['username']) + """' ORDER BY editalProjeto.data """
-        projetos2019,total2019 = executarSelect(consulta_outros)
+        FROM editalProjeto,editais WHERE valendo=1 AND editalProjeto.tipo=editais.id AND siape=%s ORDER BY editalProjeto.data """
+        projetos2019,total2019 = executarSelect(consulta_outros,valores=(str(session['username']),))
         registrar_acesso('/meusProjetos',request.remote_addr,str(session['username']))
         return(render_template('meusProjetos.html',projetos2019=projetos2019,total2019=total2019,permissao=session['permissao'],SITE=CPPGI_SITE))
     else:
@@ -1357,10 +1351,12 @@ def meusPareceres():
             if autenticado():
                 tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
                 if ('todos' in request.args) and (session['permissao']==0):
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=""" + idProjeto + """ ORDER BY data_avaliacao"""
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
+                    valores = (idProjeto,)
                 else:
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY data_avaliacao"""
-                pareceres,total = executarSelect(consulta)
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
+                    valores = (idProjeto,str(session['username']))
+                pareceres,total = executarSelect(consulta,valores=valores)
                 return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto))
             else:
                 return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -1381,7 +1377,8 @@ def minhasAvaliacoes(id_projeto):
                 comentarios,
                 DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
                 FROM avaliacoes_orais 
-                WHERE avaliacoes_orais.idProjeto=""" + idProjeto + """ ORDER BY avaliacoes_orais.data"""
+                WHERE avaliacoes_orais.idProjeto=%s ORDER BY avaliacoes_orais.data"""
+                valores = (idProjeto,)
             else:
                 consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
                 (c1+c2+c3+c4) as pontuacaoTotal, 
@@ -1389,8 +1386,9 @@ def minhasAvaliacoes(id_projeto):
                 DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
                 FROM avaliacoes_orais,editalProjeto 
                 WHERE editalProjeto.id=avaliacoes_orais.idProjeto 
-                AND avaliacoes_orais.idProjeto=""" + idProjeto + """ AND siape='""" + str(session['username']) + """' ORDER BY avaliacoes_orais.data"""
-            pareceres,total = executarSelect(consulta)
+                AND avaliacoes_orais.idProjeto=%s AND siape=%s ORDER BY avaliacoes_orais.data"""
+                valores = (idProjeto,str(session['username']))
+            pareceres,total = executarSelect(consulta,valores=valores)
             return(render_template('minhasAvaliacoes.html',linhas=pareceres,total=total,titulo=tituloProjeto))
         else:
             return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -1509,8 +1507,8 @@ def projetoAprovado(idProjeto):
     if categoria==0:
         return (True)
     else:
-        consulta = """SELECT sum(if(recomendacao=0,1,0)) as rejeitados, sum(if(recomendacao=1,1,0)) as aprovados FROM avaliacoes WHERE idProjeto=""" + str(idProjeto)
-        resultado,total = executarSelect(consulta,1)
+        consulta = """SELECT sum(if(recomendacao=0,1,0)) as rejeitados, sum(if(recomendacao=1,1,0)) as aprovados FROM avaliacoes WHERE idProjeto=%s"""
+        resultado,total = executarSelect(consulta,1,valores=(idProjeto,))
         avaliacoes = int(resultado[0]) + int(resultado[1])
         if avaliacoes>1:
             if (resultado[1]>resultado[0]):
@@ -1521,18 +1519,12 @@ def projetoAprovado(idProjeto):
             return(False)
 
 def tuplaDeEditais(ano):
-    inicio = ano + "-04-01"
-    fim = ano + "-12-31"
-    consulta = """SELECT id FROM editais WHERE DATE(deadline)>'""" + inicio + """' AND DATE(deadline)<'""" + fim + """' AND nome not like '%contínuo%'"""
-    editais,total = executarSelect(consulta)
-    codigos = []
-    for linha in editais:
-        codigos.append(int(linha[0]))
-    if total>0:
-        resultado = str(tuple(codigos))
-        return (resultado)
-    else:
-        return (0)
+    """Ids dos editais (não contínuos) com deadline entre abril e dezembro do ano; lista vazia se não houver."""
+    inicio = str(ano) + "-04-01"
+    fim = str(ano) + "-12-31"
+    consulta = """SELECT id FROM editais WHERE DATE(deadline)>%s AND DATE(deadline)<%s AND nome not like '%contínuo%'"""
+    resultado = executarSelect(consulta,valores=(inicio,fim))
+    return [int(linha[0]) for linha in resultado[0]] if resultado else []
 
 
 @app.route("/cruzarDados", methods=['GET', 'POST'])
@@ -1543,9 +1535,9 @@ def cruzarDados():
             ano = str(request.args.get('ano'))
             if ((autenticado()) and (session['permissao']==0)):
                 editais = tuplaDeEditais(ano)
-                if (editais!=0):
-                    consulta = """SELECT siape,editalProjeto.nome,sum(bolsas_concedidas),GROUP_CONCAT(editais.nome ORDER BY tipo SEPARATOR '<BR>') as editais, GROUP_CONCAT(modalidades.descricao ORDER BY tipo SEPARATOR '<BR>') as tipos FROM editalProjeto,modalidades,editais WHERE modalidades.id=editalProjeto.modalidade AND editalProjeto.tipo=editais.id AND valendo=1 and tipo in """ + editais + """ AND modalidade in (1,2,3) GROUP BY siape ORDER BY nome"""
-                    linhas,total = executarSelect(consulta)
+                if editais:
+                    consulta = """SELECT siape,editalProjeto.nome,sum(bolsas_concedidas),GROUP_CONCAT(editais.nome ORDER BY tipo SEPARATOR '<BR>') as editais, GROUP_CONCAT(modalidades.descricao ORDER BY tipo SEPARATOR '<BR>') as tipos FROM editalProjeto,modalidades,editais WHERE modalidades.id=editalProjeto.modalidade AND editalProjeto.tipo=editais.id AND valendo=1 and tipo in (""" + ",".join(["%s"]*len(editais)) + """) AND modalidade in (1,2,3) GROUP BY siape ORDER BY nome"""
+                    linhas,total = executarSelect(consulta,valores=tuple(editais))
                     return(render_template('bolsasPorAno.html',linhas=linhas,ano=ano,total=total))
                 else:
                     return("Sem dados disponíveis!")
@@ -1590,32 +1582,32 @@ def estatisticas():
         #Recuperando o ano dos editais
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
-            c1 = "SELECT id FROM editalProjeto where valendo=1 and tipo=" + edital
-            linhas,totalSubmissoes = executarSelect(c1)
+            c1 = """SELECT id FROM editalProjeto where valendo=1 and tipo=%s"""
+            linhas,totalSubmissoes = executarSelect(c1,valores=(edital,))
 
-            c2 = "SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital
-            linhas,totalAvaliacoes = executarSelect(c2)
+            c2 = """SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s"""
+            linhas,totalAvaliacoes = executarSelect(c2,valores=(edital,))
 
-            c3 = "SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE aceitou=0 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital
-            linhas,totalAvaliacoesNegadas = executarSelect(c3)
+            c3 = """SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE aceitou=0 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s"""
+            linhas,totalAvaliacoesNegadas = executarSelect(c3,valores=(edital,))
 
-            c4 = "SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital
-            linhas,totalAvaliacoesFinalizadas = executarSelect(c4)
+            c4 = """SELECT avaliacoes.id FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s"""
+            linhas,totalAvaliacoesFinalizadas = executarSelect(c4,valores=(edital,))
 
-            c5 = "SELECT avaliacoes.idProjeto,count(avaliacoes.id) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital + " GROUP by idProjeto HAVING total>=2"
-            linhas,totalAvaliacoesConcluidas = executarSelect(c5)
+            c5 = """SELECT avaliacoes.idProjeto,count(avaliacoes.id) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s GROUP by idProjeto HAVING total>=2"""
+            linhas,totalAvaliacoesConcluidas = executarSelect(c5,valores=(edital,))
 
-            c6 = "SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital + " GROUP by idProjeto HAVING (total=1)"
-            linhas,totalAvaliacoesPendentes = executarSelect(c6)
+            c6 = """SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s GROUP by idProjeto HAVING (total=1)"""
+            linhas,totalAvaliacoesPendentes = executarSelect(c6,valores=(edital,))
 
-            c7 = "SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital + " GROUP by idProjeto HAVING (diferenca>0 and total>1)"
-            linhas,totalSubmissoesAprovadas = executarSelect(c7)
+            c7 = """SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s GROUP by idProjeto HAVING (diferenca>0 and total>1)"""
+            linhas,totalSubmissoesAprovadas = executarSelect(c7,valores=(edital,))
 
-            c8 = "SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital + " GROUP by idProjeto HAVING (diferenca<0 and total>1)"
-            linhas,totalSubmissoesReprovadas = executarSelect(c8)
+            c8 = """SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s GROUP by idProjeto HAVING (diferenca<0 and total>1)"""
+            linhas,totalSubmissoesReprovadas = executarSelect(c8,valores=(edital,))
 
-            c9 = "SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=" + edital + " GROUP by idProjeto HAVING (diferenca=0 and total>1)"
-            linhas,totalSubmissoesIndefinidas = executarSelect(c9)
+            c9 = """SELECT avaliacoes.idProjeto,(sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0))) as diferenca, (sum(if(recomendacao=1,1,0))+sum(if(recomendacao=0,1,0))) as total FROM avaliacoes,editalProjeto WHERE finalizado=1 AND avaliacoes.idProjeto=editalProjeto.id AND editalProjeto.tipo=%s GROUP by idProjeto HAVING (diferenca=0 and total>1)"""
+            linhas,totalSubmissoesIndefinidas = executarSelect(c9,valores=(edital,))
 
             totalSubmissoesDefinidas = totalSubmissoesAprovadas+totalSubmissoesReprovadas
 
@@ -1637,12 +1629,12 @@ def estatisticas():
 @log_required
 def parcial(edital):
     nome_edital = obterColunaUnica('editais','nome','id',edital)
-    consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=""" + edital
-    principal,total = executarSelect(consulta_principal)
+    consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=%s"""
+    principal,total = executarSelect(consulta_principal,valores=(edital,))
     for linha in principal:
         id = str(linha[0])
-        consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=""" + id
-        auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
+        consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=%s"""
+        auxiliar,totalAuxiliar = executarSelect(consulta_interna,1,valores=(id,))
         pontuacao = int(auxiliar[0])
         finalizado = int(auxiliar[1])
         situacao = "-1"
@@ -1651,8 +1643,8 @@ def parcial(edital):
                 situacao = "0"
             else:
                 situacao = str("1")
-        consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
-        atualizar(consulta_update)
+        consulta_update = """UPDATE editalProjeto SET situacao=%s WHERE id=%s"""
+        atualizar(consulta_update,(situacao,id))
     flash(u"Situação das submissões atualizada com sucesso!")
     return(redirect(url_for('admin',edital=edital)))
 
@@ -1665,12 +1657,12 @@ def resultados():
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
             nome_edital = obterColunaUnica('editais','nome','id',edital)
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=""" + edital
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND tipo=%s"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=""" + id
-                auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
+                consulta_interna = """SELECT sum(if(recomendacao=1,1,0))-sum(if(recomendacao=0,1,0)),sum(finalizado) FROM avaliacoes WHERE idProjeto=%s"""
+                auxiliar,totalAuxiliar = executarSelect(consulta_interna,1,valores=(id,))
                 pontuacao = int(auxiliar[0])
                 finalizado = int(auxiliar[1])
                 if (pontuacao<0):
@@ -1683,13 +1675,13 @@ def resultados():
                     situacao = "0"
                 else:
                     situacao = str("1")
-                consulta_update = "UPDATE editalProjeto SET situacao=" + situacao + " WHERE id=" + id
-                atualizar(consulta_update)
+                consulta_update = """UPDATE editalProjeto SET situacao=%s WHERE id=%s"""
+                atualizar(consulta_update,(situacao,id))
 
-            consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=1 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
-            consulta_oral = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=0 AND tipo=""" + edital + """ ORDER BY ua,modalidade DESC,nome,titulo"""
-            poster,total_poster = executarSelect(consulta_poster)
-            oral,total_oral = executarSelect(consulta_oral)
+            consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=1 AND tipo=%s ORDER BY ua,modalidade DESC,nome,titulo"""
+            consulta_oral = """SELECT editalProjeto.id,ua,nome,titulo,situacao,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),local_apresentacao FROM editalProjeto WHERE valendo=1 AND categoria=0 AND tipo=%s ORDER BY ua,modalidade DESC,nome,titulo"""
+            poster,total_poster = executarSelect(consulta_poster,valores=(edital,))
+            oral,total_oral = executarSelect(consulta_oral,valores=(edital,))
             data = getData()
             return(render_template('resultados.html',oral=oral,poster=poster,data=data,total_poster=total_poster,total_oral=total_oral,nome_edital=nome_edital,titulo="RESULTADOS"))
 
@@ -1713,8 +1705,8 @@ def getSlots(dia,start_time,end_time,slot_time,salas):
     return (hours,local)
 
 def getSessoesSalas(edital,tipo):
-    consulta = """SELECT dia,DATE_FORMAT(inicio,'%H:%i'),DATE_FORMAT(termino,'%H:%i'),slot,salas FROM salas WHERE edital=""" + str(edital) + """ AND tipo=""" + str(tipo) + """ ORDER BY dia,inicio"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT dia,DATE_FORMAT(inicio,'%H:%i'),DATE_FORMAT(termino,'%H:%i'),slot,salas FROM salas WHERE edital=%s AND tipo=%s ORDER BY dia,inicio"""
+    linhas,total = executarSelect(consulta,valores=(edital,tipo))
     turno_todos = []
     local_todos = []
     for linha in linhas:
@@ -1730,8 +1722,8 @@ def getSessoesSalas(edital,tipo):
     return (turno_todos,local_todos)
 
 def getSessoesPosters(edital):
-    consulta = """SELECT dia,DATE_FORMAT(inicio,'%H:%i'),salas FROM salas WHERE edital=""" + str(edital) + """ AND tipo=1 ORDER BY tipo,dia,inicio"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT dia,DATE_FORMAT(inicio,'%H:%i'),salas FROM salas WHERE edital=%s AND tipo=1 ORDER BY tipo,dia,inicio"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     for linha in linhas:
         dia = str(linha[0])
         inicio = str(linha[1])
@@ -1755,12 +1747,9 @@ def distribuir(local,turno,uas,trabalhos):
         for j in range(0,quantidades_por_dia[i],1):
             #logging.debug(trabalhos[i][j][0])
             try:
-                update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                atualizar(update)
-                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                #Turno[0] na linha abaixo indica que todos os trabalho começam no primeiro horário
-                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                atualizar(update)
+                atualizar("UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s",(local[k],trabalhos[i][j][0]))
+                atualizar("UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s",(turno[k],trabalhos[i][j][0]))
+                #Para todos começarem no primeiro horário, usar turno[0] no lugar de turno[k] acima
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
                 logging.error('(distribuir)Erro no indice: ' + str(i))
@@ -1771,11 +1760,8 @@ def distribuir(local,turno,uas,trabalhos):
         for j in range(quantidades_por_dia[i],len(trabalhos[i]),1):
             #logging.debug(trabalhos[i][j][0])
             try:
-                update = """UPDATE editalProjeto SET local_apresentacao='""" + local[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                atualizar(update)
-                update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[k] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                #update = update = """UPDATE editalProjeto SET data_apresentacao='""" + turno[0] + """' WHERE id=""" + str(trabalhos[i][j][0])
-                atualizar(update)
+                atualizar("UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s",(local[k],trabalhos[i][j][0]))
+                atualizar("UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s",(turno[k],trabalhos[i][j][0]))
                 logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
             except IndexError:
                 logging.error('(distribuir)Erro no indice: ' + str(i))
@@ -1801,8 +1787,8 @@ def distribuirIgualmente(local,turno,linhas,edital):
     #Recuperando a quantidade de trabalhos por UA
     consulta = """
     SELECT count(*) FROM editalProjeto WHERE tipo=%s AND valendo=1 and categoria=0 AND situacao=1 GROUP BY ua ORDER BY ua
-    """ % (edital)
-    dados,total = executarSelect(consulta)
+    """
+    dados,total = executarSelect(consulta,valores=(edital,))
     uas = []
     for dado in dados:
         uas.append(dado[0])
@@ -1810,8 +1796,8 @@ def distribuirIgualmente(local,turno,linhas,edital):
     #Recuperando a quantidade de salas para apresentações orais
     consulta = """
     SELECT id FROM salas WHERE edital=%s
-    """ % (edital)
-    salas,orais = executarSelect(consulta)
+    """
+    salas,orais = executarSelect(consulta,valores=(edital,))
     orais = orais - 1 #Removendo as "salas de posters"
     
     trabalhos_uas = [cv,ct,hu]
@@ -1831,15 +1817,15 @@ def distribuirSalas():
             consulta_principal = """SELECT id,ua,premiacao 
             FROM editalProjeto 
             WHERE valendo=1 AND situacao=1 AND categoria=0 
-            AND tipo=""" + edital + """ 
+            AND tipo=%s 
              ORDER BY ua DESC,area_cnpq,subarea_cnpq,
             modalidade DESC,media1 DESC,nome,titulo"""
-            principal,total = executarSelect(consulta_principal)
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             distribuirIgualmente(local_todos,turno_todos,principal,edital)
             
             #POSTERS
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=""" + edital + " ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=%s ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             i = 0
             data_apresentacao,inicio,local_todos = getSessoesPosters(edital)
             data_apresentacao = data_apresentacao + " " + inicio
@@ -1849,10 +1835,10 @@ def distribuirSalas():
                 id = str(linha[0])
                 try:
                     #Atualizando
-                    update = """UPDATE editalProjeto SET local_apresentacao='""" + local_todos[i] + """' WHERE id=""" + id
-                    atualizar(update)
-                    update = """UPDATE editalProjeto SET data_apresentacao='""" + data_apresentacao + """' WHERE id=""" + id
-                    atualizar(update)
+                    update = """UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s"""
+                    atualizar(update,(local_todos[i],id))
+                    update = """UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s"""
+                    atualizar(update,(data_apresentacao,id))
                     j = j + 1
                     if j > quantidade_por_avaliador:
                         j = 1
@@ -1882,7 +1868,7 @@ def programacao():
 
                         FROM editalProjeto
 
-                        WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=""" + edital + """ GROUP BY local_apresentacao
+                        WHERE valendo=1 and situacao=1 AND categoria=0 AND tipo=%s GROUP BY local_apresentacao
 
                         ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
@@ -1890,12 +1876,12 @@ def programacao():
 
                         FROM editalProjeto
 
-                        WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=""" + edital + """ GROUP BY local_apresentacao
+                        WHERE valendo=1 and situacao=1 AND categoria=1 AND tipo=%s GROUP BY local_apresentacao
 
                         ORDER BY local_apresentacao,data_apresentacao,ua,id """
 
-            linhas,total = executarSelect(final_oral)
-            poster,total_poster = executarSelect(final_poster)
+            linhas,total = executarSelect(final_oral,valores=(edital,))
+            poster,total_poster = executarSelect(final_poster,valores=(edital,))
             return(render_template('programacao.html',nome_edital=nome_edital,titulo=u'Programação',oral=linhas,total=total,poster=poster,total_poster=total_poster,edital=edital))
         else:
             return("OK")
@@ -1940,8 +1926,8 @@ def enviarVersaoFinal(id_trabalho):
         return(redirect(url_for('meusProjetos')))
     
     if autenticado():
-        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-        linhas,total = executarSelect(consulta)
+        consulta = "SELECT id FROM editalProjeto WHERE id=%s AND siape=%s"
+        linhas,total = executarSelect(consulta,valores=(idTrabalho,str(session['username'])))
         if total>0:
             return(render_template('versaoFinal.html',idTrabalho=idTrabalho,titulo=titulo))
         else:
@@ -1958,8 +1944,8 @@ def enviarApresentacao(id_trabalho):
     idTrabalho = id_trabalho
     titulo = obterColunaUnica('editalProjeto','titulo','id',idTrabalho)
     if autenticado():
-        consulta = "SELECT id FROM editalProjeto WHERE id=" + idTrabalho + " AND siape='" + str(session['username']) + "'"
-        linhas,total = executarSelect(consulta)
+        consulta = "SELECT id FROM editalProjeto WHERE id=%s AND siape=%s"
+        linhas,total = executarSelect(consulta,valores=(idTrabalho,str(session['username'])))
         if total>0:
             edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
             deadline = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
@@ -1992,8 +1978,7 @@ def uploadCR():
                 return(redirect(url_for('meusProjetos')))
             nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
             filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
-            consulta = """UPDATE editalProjeto SET arquivo_projeto_final='""" + nomeDoArquivoTrabalho + """' WHERE id=""" + idTrabalho
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET arquivo_projeto_final=%s WHERE id=%s",(nomeDoArquivoTrabalho,idTrabalho))
             return(redirect(url_for('meusProjetos')))
     else:
         return("OK")
@@ -2010,8 +1995,7 @@ def cadastrarLinkApresentacao():
             return("Prazo expirado!")
         if 'link' in request.form:
             link = str(request.form['link'])
-            consulta = """UPDATE editalProjeto SET link_apresentacao='""" + link + """' WHERE id=""" + idTrabalho
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET link_apresentacao=%s WHERE id=%s",(link,idTrabalho))
             return(redirect(url_for('meusProjetos')))
     else:
         return("OK")
@@ -2024,37 +2008,38 @@ def premiacao():
         #Recuperando o edital
         if 'edital' in request.args:
             edital = str(request.args.get('edital'))
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND modalidade=2 AND tipo=""" + edital
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND modalidade=2 AND tipo=%s"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             for linha in principal:
                 id = str(linha[0])
-                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8) as soma FROM (SELECT * FROM avaliacoes where idProjeto=""" + id + """  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
-                auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
-                media = str(auxiliar[0])
-                consulta_update = "UPDATE editalProjeto SET media1=" + media + " WHERE id=" + id
-                atualizar(consulta_update)
+                consulta_interna = """SELECT AVG(c1+c2+c3+c4+c5+c6+c7+c8) as soma FROM (SELECT * FROM avaliacoes where idProjeto=%s  AND finalizado=1 AND recomendacao=1 ORDER BY data_avaliacao LIMIT 2) av"""
+                auxiliar,totalAuxiliar = executarSelect(consulta_interna,1,valores=(id,))
+                if auxiliar[0] is None: #sem avaliações: antes o UPDATE com "None" falhava e nada era gravado
+                    continue
+                consulta_update = """UPDATE editalProjeto SET media1=%s WHERE id=%s"""
+                atualizar(consulta_update,(auxiliar[0],id))
 
             #VERIFICANDO QUEM CONCORRE A PREMIAÇÃO - todos trabalhos completos
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências da Vida' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências da Vida' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=%s ORDER BY media1 DESC"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             for linha in principal:
                 id = str(linha[0])
-                consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
-                atualizar(consulta_update)
+                consulta_update = """UPDATE editalProjeto SET premiacao=1 WHERE id=%s"""
+                atualizar(consulta_update,(id,))
 
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Humanidades' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Humanidades' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=%s ORDER BY media1 DESC"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             for linha in principal:
                 id = str(linha[0])
-                consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
-                atualizar(consulta_update)
+                consulta_update = """UPDATE editalProjeto SET premiacao=1 WHERE id=%s"""
+                atualizar(consulta_update,(id,))
 
-            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=""" + edital + """ ORDER BY media1 DESC"""
-            principal,total = executarSelect(consulta_principal)
+            consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND modalidade=2 and categoria=0 AND tipo=%s ORDER BY media1 DESC"""
+            principal,total = executarSelect(consulta_principal,valores=(edital,))
             for linha in principal:
                 id = str(linha[0])
-                consulta_update = "UPDATE editalProjeto SET premiacao=1 WHERE id=" + id
-                atualizar(consulta_update)
+                consulta_update = """UPDATE editalProjeto SET premiacao=1 WHERE id=%s"""
+                atualizar(consulta_update,(id,))
             flash(u"Médias calculadas com sucesso!")
             return(redirect(url_for('admin',edital=edital)))
         else:
@@ -2063,8 +2048,8 @@ def premiacao():
         return("OK")
 
 def getLinkSala(edital,sala):
-    consulta = """SELECT link FROM sala_link WHERE edital=""" + edital + """ AND sala='""" + sala + """'"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT link FROM sala_link WHERE edital=%s AND sala=%s"""
+    linhas,total = executarSelect(consulta,valores=(edital,sala))
     for linha in linhas:
         return(str(linha[0]))
     
@@ -2092,22 +2077,22 @@ def apresentacoes():
                 data_formatada = data
             
             if (sala!='POSTER'): #APRESENTAÇÃO ORAL
-                consulta = """SELECT id,nome,titulo,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE local_apresentacao='""" + sala + """' AND tipo=""" + edital + """ and valendo=1 and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY ua,data_apresentacao"""                
-                linhas,total = executarSelect(consulta)
+                consulta = """SELECT id,nome,titulo,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE local_apresentacao=%s AND tipo=%s and valendo=1 and situacao=1 and DATE(data_apresentacao)=%s ORDER BY ua,data_apresentacao"""                
+                linhas,total = executarSelect(consulta,valores=(sala,edital,data))
                 link = getLinkSala(edital,sala)
                 return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,link=link,roles=session['roles']))
             else: #POSTER
                 if 'ua' in request.args:
                     ua = int(request.args.get('ua'))
                     if ua==1:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y -%H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências da Vida' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y -%H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências da Vida' AND situacao=1 AND categoria=1 AND tipo=%s and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                     elif ua==2:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Humanidades' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Humanidades' AND situacao=1 AND categoria=1 AND tipo=%s and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                     else:
-                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                        consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE ua='Ciências Exatas, Tecnológicas e Multidisciplinar' AND situacao=1 AND categoria=1 AND tipo=%s and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                 else:
-                    consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE situacao=1 AND categoria=1 AND tipo=""" + edital + """ and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
-                linhas,total = executarSelect(consulta)
+                    consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE situacao=1 AND categoria=1 AND tipo=%s and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
+                linhas,total = executarSelect(consulta,valores=(edital,))
                 
                 return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,roles=session['roles']))
         else:
@@ -2180,9 +2165,9 @@ def getAvaliadoresSala(edital,sala,dia):
 
 def inicio_sessao(sala):
     consulta = """
-        SELECT salas,TIME_FORMAT(inicio,'%H:%i') FROM `salas` WHERE salas like "%""" + str(sala) + """%"
+        SELECT salas,TIME_FORMAT(inicio,'%H:%i') FROM `salas` WHERE salas like %s
     """
-    linhas,total = executarSelect(consulta)
+    linhas,total = executarSelect(consulta,valores=("%" + str(sala) + "%",))
     for linha in linhas:
         return(linha[1])
     return("")
@@ -2226,8 +2211,8 @@ def emailInformacoes(edital):
         edital = str(request.args.get('edital'))
         consulta = """SELECT email,titulo,id,
         nome,local_apresentacao,DATE_FORMAT(data_apresentacao,'%d/%m/%Y %H:%i'),DATE(data_apresentacao) FROM editalProjeto 
-        WHERE situacao=1 and valendo=1 and tipo=""" + edital      
-        linhas,total = executarSelect(consulta)
+        WHERE situacao=1 and valendo=1 and tipo=%s"""      
+        linhas,total = executarSelect(consulta,valores=(edital,))
         t = threading.Thread(target=processar_emails_informacoes_apresentacao,args=(linhas,edital,))
         t.start()
         flash("E-mails enviados com sucesso!")
@@ -2407,25 +2392,25 @@ def emailInstrucoesAvaliador(edital):
     return(redirect(url_for('admin',edital=edital)))
 
 def getDatas(edital):
-    consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY data_apresentacao"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT DISTINCT (DATE(data_apresentacao)) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=%s ORDER BY data_apresentacao"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     datas = []
     for linha in linhas:
         datas.append(str(linha[0]))
     return (datas)
 
 def getSalas(edital):
-    consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=""" + edital + """ ORDER BY local_apresentacao"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE categoria=0 and situacao=1 and tipo=%s ORDER BY local_apresentacao"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     salas = []
     for linha in linhas:
         salas.append(str(linha[0]))
     return (salas)
 
 def getSalasPorData(edital,data):
-    consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE tipo=""" + edital + """ 
-     and situacao=1 and DATE(data_apresentacao)='""" + data + """' ORDER BY local_apresentacao"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT DISTINCT (local_apresentacao) FROM editalProjeto WHERE tipo=%s 
+     and situacao=1 and DATE(data_apresentacao)=%s ORDER BY local_apresentacao"""
+    linhas,total = executarSelect(consulta,valores=(edital,data))
     salas = []
     for linha in linhas:
         salas.append(str(linha[0]))
@@ -2539,41 +2524,29 @@ def gerarCertificadoAvaliador():
     periodo = obterColunaUnica('editais','periodo','id',session['edital'])
     evento = obterColunaUnica('editais','nome_longo','id',session['edital'])
     local = obterColunaUnica('editais','local','id',session['edital'])
-    arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-    options = {
-        'page-size': 'A4',
-        'orientation': 'landscape',
-        'margin-top': '0cm',
-        'margin-right': '0cm',
-        'margin-bottom': '0cm',
-        'margin-left': '0cm',
-    }
-    #Gerando QrCode
-    qrcode_url = url_for('autenticar_certificado',tipo=1,codigo=token,id_projeto=0,_external=True)
-    qrcode = pyqrcode.create(qrcode_url)
-    qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-    qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+    consulta = "SELECT id,username FROM usuarios_salas WHERE username=%s AND edital=%s AND compareceu=1"
+    linhas,total = executarSelect(consulta, valores=(session['username'],session['edital']))
+    if not linhas:
+        flash("Nenhuma avaliação foi realizada até o momento!")
+        return(redirect(url_for('avaliador',edital=session['edital'])))
 
     #Recuperando template
-    try:
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+    background = modelo_certificado_base64(template)
+    if background is None:
+        return resposta_modelo_ausente()
 
-        #Gerando certificado em PDF
-        pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+    #Gerando QrCode
+    qrcode_url = url_for('autenticar_certificado',tipo=1,codigo=token,id_projeto=0,_external=True)
+    qr_code = qrcode_base64(qrcode_url)
+
+    #Gerando certificado em PDF
+    try:
+        return responder_pdf(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado_avaliador.pdf')
     except Exception as e:
         app.logger.error('Erro gerando certificado apresentador')
         app.logger.error(str(e))
         return ("Erro ao gerar certificado", 500)
-
-    consulta = """
-    SELECT id,username FROM usuarios_salas WHERE username='%s' AND edital=%s AND compareceu=1
-    """ %(session['username'],session['edital'])
-    linhas,total = executarSelect(consulta)
-    if total>0:
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
-    else:
-        flash("Nenhuma avaliação foi realizada até o momento!")
-        return(redirect(url_for('avaliador',edital=session['edital'])))
 
 def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, output_pdf,tamanho,titulo="TITULO",tamanho2=30):
    
@@ -2643,14 +2616,14 @@ def baixarCertificado(id_projeto):
     """
     id = id_projeto
     apresentou = obterColunaUnica('editalProjeto','apresentou','id',id)
-    consulta = """SELECT id FROM editalProjeto WHERE siape='""" + session['username'] +"""'"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT id FROM editalProjeto WHERE siape=%s"""
+    linhas,total = executarSelect(consulta,valores=(session['username'],))
     if (total==0)and('admin' not in session['roles']):
         return ("Acesso não permitido.")
     if (apresentou=='0')and('admin' not in session['roles']):
         return("Trabalho não apresentado.")
-    consulta = """SELECT nome,titulo,tipo FROM editalProjeto where id=""" + id
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT nome,titulo,tipo FROM editalProjeto where id=%s"""
+    linhas,total = executarSelect(consulta,valores=(id,))
     nome = "INDEFINIDO"
     titulo = "INDEFINIDO"
     for linha in linhas:
@@ -2664,54 +2637,39 @@ def baixarCertificado(id_projeto):
         verbo = "apresentou"
         if ',' in nome:
             verbo = "apresentaram"
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
+
+        #Recuperando template
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
         token = obterColunaUnica('editalProjeto','token','id',id_projeto)
         if token=='0':
             token = id_generator()
-            consulta = """
-            UPDATE editalProjeto SET token='%s' 
-            WHERE id=%s
-            """ %(token,id_projeto)
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET token=%s WHERE id=%s", (token,id_projeto))
 
         #Gerando QrCode
         qrcode_url = url_for('autenticar_certificado',tipo=0,codigo=token,id_projeto=id_projeto,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+        qr_code = qrcode_base64(qrcode_url)
 
-        #Recuperando template
+        #Gerando certificado em PDF
         try:
-            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-
-            #Gerando certificado em PDF
-            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            return responder_pdf(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado_apresentador.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
 
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
-
 @app.route("/demaisCertificados/<edital>", methods=['GET'])
 def demaisCertificados(edital):
-    consulta = """SELECT nome,tipo,id FROM certificados_moderador WHERE edital=""" + edital + """ ORDER BY nome"""
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT nome,tipo,id FROM certificados_moderador WHERE edital=%s ORDER BY nome"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     return(render_template('certificados_moderador.html',linhas=linhas))
 
 @app.route("/baixarCertificadoIndividual/<id_certificado>", methods=['GET', 'POST'])
 def certificadoIndividual(id_certificado):
-    consulta = """SELECT UPPER(nome),tipo,edital FROM certificados_moderador WHERE id=""" + id_certificado
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT UPPER(nome),tipo,edital FROM certificados_moderador WHERE id=%s"""
+    linhas,total = executarSelect(consulta,valores=(id_certificado,))
     for linha in linhas:
         edital = str(linha[2])
         template = obterColunaUnica('editais','certificado_demais','id',edital)
@@ -2720,43 +2678,28 @@ def certificadoIndividual(id_certificado):
         evento = obterColunaUnica('editais','nome_longo','id',edital)
         periodo = obterColunaUnica('editais','periodo','id',edital)
         local = obterColunaUnica('editais','local','id',edital)
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
+
+        #Recuperando template
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
         token = obterColunaUnica('certificados_moderador','token','id',id_certificado)
         if token=='0':
             token = id_generator()
-            consulta = """
-            UPDATE editalProjeto SET token='%s' 
-            WHERE id=%s
-            """ %(token,id_certificado)
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET token=%s WHERE id=%s", (token,id_certificado))
 
         #Gerando QrCode
         qrcode_url = url_for('autenticar_certificado',tipo=2,codigo=token,id_projeto=id_certificado,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
-        
-        #Recuperando template
-        try:
-            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        qr_code = qrcode_base64(qrcode_url)
 
-            #Gerando certificado em PDF
-            pdfkit.from_string(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+        #Gerando certificado em PDF
+        try:
+            return responder_pdf(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado demais')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
-
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/confirmar", methods=['GET', 'POST'])
 @auth.login_required(role=['avaliador','admin'])
@@ -2815,15 +2758,15 @@ def confirmar():
 def notasApresentacoes(edital):
     if request.method == "GET":
         #Recuperando o edital
-        consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND premiacao=1 AND tipo=""" + edital
-        principal,total = executarSelect(consulta_principal)
+        consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND premiacao=1 AND tipo=%s"""
+        principal,total = executarSelect(consulta_principal,valores=(edital,))
         for linha in principal:
-            id = str(linha[0])
-            consulta_interna = """SELECT AVG(c1+c2+c3+c4) as soma FROM (SELECT * FROM avaliacoes_orais where idProjeto=""" + id + """  ORDER BY data LIMIT 2) av"""
-            auxiliar,totalAuxiliar = executarSelect(consulta_interna,1)
-            media = str(auxiliar[0])
-            consulta_update = "UPDATE editalProjeto SET media2=" + media + " WHERE id=" + id
-            atualizar(consulta_update)
+            id = linha[0]
+            consulta_interna = """SELECT AVG(c1+c2+c3+c4) as soma FROM (SELECT * FROM avaliacoes_orais where idProjeto=%s ORDER BY data LIMIT 2) av"""
+            auxiliar,totalAuxiliar = executarSelect(consulta_interna,1,valores=(id,))
+            if auxiliar[0] is None: #sem avaliações orais: antes o UPDATE com "None" falhava e nada era gravado
+                continue
+            atualizar("UPDATE editalProjeto SET media2=%s WHERE id=%s",(auxiliar[0],id))
         flash("Medias calculadas com sucesso!")
         return(redirect(url_for('admin',edital=edital)))
     else:
@@ -2916,8 +2859,8 @@ def processar_emails_certificados(linhas,edital,app):
 
 @app.route("/enviarCertificados/<edital>", methods=['GET'])
 def enviarCertificados(edital):
-    consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=""" + str(edital)
-    linhas,total = executarSelect(consulta)
+    consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=%s"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     t1 = threading.Thread(target=processar_emails_certificados,args=(linhas,edital,app,))
     t1.start()
     flash("Certificados ENVIADOS com sucesso!")
@@ -2986,8 +2929,8 @@ def anais():
         if 'id' in request.args:
             id = str(request.args.get('id'))
             consulta = """SELECT id,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')),ua,titulo,arquivo_projeto_final FROM `editalProjeto`
-            WHERE valendo=1 AND situacao=1 and arquivo_projeto_final!='0' and tipo=""" + id + """ ORDER BY ua,modalidade,id """
-            linhas,total = executarSelect(consulta)
+            WHERE valendo=1 AND situacao=1 and arquivo_projeto_final!='0' and tipo=%s ORDER BY ua,modalidade,id """
+            linhas,total = executarSelect(consulta,valores=(id,))
             conferencia = obterColunaUnica('editais','nome_longo','id',id)
             logo = obterColunaUnica('editais','logo','id',id)
             ficha = obterColunaUnica('editais','ficha','id',id)
@@ -3007,8 +2950,7 @@ def gerarLinkAvaliacao():
         idProjeto = str(linha[1])
         token = str(linha[2])
         link = LINK_AVALIACAO + "?id=" + idProjeto + "&token=" + token
-        consulta = "UPDATE avaliacoes SET link=\"" + link + "\"" + " WHERE id=" + id
-        atualizar(consulta)
+        atualizar("UPDATE avaliacoes SET link=%s WHERE id=%s",(link,id))
 
 def enviar_email_avaliadores():
     gerarLinkAvaliacao()
@@ -3082,8 +3024,8 @@ def enviar_email_avaliadores():
             try:
                 if PRODUCAO==1:
                     mail.send(msg)
-                consulta = "UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=" + str(linha[5])
-                atualizar(consulta)    
+                consulta = """UPDATE avaliacoes SET enviado=enviado+1,data_envio=NOW() WHERE id=%s"""
+                atualizar(consulta,(linha[5],))    
             except Exception as e:
                 logging.error("EMAIL SOLICITANDO AVALIACAO FALHOU: " + email_avaliador)
                 logging.error(str(e))
@@ -3243,7 +3185,7 @@ def enviarPedidoAvaliacao(id):
     consulta = """
     SELECT e.id,e.titulo,e.resumo,a.avaliador,a.link,a.id,a.enviado,a.token,e.categoria,e.tipo 
     FROM editalProjeto as e, avaliacoes as a WHERE e.id=a.idProjeto AND e.valendo=1 
-    AND a.finalizado=0 AND e.id=""" + str(id) + """ 
+    AND a.finalizado=0 AND e.id=%s 
     ORDER BY a.id DESC
     """
     consulta = """
@@ -3266,11 +3208,11 @@ def enviarPedidoAvaliacao(id):
         WHERE 
             e.valendo = 1 
             AND a.finalizado = 0 
-            AND e.id = """ + str(id) + """ 
+            AND e.id = %s 
         ORDER BY 
             a.id DESC
     """
-    linhas,total = executarSelect(consulta)
+    linhas,total = executarSelect(consulta,valores=(id,))
     logging.debug("Enviado pedido de avaliacao para: " + str(total))
     
     for linha in linhas:
@@ -3483,9 +3425,9 @@ def salvar_projeto():
     situacao = str(request.form['situacao'])
     id_projeto = str(request.form['id_projeto'])
     consulta = """
-    UPDATE editalProjeto SET nome='%s',ua='%s',titulo='%s',palavras='%s',situacao=%s WHERE id=%s
-    """ % (nome,ga,titulo,palavras,situacao,id_projeto)
-    atualizar(consulta)
+    UPDATE editalProjeto SET nome=%s,ua=%s,titulo=%s,palavras=%s,situacao=%s WHERE id=%s
+    """
+    atualizar(consulta,(nome,ga,titulo,palavras,situacao,id_projeto))
     return("OK")
 
 @app.route("/admin/listar_consultores/<id_projeto>", methods=['GET'])
@@ -3497,8 +3439,8 @@ def listar_consultores(id_projeto):
     SELECT id,idProjeto,token,avaliador,nome_avaliador,recomendacao,link,finalizado,data_avaliacao 
     FROM avaliacoes 
     WHERE idProjeto=%s ORDER BY finalizado DESC, id ASC
-    """ % (id_projeto)
-    avaliacoes,total = executarSelect(consulta)
+    """
+    avaliacoes,total = executarSelect(consulta,valores=(id_projeto,))
     titulo = obterColunaUnica('editalProjeto','titulo','id',id_projeto)
     autores = obterColunaUnica('editalProjeto','nome','id',id_projeto)
     edital = obterColunaUnica('editalProjeto','tipo','id',id_projeto)
@@ -3517,9 +3459,9 @@ def listar_consultores_edital(edital):
     INNER JOIN editais ON editais.id=editalProjeto.tipo 
     WHERE editais.id=%s
     ORDER BY avaliacoes.idProjeto,avaliacoes.finalizado DESC
-    """ %(edital)
+    """
     nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-    avaliacoes,total = executarSelect(consulta)
+    avaliacoes,total = executarSelect(consulta,valores=(edital,))
     return(render_template('listar_avaliadores_edital.html',avaliacoes=avaliacoes,edital=edital,nome_longo=nome_longo))
 
 @app.route("/admin/salvar_consultores", methods=['POST'])
@@ -3532,10 +3474,10 @@ def salvar_consultores():
     recomendacao = request.form['recomendacao']
     finalizado = request.form['finalizado']
     consulta = """
-    UPDATE avaliacoes SET avaliador='%s',nome_avaliador='%s',recomendacao=%s,finalizado=%s 
+    UPDATE avaliacoes SET avaliador=%s,nome_avaliador=%s,recomendacao=%s,finalizado=%s 
     WHERE id=%s
-    """ % (avaliador,nome,recomendacao,finalizado,id_avaliacao)
-    atualizar(consulta)
+    """
+    atualizar(consulta,(avaliador,nome,recomendacao,finalizado,id_avaliacao))
     return(str(id_avaliacao))
 
 @app.route("/admin/remover_avaliacao/<id_avaliacao>/<id_projeto>", methods=['GET'])
@@ -3544,8 +3486,8 @@ def salvar_consultores():
 def remover_avaliacao(id_avaliacao,id_projeto):
     consulta = """
     DELETE FROM avaliacoes WHERE id=%s
-    """ % (id_avaliacao)
-    atualizar(consulta)
+    """
+    atualizar(consulta,(id_avaliacao,))
     flash(u"Avaliação removida com sucesso!")
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
@@ -3563,9 +3505,9 @@ def cadastrar_salas(edital):
         slot = request.form['slots']
         salas = request.form['salas']
         consulta = """
-        INSERT INTO salas (edital,tipo,dia,inicio,termino,slot,salas) VALUES (%s,%s,'%s','%s','%s',%s,'%s')
-        """ % (edital,tipo,dia,inicio,fim,slot,salas)
-        atualizar(consulta)
+        INSERT INTO salas (edital,tipo,dia,inicio,termino,slot,salas) VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """
+        atualizar(consulta,(edital,tipo,dia,inicio,fim,slot,salas))
         flash(u"Sessão incluída com sucesso")
         return(redirect(url_for('listar_salas',edital=edital)))
 
@@ -3574,8 +3516,8 @@ def cadastrar_salas(edital):
 @log_required
 def listar_salas(edital):
     consulta = """
-    SELECT id,edital,tipo,dia,time_format(inicio,'%H:%i') as inicio,time_format(termino,'%H:%i') as termino,slot,salas FROM salas WHERE edital=""" + str(edital)
-    linhas,total = executarSelect(consulta)
+    SELECT id,edital,tipo,dia,time_format(inicio,'%H:%i') as inicio,time_format(termino,'%H:%i') as termino,slot,salas FROM salas WHERE edital=%s"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
     nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
     return(render_template('listar_salas.html',sessoes=linhas,nome_longo=nome_longo,edital=edital))
 
@@ -3591,18 +3533,18 @@ def salvar_salas():
     salas = request.form['salas']
     id_salas = request.form['id_salas']
     consulta = """
-    UPDATE salas SET tipo=%s,dia='%s',inicio='%s',termino='%s',slot=%s,salas='%s'
+    UPDATE salas SET tipo=%s,dia=%s,inicio=%s,termino=%s,slot=%s,salas=%s
     WHERE id=%s
-    """ % (tipo,dia,inicio,fim,slot,salas,id_salas)
-    atualizar(consulta)
+    """
+    atualizar(consulta,(tipo,dia,inicio,fim,slot,salas,id_salas))
     return("OK")
 
 @app.route("/admin/remover_salas/<id_salas>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_salas(id_salas):
-    consulta = """DELETE FROM salas WHERE id=%s""" % (id_salas)
-    atualizar(consulta)
+    consulta = """DELETE FROM salas WHERE id=%s"""
+    atualizar(consulta,(id_salas,))
     edital = obterColunaUnica('salas','edital','id',id_salas)
     return(redirect(url_for('listar_salas',edital=edital)))
 
@@ -3660,15 +3602,14 @@ def listar_submissoes(edital):
 def salvar_submissao():
     id_projeto = request.form['id_projeto']
     modalidade = request.form['modalidade']
-    consulta = "UPDATE editalProjeto SET modalidade='%s' WHERE id=%s" % (modalidade, id_projeto)
-    atualizar(consulta)
+    atualizar("UPDATE editalProjeto SET modalidade=%s WHERE id=%s", (modalidade, id_projeto))
     return "OK"
 
 @app.route("/admin/remover_submissao/<id_projeto>/<edital>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
 def remover_submissao(id_projeto, edital):
-    atualizar("DELETE FROM editalProjeto WHERE id=%s" % id_projeto)
+    atualizar("DELETE FROM editalProjeto WHERE id=%s", (id_projeto,))
     flash(u"Submissão removida com sucesso!")
     return redirect(url_for('listar_submissoes', edital=edital))
 
@@ -3701,17 +3642,17 @@ def editar_submissao(id_projeto):
         lingua       = request.form.get('lingua', '0')
         matriculas   = request.form.get('matriculas', '')
         consulta = """UPDATE editalProjeto SET
-            nome='%s', siape='%s', email='%s', titulo='%s', palavras='%s', resumo='%s',
-            ua='%s', unidade='%s', vinculo='%s', tipo_vinculo='%s', fomento='%s',
-            area_cnpq='%s', subarea_cnpq='%s', categoria='%s', modalidade='%s',
-            categoria_trabalho='%s', ods='%s', anais='%s', acessibilidade='%s',
-            descricao_acessibilidade='%s', lingua='%s', matriculas='%s'
-            WHERE id=%s""" % (nome, siape, email, titulo, palavras, resumo,
-                              ua, unidade, vinculo, tipo_vinculo, fomento,
-                              area_cnpq, subarea_cnpq, categoria, modalidade,
-                              categoria_trabalho, ods, anais, acessibilidade,
-                              descricao_acessibilidade, lingua, matriculas, id_projeto)
-        atualizar(consulta)
+            nome=%s, siape=%s, email=%s, titulo=%s, palavras=%s, resumo=%s,
+            ua=%s, unidade=%s, vinculo=%s, tipo_vinculo=%s, fomento=%s,
+            area_cnpq=%s, subarea_cnpq=%s, categoria=%s, modalidade=%s,
+            categoria_trabalho=%s, ods=%s, anais=%s, acessibilidade=%s,
+            descricao_acessibilidade=%s, lingua=%s, matriculas=%s
+            WHERE id=%s"""
+        atualizar(consulta, (nome, siape, email, titulo, palavras, resumo,
+                             ua, unidade, vinculo, tipo_vinculo, fomento,
+                             area_cnpq, subarea_cnpq, categoria, modalidade,
+                             categoria_trabalho, ods, anais, acessibilidade,
+                             descricao_acessibilidade, lingua, matriculas, id_projeto))
         edital = obterColunaUnica('editalProjeto', 'tipo', 'id', id_projeto)
         flash(u"Submissão atualizada com sucesso!")
         return redirect(url_for('listar_submissoes', edital=edital))
@@ -3720,8 +3661,8 @@ def editar_submissao(id_projeto):
         categoria, modalidade, categoria_trabalho, area_cnpq, subarea_cnpq,
         vinculo, tipo_vinculo, fomento, ods, anais, acessibilidade,
         descricao_acessibilidade, lingua, unidade, matriculas
-        FROM editalProjeto WHERE id=%s""" % id_projeto
-    linhas, total = executarSelect(consulta)
+        FROM editalProjeto WHERE id=%s"""
+    linhas, total = executarSelect(consulta, valores=(id_projeto,))
     if total == 0:
         flash(u"Submissão não encontrada.")
         return redirect(url_for('admin'))
@@ -3749,8 +3690,8 @@ def local_apresentacao(edital):
     FROM editalProjeto 
     WHERE valendo=1 and situacao=1 and tipo=%s 
     ORDER BY local_apresentacao,data_apresentacao,categoria,ua
-    """ %(edital)
-    linhas,total = executarSelect(consulta)
+    """
+    linhas,total = executarSelect(consulta,valores=(edital,))
     consulta_salas = """
     SELECT 
     """
@@ -3769,12 +3710,12 @@ def salvar_local_data():
     obs = request.form['obs']
     apresentou = request.form['apresentou']
     consulta = """
-    UPDATE editalProjeto SET local_apresentacao='%s',
-    data_apresentacao='%s',categoria=%s,modalidade=%s,obs='%s',
+    UPDATE editalProjeto SET local_apresentacao=%s,
+    data_apresentacao=%s,categoria=%s,modalidade=%s,obs=%s,
     apresentou=%s 
     WHERE id=%s
-    """ %(local,data,categoria,modalidade,obs,apresentou,id_projeto)
-    atualizar(consulta)
+    """
+    atualizar(consulta,(local,data,categoria,modalidade,obs,apresentou,id_projeto))
     return("OK")
 
 @app.route("/admin/cadastrar_usuario/<operacao>", methods=['GET','POST'])
@@ -3948,6 +3889,36 @@ def get_image_file_as_base64_data(image):
     with open(image, 'rb') as image_file:
         return base64.b64encode(image_file.read()).decode()
 
+#Certificados/declarações: QR code e PDF gerados em memória. Antes eram gravados em arquivos fixos
+#(documentos/qrcode.png, certificados/certificado.pdf) e dois usuários simultâneos podiam receber o PDF um do outro.
+OPCOES_PDF_CERTIFICADO = {
+    'page-size': 'A4',
+    'orientation': 'landscape',
+    'margin-top': '0cm',
+    'margin-right': '0cm',
+    'margin-bottom': '0cm',
+    'margin-left': '0cm',
+}
+
+def qrcode_base64(url):
+    return pyqrcode.create(url).png_as_base64_str(scale=3)
+
+def modelo_certificado_base64(nome_arquivo):
+    """Imagem de fundo do certificado (arquivo em documentos/), ou None se o edital não tiver modelo cadastrado."""
+    nome = str(nome_arquivo or '').strip()
+    if nome in ('', '0', 'None') or nome != os.path.basename(nome) or not os.path.isfile(CERTIFICADOS_TEMPLATE_DIR + nome):
+        logging.warning("Modelo de certificado ausente: %r", nome)
+        return None
+    return get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + nome)
+
+def resposta_modelo_ausente():
+    return ("O modelo de certificado deste edital ainda não foi cadastrado. Entre em contato com " + REMETENTE + ".", 404)
+
+def responder_pdf(html, options, nome_download='certificado.pdf'):
+    pdf = pdfkit.from_string(html, False, options=options)
+    return Response(pdf, mimetype='application/pdf',
+                    headers={'Content-Disposition': 'inline; filename="' + nome_download + '"'})
+
 @app.route("/admin/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
 @auth.login_required(role=['admin'])
 @log_required
@@ -3987,30 +3958,30 @@ def premiados(edital):
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    vida,total = executarSelect(consulta)
+    """
+    vida,total = executarSelect(consulta,valores=(edital,ua))
     
     ua = u"Humanidades"
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    humanidades,total = executarSelect(consulta)
+    """
+    humanidades,total = executarSelect(consulta,valores=(edital,ua))
 
     ua = u"Ciências Exatas, Tecnológicas e Multidisciplinar"
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=0 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    exatas,total = executarSelect(consulta)
+    """
+    exatas,total = executarSelect(consulta,valores=(edital,ua))
     ###########################################
     
     ############ PÓS GRADUAÇÃO
@@ -4019,30 +3990,30 @@ def premiados(edital):
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    vida_pg,total = executarSelect(consulta)
+    """
+    vida_pg,total = executarSelect(consulta,valores=(edital,ua))
     
     ua = u"Humanidades"
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    humanidades_pg,total = executarSelect(consulta)
+    """
+    humanidades_pg,total = executarSelect(consulta,valores=(edital,ua))
 
     ua = u"Ciências Exatas, Tecnológicas e Multidisciplinar"
     consulta = """
     SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
     FROM `editalProjeto` 
     WHERE tipo=%s and valendo=1 and premiacao=1 AND vinculo=1 AND
-    ua='%s'
+    ua=%s
     ORDER BY ua,media DESC,media1 DESC LIMIT 10
-    """ % (edital,ua)
-    exatas_pg,total = executarSelect(consulta)
+    """
+    exatas_pg,total = executarSelect(consulta,valores=(edital,ua))
     ##########################
     
     nome = obterColunaUnica('editais','nome_longo','id',str(edital))
