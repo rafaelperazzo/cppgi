@@ -1349,10 +1349,43 @@ def test_recusar_convite_so_antes_de_avaliar():
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
 
-def test_email_renderiza_fora_de_requisicao():
-    #enviarPedidoAvaliacao e o job agendado renderizam e-mails em threads (app context, sem request/sessão)
+def _templates_de_email():
+    """Templates cujo HTML vai para Message(html=...): variável atribuída de render_template() ou chamada inline."""
+    import ast
+    arvore = ast.parse(open(WORKING_DIR + 'pesquisa.py', encoding='utf-8').read())
+    encontrados = set()
+    for funcao in ast.walk(arvore):
+        if not isinstance(funcao, ast.FunctionDef):
+            continue
+        origem = {}
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call) and getattr(n.value.func, 'id', '') == 'render_template' \
+                    and n.value.args and isinstance(n.value.args[0], ast.Constant):
+                for alvo in n.targets:
+                    if isinstance(alvo, ast.Name):
+                        origem.setdefault(alvo.id, set()).add(n.value.args[0].value)
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.Call) and getattr(n.func, 'id', '') == 'Message':
+                for k in n.keywords:
+                    if k.arg != 'html':
+                        continue
+                    if isinstance(k.value, ast.Name):
+                        encontrados |= origem.get(k.value.id, set())
+                    elif isinstance(k.value, ast.Call) and getattr(k.value.func, 'id', '') == 'render_template':
+                        encontrados.add(k.value.args[0].value)
+    return sorted(encontrados)
+
+def test_emails_renderizam_fora_de_requisicao():
+    #E-mails são renderizados em threads/jobs (app context, sem request): nada de session/request/url_for/link_arquivo
+    #nesses templates nem no que é injetado em todos os templates (context processors, globais do Jinja)
     from flask import render_template
+    templates = _templates_de_email()
+    assert 'email_avaliador.html' in templates and 'login.html' not in templates
+    falhas = []
     with app.app_context():
-        html = render_template('email_avaliador.html', nome_longo='EVENTO', titulo='T', resumo='R', link='L',
-                               link_recusa='LR', deadline='01/01/2027', modalidade=2)
-    assert 'EVENTO' in html
+        for template in templates:
+            try:
+                render_template(template)
+            except Exception as e:
+                falhas.append('%s: %s: %s' % (template, type(e).__name__, e))
+    assert falhas == [], falhas
