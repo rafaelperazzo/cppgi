@@ -13,7 +13,22 @@ aplicacao = app.test_client()
 client = aplicacao
 usuario = config['DEFAULT']['usuario']
 senha = config['DEFAULT']['senha']
-usuario_senha = str.encode("%s:%s" %(usuario,senha))
+
+def logar(c, login, senha_login):
+    """Login pelo formulário (/login), como no navegador."""
+    rv = c.get('/login')
+    token = re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+    return c.post('/login', data={'csrf_token': token, 'siape': login, 'senha': senha_login})
+
+_admin = []
+def _cliente_admin():
+    """Client do Flask logado como o admin de teste (usuario/senha do .env), criado uma vez."""
+    if not _admin:
+        c = app.test_client()
+        rv = logar(c, usuario, senha)
+        assert rv.status_code == 302, "login do admin de teste falhou"
+        _admin.append(c)
+    return _admin[0]
 
 def random_char(char_num):
        prefixo =  ''.join(random.choice(string.ascii_letters) for _ in range(char_num))
@@ -21,11 +36,7 @@ def random_char(char_num):
        return(prefixo)
 
 def get_csrf_token(res, auth_required=False):
-    headers = {}
-    if auth_required:
-        valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
-        headers = {"Authorization": "Basic " + valid_credentials}
-    rv = client.get(res, headers=headers)
+    rv = (_cliente_admin() if auth_required else client).get(res)
     match = re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode())
     return match.group(1)
 
@@ -38,14 +49,12 @@ def get_last_id(tabela):
     return(last_id)
 
 def post_res(res,data):
-    valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
-    response = client.post(res, data=data,follow_redirects=True,headers={"Authorization": "Basic " + valid_credentials})
+    response = _cliente_admin().post(res, data=data,follow_redirects=True)
     assert response.status_code == 200
     return (response)
 
 def get_res(res):
-    valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
-    rv = aplicacao.get(res,follow_redirects=True,headers={"Authorization": "Basic " + valid_credentials})
+    rv = _cliente_admin().get(res,follow_redirects=True)
     assert rv.status_code==200
 
 def test_main():
@@ -62,7 +71,6 @@ def test_admin_edital():
     get_res('/admin/9')
 
 def test_edital_projeto():
-    valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
     consulta = """
     SELECT id FROM editais
     """
@@ -189,8 +197,7 @@ def test_1_submissao_lista_em_submissoes():
     linhas,total = executarSelect(consulta)
     edital = linhas[0][0]
     titulo = linhas[0][1]
-    valid_credentials = base64.b64encode(usuario_senha).decode("utf-8")
-    response = client.get('/submissoes/' + str(edital), follow_redirects=True, headers={"Authorization": "Basic " + valid_credentials})
+    response = _cliente_admin().get('/submissoes/' + str(edital), follow_redirects=True)
     assert response.status_code == 200
     assert str.encode(titulo) in response.data
 
@@ -436,8 +443,7 @@ def test_cadastro_token_confirmacao():
 def test_login_bloqueado_email_nao_verificado():
     cpf = _cpf_aleatorio()
     try:
-        #Requisições Basic Auth de testes anteriores (get_res/post_res) deixam sessão de admin
-        #residual no cliente de teste compartilhado; limpa antes de checar o bloqueio isoladamente.
+        #garante o cliente compartilhado sem sessão antes de checar o bloqueio isoladamente
         with client.session_transaction() as sess:
             sess.clear()
         _garantir_usuario_teste(cpf, random_char(7), "SenhaDeTesteForte1!", verificado=0)
@@ -453,6 +459,7 @@ def test_login_bloqueado_email_nao_verificado():
             assert 'username' not in sess
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+        atualizar("DELETE FROM tentativas_login WHERE username=%s", (cpf,))
 
 def test_sessao_login_e_logout():
     cpf = _cpf_aleatorio()
@@ -722,8 +729,7 @@ def test_log_required_grava_auditoria(caplog):
     try:
         with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
             #sem parâmetros a rota responde 400, mas passa pelo @log_required antes: basta para auditar
-            credenciais = base64.b64encode(usuario_senha).decode("utf-8")
-            aplicacao.get('/admin/avaliacoesNegadas', headers={"Authorization": "Basic " + credenciais})
+            _cliente_admin().get('/admin/avaliacoesNegadas')
     finally:
         logger_auditoria.propagate = False
     mensagens = [r.message for r in caplog.records if r.name == 'auditoria_acessos']
@@ -747,11 +753,11 @@ def test_guardrail_log_required_em_rotas_login_required():
         linhas_arquivo = f.readlines()
     faltando = []
     for i, linha in enumerate(linhas_arquivo):
-        if linha.strip().startswith('@auth.login_required('):
+        if linha.strip().startswith('@login_required('):
             proxima = linhas_arquivo[i + 1].strip() if i + 1 < len(linhas_arquivo) else ''
             if proxima != '@log_required':
                 faltando.append(i + 1)
-    assert faltando == [], "Rotas com @auth.login_required sem @log_required nas linhas: %s" % faltando
+    assert faltando == [], "Rotas com @login_required sem @log_required nas linhas: %s" % faltando
 
 def test_login_get_renderiza_formulario():
     #Regressão: o link "Entrar" do layout faz GET em /login; a rota precisa aceitar GET
@@ -1003,8 +1009,6 @@ distribuirSalas sem sala de pôster, avaliacoesNegadas)
 **************************************************************
 '''
 
-def _auth_headers():
-    return {"Authorization": "Basic " + base64.b64encode(usuario_senha).decode("utf-8")}
 
 def test_certificado_individual_grava_token_na_tabela_certa():
     from PIL import Image
@@ -1032,7 +1036,8 @@ def test_certificado_individual_grava_token_na_tabela_certa():
         os.remove(CERTIFICADOS_TEMPLATE_DIR + modelo)
 
 def test_notas_apresentacoes_exige_admin():
-    assert client.get('/admin/notasApresentacoes/1').status_code == 401
+    rv = client.get('/admin/notasApresentacoes/1')
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
     rv = client.get('/notasApresentacoes/1')
     assert rv.status_code == 308 and rv.headers['Location'].endswith('/admin/notasApresentacoes/1')
 
@@ -1043,20 +1048,20 @@ def test_distribuir_salas_sem_sala_de_poster():
     edital, projeto, token = _criar_avaliacao_temporaria()
     try:
         atualizar("UPDATE editalProjeto SET categoria=1, situacao=1 WHERE id=%s", (projeto,))
-        rv = client.get('/admin/distribuirSalas?edital=%s' % edital, headers=_auth_headers(), follow_redirects=True)
+        rv = _cliente_admin().get('/admin/distribuirSalas?edital=%s' % edital, follow_redirects=True)
         assert rv.status_code == 200
         assert u'cadastre uma sala do tipo pôster' in rv.data.decode()
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
 
 def test_avaliacoes_negadas_parametros():
-    rv = client.get('/admin/avaliacoesNegadas?edital=1', headers=_auth_headers())
+    rv = _cliente_admin().get('/admin/avaliacoesNegadas?edital=1')
     assert rv.status_code == 400
     assert b'SELECT' not in rv.data
     edital, projeto, token = _criar_avaliacao_temporaria()
     try:
-        assert client.get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital, projeto), headers=_auth_headers()).status_code == 200
-        rv = client.get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital + 1, projeto), headers=_auth_headers())
+        assert _cliente_admin().get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital, projeto)).status_code == 200
+        rv = _cliente_admin().get('/admin/avaliacoesNegadas?edital=%s&id=%s' % (edital + 1, projeto))
         assert rv.status_code == 404
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
@@ -1073,12 +1078,13 @@ def _usuario_comum_temporario():
     return cpf, int(obterColunaUnica('users', 'id', 'username', cpf))
 
 def _csrf_admin(c):
-    rv = c.get('/admin/cadastrar_usuario/1', headers=_auth_headers())
+    rv = c.get('/admin/cadastrar_usuario/1')
     return re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
 
 def test_acessar_como_e_voltar_admin(caplog):
     c = app.test_client()
-    H = _auth_headers()
+    logar(c, usuario, senha)
+    H = {}
     cpf, id_alvo = _usuario_comum_temporario()
     logger_auditoria = logging.getLogger('auditoria_acessos')
     try:
@@ -1115,7 +1121,8 @@ def test_acessar_como_e_voltar_admin(caplog):
 
 def test_acessar_como_recusa_admin_e_nao_aninha():
     c = app.test_client()
-    H = _auth_headers()
+    logar(c, usuario, senha)
+    H = {}
     cpf, id_alvo = _usuario_comum_temporario()
     try:
         csrf = _csrf_admin(c)
@@ -1349,10 +1356,165 @@ def test_recusar_convite_so_antes_de_avaliar():
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
 
-def test_email_renderiza_fora_de_requisicao():
-    #enviarPedidoAvaliacao e o job agendado renderizam e-mails em threads (app context, sem request/sessão)
+def _templates_de_email():
+    """Templates cujo HTML vai para Message(html=...): variável atribuída de render_template() ou chamada inline."""
+    import ast
+    arvore = ast.parse(open(WORKING_DIR + 'pesquisa.py', encoding='utf-8').read())
+    encontrados = set()
+    for funcao in ast.walk(arvore):
+        if not isinstance(funcao, ast.FunctionDef):
+            continue
+        origem = {}
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call) and getattr(n.value.func, 'id', '') == 'render_template' \
+                    and n.value.args and isinstance(n.value.args[0], ast.Constant):
+                for alvo in n.targets:
+                    if isinstance(alvo, ast.Name):
+                        origem.setdefault(alvo.id, set()).add(n.value.args[0].value)
+        for n in ast.walk(funcao):
+            if isinstance(n, ast.Call) and getattr(n.func, 'id', '') == 'Message':
+                for k in n.keywords:
+                    if k.arg != 'html':
+                        continue
+                    if isinstance(k.value, ast.Name):
+                        encontrados |= origem.get(k.value.id, set())
+                    elif isinstance(k.value, ast.Call) and getattr(k.value.func, 'id', '') == 'render_template':
+                        encontrados.add(k.value.args[0].value)
+    return sorted(encontrados)
+
+def test_emails_renderizam_fora_de_requisicao():
+    #E-mails são renderizados em threads/jobs (app context, sem request): nada de session/request/url_for/link_arquivo
+    #nesses templates nem no que é injetado em todos os templates (context processors, globais do Jinja)
+    from flask import render_template
+    templates = _templates_de_email()
+    assert 'email_avaliador.html' in templates and 'login.html' not in templates
+    falhas = []
+    with app.app_context():
+        for template in templates:
+            try:
+                render_template(template)
+            except Exception as e:
+                falhas.append('%s: %s: %s' % (template, type(e).__name__, e))
+    assert falhas == [], falhas
+
+'''
+**************************************************************
+TESTES: autenticação só por sessão (sem HTTP Basic), limite de tentativas e inatividade
+**************************************************************
+'''
+
+def _novo_usuario_comum():
+    cpf = str(random.randint(10**10, 10**11 - 1))
+    _garantir_usuario_teste(cpf, cpf + '@teste.local', 'Senha#Forte123', 1)
+    return cpf
+
+def _apagar_usuario(cpf):
+    atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+    atualizar("DELETE FROM tentativas_login WHERE username=%s", (cpf,))
+
+def test_rota_protegida_redireciona_para_login_e_volta():
+    c = app.test_client()
+    rv = c.get('/admin/editais')
+    assert rv.status_code == 302 and '/login?next=' in rv.headers['Location']
+    #o formulário de login carrega o next e, após entrar, volta para a página pedida
+    rv = c.get(rv.headers['Location'])
+    assert 'name="next" value="/admin/editais"' in rv.data.decode()
+    token = re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+    rv = c.post('/login', data={'csrf_token': token, 'siape': usuario, 'senha': senha, 'next': '/admin/editais'})
+    assert rv.status_code == 302 and rv.headers['Location'].endswith('/admin/editais')
+
+def test_next_com_prefixo_cppgi():
+    c = app.test_client()
+    rv = c.get('/admin/editais', base_url='http://localhost/cppgi')
+    assert rv.headers['Location'].startswith('/cppgi/login?next=/cppgi/admin/editais')
+
+def test_next_malicioso_e_ignorado():
+    for malicioso in ('//evil.com/x', 'https://evil.com/x', '/\\evil.com'):
+        c = app.test_client()
+        rv = c.get('/login')
+        token = re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+        rv = c.post('/login', data={'csrf_token': token, 'siape': usuario, 'senha': senha, 'next': malicioso})
+        assert rv.status_code == 302 and 'evil.com' not in rv.headers['Location']
+
+def test_logout_encerra_acesso_de_verdade():
+    c = app.test_client()
+    logar(c, usuario, senha)
+    assert c.get('/admin/editais').status_code == 200
+    c.get('/logout')
+    rv = c.get('/admin/editais')
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
+
+def test_usuario_comum_recebe_403_e_papel_e_relido_a_cada_requisicao():
+    cpf = _novo_usuario_comum()
+    c = app.test_client()
+    try:
+        logar(c, cpf, 'Senha#Forte123')
+        assert c.get('/admin/editais').status_code == 403
+        #papel concedido no banco vale na próxima requisição; removido, idem
+        atualizar("UPDATE users SET roles='admin' WHERE username=%s", (cpf,))
+        assert c.get('/admin/editais').status_code == 200
+        atualizar("UPDATE users SET roles='user' WHERE username=%s", (cpf,))
+        assert c.get('/admin/editais').status_code == 403
+        #usuário apagado: sessão encerrada
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+        rv = c.get('/admin/editais')
+        assert rv.status_code == 302 and '/login' in rv.headers['Location']
+    finally:
+        _apagar_usuario(cpf)
+
+def test_limite_de_tentativas_de_login():
+    cpf = _novo_usuario_comum()
+    try:
+        c = app.test_client()
+        for _ in range(5):
+            logar(c, cpf, 'senha-errada')
+        #6ª tentativa bloqueada mesmo com a senha certa
+        rv = logar(c, cpf, 'Senha#Forte123')
+        assert rv.status_code == 200 and u'Muitas tentativas' in rv.data.decode()
+        #tentativas antigas (fora da janela de 15 min) não contam
+        atualizar("UPDATE tentativas_login SET ocorrido_em = NOW() - INTERVAL 20 MINUTE WHERE username=%s", (cpf,))
+        rv = logar(c, cpf, 'Senha#Forte123')
+        assert rv.status_code == 302
+        #sucesso zera o contador
+        assert executarSelect("SELECT count(*) FROM tentativas_login WHERE username=%s", 1, valores=(cpf,))[0][0] == 0
+    finally:
+        _apagar_usuario(cpf)
+
+def test_sessao_expira_por_inatividade():
+    import time as _time
+    c = app.test_client()
+    logar(c, usuario, senha)
+    with c.session_transaction() as s:
+        s['ultimo_acesso'] = _time.time() - 3*3600
+    rv = c.get('/admin/editais')
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
+    with c.session_transaction() as s:
+        assert 'user_id' not in s
+
+def test_erro_na_autenticacao_recusa_login(monkeypatch):
+    import pesquisa
+    def quebra(*a, **k):
+        raise RuntimeError('banco fora do ar')
+    monkeypatch.setattr(pesquisa, 'executarSelect', quebra)
+    c = app.test_client()
+    with app.test_request_context('/login', method='POST'):
+        assert pesquisa.autenticar_usuario(usuario, senha) is False
+
+def test_guardrail_sem_http_basic():
+    codigo = open(WORKING_DIR + 'pesquisa.py', encoding='utf-8').read()
+    for proibido in ('flask_httpauth', 'HTTPBasicAuth', '@auth.', 'auth.username()', 'auth.current_user()'):
+        assert proibido not in codigo, proibido
+
+def test_templates_sem_credencial_na_url():
+    import glob
+    for caminho in glob.glob(WORKING_DIR + 'templates/*.html'):
+        conteudo = open(caminho, encoding='utf-8').read()
+        assert not re.search(r"://[^/\"'\s]*:[^/\"'\s]*@", conteudo), caminho
+
+def test_email_instrucoes_avaliador_link_sem_credencial():
     from flask import render_template
     with app.app_context():
-        html = render_template('email_avaliador.html', nome_longo='EVENTO', titulo='T', resumo='R', link='L',
-                               link_recusa='LR', deadline='01/01/2027', modalidade=2)
-    assert 'EVENTO' in html
+        html = render_template('email_instrucoes_avaliador.html', evento='E', nome_longo='E', cpf='12345678901',
+                               senha='SenhaX', edital=7, sala='S1', sala_link='L', server_host='host.exemplo')
+    assert 'https://host.exemplo/cppgi/avaliador/7' in html and '@host.exemplo' not in html
+    assert '12345678901' in html and 'SenhaX' in html
