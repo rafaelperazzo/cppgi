@@ -9,6 +9,13 @@ import logging
 import random
 import string
 
+@pytest.fixture(autouse=True)
+def _turnstile_aprovado(request, monkeypatch):
+    """Captcha aprovado nos testes em geral (sem rede); os testes test_turnstile_* exercitam a validação real."""
+    if not request.node.name.startswith('test_turnstile'):
+        import pesquisa
+        monkeypatch.setattr(pesquisa, 'turnstile_valido', lambda: True)
+
 aplicacao = app.test_client()
 client = aplicacao
 usuario = config['DEFAULT']['usuario']
@@ -1518,3 +1525,115 @@ def test_email_instrucoes_avaliador_link_sem_credencial():
                                senha='SenhaX', edital=7, sala='S1', sala_link='L', server_host='host.exemplo')
     assert 'https://host.exemplo/cppgi/avaliador/7' in html and '@host.exemplo' not in html
     assert '12345678901' in html and 'SenhaX' in html
+
+'''
+**************************************************************
+TESTES: Cloudflare Turnstile (API da Cloudflare simulada via monkeypatch em requests.post)
+**************************************************************
+'''
+
+class _RespostaFalsa:
+    def __init__(self, dados):
+        self._dados = dados
+    def json(self):
+        return self._dados
+
+def _siteverify_falso(monkeypatch, dados=None, erro=None):
+    import pesquisa
+    chamadas = []
+    def falso(url, data=None, timeout=None):
+        chamadas.append({'url': url, 'data': data, 'timeout': timeout})
+        if erro:
+            raise erro
+        return _RespostaFalsa(dados)
+    monkeypatch.setattr(pesquisa.requests, 'post', falso)
+    return chamadas
+
+def _csrf_de(c, rota):
+    return re.search(r'name="csrf_token" value="([^"]+)"', c.get(rota).data.decode()).group(1)
+
+def test_turnstile_sem_token_recusa_os_formularios(monkeypatch):
+    import pesquisa
+    chamadas = _siteverify_falso(monkeypatch, dados={'success': True})
+    cpf = str(random.randint(10**10, 10**11 - 1))
+    c = app.test_client()
+    #login
+    rv = c.post('/login', data={'csrf_token': _csrf_de(c, '/login'), 'siape': usuario, 'senha': senha})
+    assert rv.status_code == 200 and u'não é um robô' in rv.data.decode()
+    with c.session_transaction() as s:
+        assert 'user_id' not in s
+    #esqueci minha senha
+    rv = c.post('/enviarMinhaSenha', data={'csrf_token': _csrf_de(c, '/login'), 'email': 'x@teste.local'})
+    assert u'não é um robô' in rv.data.decode()
+    #autocadastro: nenhum usuário criado
+    rv = c.post('/cadastro', data={'csrf_token': _csrf_de(c, '/cadastro'), 'cpf': cpf, 'email': cpf + '@teste.local',
+                                   'nome': 'ROBO', 'senha': 'Senha#Forte123'})
+    assert u'não é um robô' in rv.data.decode()
+    assert executarSelect("SELECT count(*) FROM users WHERE username=%s", 1, valores=(cpf,))[0][0] == 0
+    #sem token, a Cloudflare nem é consultada
+    assert chamadas == []
+
+def test_turnstile_submissao_sem_token_nao_grava(monkeypatch):
+    _siteverify_falso(monkeypatch, dados={'success': True})
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    c = app.test_client()
+    try:
+        #janela de submissão aberta (o helper cria o edital com o deadline de submissão vencido)
+        atualizar("UPDATE editais SET inicio_submissao=%s, deadline=%s WHERE id=%s",
+                  (datetime.datetime.now() - datetime.timedelta(days=1), datetime.datetime.now() + datetime.timedelta(days=5), edital))
+        with c.session_transaction() as s:
+            s['username'] = '00000000000'; s['cpf'] = '00000000000'; s['email'] = 'x@teste.local'
+        csrf = _csrf_de(c, '/submissao')
+        antes = executarSelect("SELECT count(*) FROM editalProjeto WHERE tipo=%s", 1, valores=(edital,))[0][0]
+        rv = c.post('/cadastrarProjeto', data={'csrf_token': csrf, 'destino': edital})
+        assert u'não é um robô' in rv.data.decode()
+        assert executarSelect("SELECT count(*) FROM editalProjeto WHERE tipo=%s", 1, valores=(edital,))[0][0] == antes
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_turnstile_resposta_negativa_nao_conta_como_senha_errada(monkeypatch):
+    _siteverify_falso(monkeypatch, dados={'success': False, 'error-codes': ['invalid-input-response']})
+    c = app.test_client()
+    rv = c.post('/login', data={'csrf_token': _csrf_de(c, '/login'), 'siape': usuario, 'senha': 'errada',
+                                'cf-turnstile-response': 'token-invalido'})
+    assert u'não é um robô' in rv.data.decode()
+    assert executarSelect("SELECT count(*) FROM tentativas_login WHERE username=%s", 1, valores=(usuario,))[0][0] == 0
+
+def test_turnstile_aprovado_segue_o_login(monkeypatch):
+    import pesquisa
+    chamadas = _siteverify_falso(monkeypatch, dados={'success': True})
+    c = app.test_client()
+    rv = c.post('/login', data={'csrf_token': _csrf_de(c, '/login'), 'siape': usuario, 'senha': senha,
+                                'cf-turnstile-response': 'token-bom'})
+    assert rv.status_code == 302
+    assert chamadas[0]['url'] == pesquisa.TURNSTILE_SITEVERIFY
+    assert chamadas[0]['data']['secret'] == pesquisa.TURNSTILE_SECRET_KEY
+    assert chamadas[0]['data']['response'] == 'token-bom' and chamadas[0]['data']['remoteip']
+    assert chamadas[0]['timeout'] == 5
+
+def test_turnstile_falha_da_api_recusa(monkeypatch):
+    import requests as _requests
+    _siteverify_falso(monkeypatch, erro=_requests.Timeout('sem resposta'))
+    c = app.test_client()
+    rv = c.post('/login', data={'csrf_token': _csrf_de(c, '/login'), 'siape': usuario, 'senha': senha,
+                                'cf-turnstile-response': 'token-bom'})
+    assert u'não é um robô' in rv.data.decode()
+    with c.session_transaction() as s:
+        assert 'user_id' not in s
+
+def test_turnstile_configuracao_das_chaves():
+    import pesquisa
+    assert pesquisa.chaves_turnstile({'TURNSTILE_KEY': 'k', 'TURNSTILE_SECRET_KEY': 's'}, 1) == ('k', 's')
+    assert pesquisa.chaves_turnstile({}, 0) == pesquisa.TURNSTILE_CHAVES_TESTE
+    with pytest.raises(RuntimeError):
+        pesquisa.chaves_turnstile({'TURNSTILE_KEY': 'k'}, 1)
+
+def test_turnstile_templates():
+    import glob
+    for caminho in glob.glob(WORKING_DIR + 'templates/*.html'):
+        conteudo = open(caminho, encoding='utf-8').read().lower()
+        assert 'recaptcha' not in conteudo, caminho
+    for nome in ('login.html', 'esqueciMinhaSenha.html', 'cadastro.html', 'cadastrarProjeto.html'):
+        conteudo = open(WORKING_DIR + 'templates/' + nome, encoding='utf-8').read()
+        assert 'challenges.cloudflare.com/turnstile/v0/api.js' in conteudo, nome
+        assert 'class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}"' in conteudo, nome

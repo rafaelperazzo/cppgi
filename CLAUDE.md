@@ -45,13 +45,13 @@ docker-compose logs -f cppgi
   `pesquisa.py`, right after the imports, a bootstrap step decides where config comes from: if the real
   container/process environment variable `PRODUCAO` (uppercase, distinct from the `producao` key inside
   `.env`) is `1`, it calls `load_ssm_parameters()` (walks all AWS SSM Parameter Store params under
-  `/pesquisa`, `WithDecryption=True`, and injects them into `os.environ`, one AWS API call per env — needs
+  `/cppgi` (default prefix of `load_ssm_parameters()`; `/pesquisa/*` belongs to the separate Yoko Pesquisa app), `WithDecryption=True`, and injects them into `os.environ`, one AWS API call per env — needs
   IAM credentials on the container, e.g. instance profile/role, not sourced from `.env`); otherwise it calls
   `load_dotenv()` (loads `flask/.env` into `os.environ`). Either way, `config = {'DEFAULT': os.environ}`
   right after, so every existing `config['DEFAULT']['CHAVE']` access site (~20 of them, plus `tests.py`,
   which imports `config` from `pesquisa`) keeps working unchanged, reading whichever source populated
   `os.environ`. SSM parameter names must match the `.env` key names exactly (case-sensitive, e.g.
-  `/pesquisa/AWS_S3_BUCKET`, `/pesquisa/DB_PASSWORD`). If SSM lookup fails (`ClientError`/`BotoCoreError`),
+  `/cppgi/AWS_S3_BUCKET`, `/cppgi/DB_PASSWORD`, `/cppgi/TURNSTILE_KEY`). If SSM lookup fails (`ClientError`/`BotoCoreError`),
   `load_ssm_parameters()` re-raises — startup fails hard in that case, by design (no silent fallback to
   defaults). `PRODUCAO=1` is set in `systemd/cppgi.service.sample` (real production unit) — **not** in
   `docker-compose.yml`/`.sample`, which is dev-only and always uses `.env` (no such var is set there;
@@ -135,6 +135,17 @@ Key pieces inside `pesquisa.py`:
   after `INATIVIDADE_MAXIMA` = 2 h without requests (`verificar_inatividade`, registered before the forced
   password-change hook). E-mails must link to plain app URLs — never `https://user:pass@host` (test enforced); the
   password is still sent as text in the instruction e-mails (user decision, plaintext passwords are kept).
+- **Captcha = Cloudflare Turnstile, verified server-side** (the old Google reCAPTCHA was client-side only and was
+  removed — no `recaptcha` may remain in templates, test enforced). Protected POSTs: `/login` (after the rate-limit
+  check; a captcha failure is *not* counted as a wrong password), `/enviarMinhaSenha`, `/cadastro` and
+  `/cadastrarProjeto`, each calling `turnstile_valido()` before touching the DB/files/e-mail. It posts the
+  `cf-turnstile-response` field to Cloudflare's `siteverify` (5 s timeout) and is **fail-closed** (no token, negative
+  answer or API error → refused, logged as `evento=captcha_recusado`). Keys: `TURNSTILE_KEY` (public site key, exposed
+  to templates by `inject_institucional`) and `TURNSTILE_SECRET_KEY`, from SSM `/cppgi/...` in production (startup
+  fails without them) and falling back to Cloudflare's official always-pass test keys in dev. Widget markup:
+  `<div class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}" data-language="pt-br">` + the
+  `challenges.cloudflare.com/turnstile/v0/api.js` script. Tests auto-approve the captcha via an autouse fixture,
+  except `test_turnstile_*`, which fake `requests.post`.
 - **Admin "acessar como"** (`POST /admin/acessarComo/<user_id>`, button in `listar_usuarios.html`; `POST /voltarAdmin`
   from the banner in `layout.html`): the admin navigates as a non-admin user (admins can't be targeted) and can do
   everything that user can. The real admin is kept in `session['impersonador']` while the regular session fields hold

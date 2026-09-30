@@ -3,11 +3,13 @@
 {% block title %}Esqueci minha senha{% endblock %}
 
 {% block head_extra %}
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
+//Só melhora a experiência: a validação que vale é a do servidor (turnstile_valido)
 function humano() {
-  if (grecaptcha.getResponse() == "") {
-    alert("Marque a caixa abaixo para continuar...");
+  var token = document.querySelector('[name="cf-turnstile-response"]');
+  if (!token || token.value == "") {
+    alert("Aguarde a verificação de segurança abaixo (ou marque a caixa) para continuar...");
     return (false);
   }
   return (true);
@@ -31,11 +33,9 @@ function humano() {
       <input class="form-input" type="text" id="email" placeholder="e-mail: " name="email" required>
     </div>
 
-    {% if session['PRODUCAO']==1 %}
-      <div class="flex justify-center">
-        <div class="g-recaptcha" data-sitekey="6LcTP7IrAAAAAEGXU_wjThN5GsBZ3mZCy67tzQyH"></div>
-      </div>
-    {% endif %}
+    <div class="flex justify-center">
+      <div class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}" data-language="pt-br"></div>
+    </div>
 
     <button class="btn-primary" type="submit">Recuperar Senha</button>
   </form>
