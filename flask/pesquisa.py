@@ -916,6 +916,12 @@ def enviarAvaliacao():
         avaliacao = obterAvaliacaoPorToken(token)
         if avaliacao is None:
             return("Link de avaliação inválido!")
+        #Mesmas regras do GET /avaliacao: um POST direto não pode regravar avaliação finalizada nem fora do prazo
+        if int(avaliacao[2]) != 0:
+            logging.debug("[AVALIACAO] Tentativa de reenviar avaliação finalizada")
+            return("Projeto já foi avaliado! Não é possível modificar a avaliação!")
+        if not podeAvaliar(avaliacao[1]):
+            return("Prazo de avaliação expirado!")
         id_avaliacao = str(avaliacao[0])
         id_projeto = str(avaliacao[1])
         modalidade = obterColunaUnica('editalProjeto','modalidade','id',id_projeto)
@@ -978,10 +984,14 @@ def getDeclaracaoAvaliador():
         avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
         if avaliacao is None:
             return("Declaração não encontrada.", 404)
+        if int(avaliacao[2]) == 0:
+            return("A declaração fica disponível após a avaliação ser enviada.", 403)
         nome_avaliador = str(avaliacao[3])
         #Recuperando descrição do edital
         consulta = "SELECT e.id,e.nome_longo FROM editais e, editalProjeto p WHERE p.tipo=e.id AND p.id=%s"
         linhas,total = executarSelect(consulta, valores=(avaliacao[1],))
+        if not linhas: #trabalho removido
+            return("Declaração não encontrada.", 404)
         for linha in linhas:
             descricaoEdital = str(linha[1])
             edital = str(linha[0])
@@ -993,34 +1003,23 @@ def getDeclaracaoAvaliador():
         template = obterColunaUnica('editais','declaracao_avaliador','id',edital)
         periodo = obterColunaUnica('editais','periodo','id',edital)
         local = obterColunaUnica('editais','local','id',edital)
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
-        #Gerando QrCode
-        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
 
         #Recuperando template
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-        
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
+        #Gerando QrCode
+        qrcode_url = url_for('autenticar_certificado',tipo=4,codigo=token,id_projeto=id_projeto,_external=True)
+        qr_code = qrcode_base64(qrcode_url)
+
         #Gerando certificado em PDF
         try:
-            pdfkit.from_string(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            return responder_pdf(render_template('certificado_avaliador.html',nome=nome_avaliador,titulo=titulo,periodo=periodo,evento=descricaoEdital,identificador=id_projeto,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=4,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'declaracao_avaliador.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado avaliador')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
-
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 def consultar(consulta):
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
@@ -1185,23 +1184,16 @@ def avaliacoesEncerradas(codigoEdital):
     else: #Edital com avaliacoes em andamento
         return(True)
 
-def gerarPDF(template):
-    
-    try:
-        arquivoDeclaracao = app.config['TEMP_FOLDER'] + 'resultados.pdf'
-        options = {
-            'page-size': 'A4',
-            'margin-top': '2cm',
-            'margin-right': '2cm',
-            'margin-bottom': '1cm',
-            'margin-left': '2cm',
-        }
-        pdfkit.from_string(template,arquivoDeclaracao,options=options)
-    except:
-        e = sys.exc_info()[0]
-        logging.error(e)
-        logging.error("ERRO Na função gerarPDF")
-    #return send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf')
+OPCOES_PDF_RESULTADOS = {
+    'page-size': 'A4',
+    'margin-top': '2cm',
+    'margin-right': '2cm',
+    'margin-bottom': '1cm',
+    'margin-left': '2cm',
+    #editalProjeto.html referencia JS/ícones por URL relativa, que o wkhtmltopdf não resolve a partir de string
+    'load-error-handling': 'ignore',
+    'load-media-error-handling': 'ignore',
+}
 
 @app.route("/admin/editalProjeto/<edital>", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -1257,8 +1249,11 @@ def editalProjeto(edital):
         if 'resultado' in request.args:
             if 'pdf' in request.args:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
-                gerarPDF(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
-                return(send_from_directory(app.config['TEMP_FOLDER'], 'resultados.pdf'))
+                try:
+                    return responder_pdf(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"),OPCOES_PDF_RESULTADOS,'resultados.pdf')
+                except Exception as e:
+                    logging.error("ERRO ao gerar o PDF de resultados: " + str(e))
+                    return ("Erro ao gerar o PDF de resultados", 500)
             else:
                 mensagem = str(obterColunaUnica("editais","mensagem","id",codigoEdital))
                 return(render_template('editalProjeto.html',listaProjetos=linhas,descricao=descricao,total=total,novos=linhas_novos,total_novos=total_novos,linhas_demanda=linhas_demanda,codigoEdital=codigoEdital,resultado=1,mensagem=mensagem,tabela="editalProjeto"))
@@ -2539,41 +2534,29 @@ def gerarCertificadoAvaliador():
     periodo = obterColunaUnica('editais','periodo','id',session['edital'])
     evento = obterColunaUnica('editais','nome_longo','id',session['edital'])
     local = obterColunaUnica('editais','local','id',session['edital'])
-    arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-    options = {
-        'page-size': 'A4',
-        'orientation': 'landscape',
-        'margin-top': '0cm',
-        'margin-right': '0cm',
-        'margin-bottom': '0cm',
-        'margin-left': '0cm',
-    }
-    #Gerando QrCode
-    qrcode_url = url_for('autenticar_certificado',tipo=1,codigo=token,id_projeto=0,_external=True)
-    qrcode = pyqrcode.create(qrcode_url)
-    qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-    qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+
+    consulta = "SELECT id,username FROM usuarios_salas WHERE username=%s AND edital=%s AND compareceu=1"
+    linhas,total = executarSelect(consulta, valores=(session['username'],session['edital']))
+    if not linhas:
+        flash("Nenhuma avaliação foi realizada até o momento!")
+        return(redirect(url_for('avaliador',edital=session['edital'])))
 
     #Recuperando template
-    try:
-        background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+    background = modelo_certificado_base64(template)
+    if background is None:
+        return resposta_modelo_ausente()
 
-        #Gerando certificado em PDF
-        pdfkit.from_string(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+    #Gerando QrCode
+    qrcode_url = url_for('autenticar_certificado',tipo=1,codigo=token,id_projeto=0,_external=True)
+    qr_code = qrcode_base64(qrcode_url)
+
+    #Gerando certificado em PDF
+    try:
+        return responder_pdf(render_template('certificado_moderador.html',nome=nome,periodo=periodo,evento=evento,identificador=0,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=1,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado_avaliador.pdf')
     except Exception as e:
         app.logger.error('Erro gerando certificado apresentador')
         app.logger.error(str(e))
         return ("Erro ao gerar certificado", 500)
-
-    consulta = """
-    SELECT id,username FROM usuarios_salas WHERE username='%s' AND edital=%s AND compareceu=1
-    """ %(session['username'],session['edital'])
-    linhas,total = executarSelect(consulta)
-    if total>0:
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
-    else:
-        flash("Nenhuma avaliação foi realizada até o momento!")
-        return(redirect(url_for('avaliador',edital=session['edital'])))
 
 def gerarCertificadoComplexo(name, template, font_path,posicao, output_png, output_pdf,tamanho,titulo="TITULO",tamanho2=30):
    
@@ -2664,43 +2647,28 @@ def baixarCertificado(id_projeto):
         verbo = "apresentou"
         if ',' in nome:
             verbo = "apresentaram"
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
+
+        #Recuperando template
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
         token = obterColunaUnica('editalProjeto','token','id',id_projeto)
         if token=='0':
             token = id_generator()
-            consulta = """
-            UPDATE editalProjeto SET token='%s' 
-            WHERE id=%s
-            """ %(token,id_projeto)
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET token=%s WHERE id=%s", (token,id_projeto))
 
         #Gerando QrCode
         qrcode_url = url_for('autenticar_certificado',tipo=0,codigo=token,id_projeto=id_projeto,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
+        qr_code = qrcode_base64(qrcode_url)
 
-        #Recuperando template
+        #Gerando certificado em PDF
         try:
-            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
-
-            #Gerando certificado em PDF
-            pdfkit.from_string(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+            return responder_pdf(render_template('certificado_apresentador.html',nome=nome,titulo=titulo,periodo=periodo,evento=evento,identificador=id,local=local,arquivo=template,verbo=verbo,background=background,qrcode=qr_code,token=token,tipo=0,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado_apresentador.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado apresentador')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
-
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/demaisCertificados/<edital>", methods=['GET'])
 def demaisCertificados(edital):
@@ -2720,43 +2688,28 @@ def certificadoIndividual(id_certificado):
         evento = obterColunaUnica('editais','nome_longo','id',edital)
         periodo = obterColunaUnica('editais','periodo','id',edital)
         local = obterColunaUnica('editais','local','id',edital)
-        arquivoCertificado = app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf'
-        options = {
-            'page-size': 'A4',
-            'orientation': 'landscape',
-            'margin-top': '0cm',
-            'margin-right': '0cm',
-            'margin-bottom': '0cm',
-            'margin-left': '0cm',
-        }
-        
+
+        #Recuperando template
+        background = modelo_certificado_base64(template)
+        if background is None:
+            return resposta_modelo_ausente()
+
         token = obterColunaUnica('certificados_moderador','token','id',id_certificado)
         if token=='0':
             token = id_generator()
-            consulta = """
-            UPDATE editalProjeto SET token='%s' 
-            WHERE id=%s
-            """ %(token,id_certificado)
-            atualizar(consulta)
+            atualizar("UPDATE editalProjeto SET token=%s WHERE id=%s", (token,id_certificado))
 
         #Gerando QrCode
         qrcode_url = url_for('autenticar_certificado',tipo=2,codigo=token,id_projeto=id_certificado,_external=True)
-        qrcode = pyqrcode.create(qrcode_url)
-        qrcode.png(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png',scale=3)
-        qr_code = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png')
-        
-        #Recuperando template
-        try:
-            background = get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + template)
+        qr_code = qrcode_base64(qrcode_url)
 
-            #Gerando certificado em PDF
-            pdfkit.from_string(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),arquivoCertificado,options=options)
+        #Gerando certificado em PDF
+        try:
+            return responder_pdf(render_template('certificado_demais.html',identificador=id_certificado,nome=nome,periodo=periodo,evento=evento,local=local,arquivo=template,background=background,qrcode=qr_code,token=token,tipo=2,texto=tipo,data="Juazeiro do Norte, " + getData()),OPCOES_PDF_CERTIFICADO,'certificado.pdf')
         except Exception as e:
             app.logger.error('Erro gerando certificado demais')
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
-
-        return send_from_directory(app.config['CERTIFICADOS_FOLDER'], 'certificado.pdf')
 
 @app.route("/confirmar", methods=['GET', 'POST'])
 @auth.login_required(role=['avaliador','admin'])
@@ -3947,6 +3900,36 @@ def get_image_file_as_base64_data(image):
     #https://stackoverflow.com/questions/38329909/pdfkit-not-converting-image-to-pdf
     with open(image, 'rb') as image_file:
         return base64.b64encode(image_file.read()).decode()
+
+#Certificados/declarações: QR code e PDF gerados em memória. Antes eram gravados em arquivos fixos
+#(documentos/qrcode.png, certificados/certificado.pdf) e dois usuários simultâneos podiam receber o PDF um do outro.
+OPCOES_PDF_CERTIFICADO = {
+    'page-size': 'A4',
+    'orientation': 'landscape',
+    'margin-top': '0cm',
+    'margin-right': '0cm',
+    'margin-bottom': '0cm',
+    'margin-left': '0cm',
+}
+
+def qrcode_base64(url):
+    return pyqrcode.create(url).png_as_base64_str(scale=3)
+
+def modelo_certificado_base64(nome_arquivo):
+    """Imagem de fundo do certificado (arquivo em documentos/), ou None se o edital não tiver modelo cadastrado."""
+    nome = str(nome_arquivo or '').strip()
+    if nome in ('', '0', 'None') or nome != os.path.basename(nome) or not os.path.isfile(CERTIFICADOS_TEMPLATE_DIR + nome):
+        logging.warning("Modelo de certificado ausente: %r", nome)
+        return None
+    return get_image_file_as_base64_data(CERTIFICADOS_TEMPLATE_DIR + nome)
+
+def resposta_modelo_ausente():
+    return ("O modelo de certificado deste edital ainda não foi cadastrado. Entre em contato com " + REMETENTE + ".", 404)
+
+def responder_pdf(html, options, nome_download='certificado.pdf'):
+    pdf = pdfkit.from_string(html, False, options=options)
+    return Response(pdf, mimetype='application/pdf',
+                    headers={'Content-Disposition': 'inline; filename="' + nome_download + '"'})
 
 @app.route("/admin/salvar/<tabela>/<valor_id>/<coluna>/<novo_valor>", methods=['GET'])
 @auth.login_required(role=['admin'])

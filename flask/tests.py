@@ -853,3 +853,97 @@ def test_cadastrar_edital_inicio_depois_do_deadline():
 
 def test_listar_editais():
     get_res('/admin/editais')
+
+'''
+**************************************************************
+TESTES: fluxo do avaliador (reenvio, prazo) e certificados em memória
+**************************************************************
+'''
+
+def _criar_avaliacao_temporaria(modelo_declaracao=''):
+    """Edital (avaliação aberta) + trabalho + avaliação não finalizada. Devolve (edital, projeto, token)."""
+    agora = datetime.datetime.now()
+    token_edital = id_generator(40)
+    inserir("""INSERT INTO editais (nome,nome_longo,deadline,deadline_avaliacao,deadline_apresentacao,deadline_versao_final,
+               setor,mensagem,token,declaracao_avaliador) VALUES ('EDITAL AVALIACAO TMP','EDITAL AVALIACAO TMP',%s,%s,%s,%s,1,'',%s,%s)""",
+            (agora - datetime.timedelta(days=5), agora + datetime.timedelta(days=10), agora + datetime.timedelta(days=30),
+             agora + datetime.timedelta(days=20), token_edital, modelo_declaracao))
+    edital = executarSelect("SELECT id FROM editais WHERE token=%s", 1, valores=(token_edital,))[0][0]
+    titulo = 'TRABALHO TMP ' + id_generator(10)
+    inserir("""INSERT INTO editalProjeto (tipo,categoria,modalidade,nome,siape,email,ua,titulo,palavras,resumo,
+               arquivo_projeto,arquivo_plano1,arquivo_plano2) VALUES (%s,1,2,'AUTOR TMP','0','x@x','UA',%s,'p','r','TRABALHO.tmp.pdf','','')""",
+            (edital, titulo))
+    projeto = executarSelect("SELECT id FROM editalProjeto WHERE titulo=%s", 1, valores=(titulo,))[0][0]
+    token = id_generator(20)
+    inserir("INSERT INTO avaliacoes (idProjeto,token,avaliador,finalizado,aceitou) VALUES (%s,%s,'avaliador@teste.local',0,-1)",
+            (projeto, token))
+    return edital, projeto, token
+
+def _remover_avaliacao_temporaria(edital, projeto):
+    atualizar("DELETE FROM avaliacoes WHERE idProjeto=%s", (projeto,))
+    atualizar("DELETE FROM editalProjeto WHERE id=%s", (projeto,))
+    atualizar("DELETE FROM editais WHERE id=%s", (edital,))
+
+def _dados_avaliacao(token, csrf_token, nota):
+    dados = {"csrf_token": csrf_token, "token": token, "txtNome": "AVALIADOR TMP", "identificado": "0",
+             "txtComentarios": "Comentário de teste", "txtRecomendacao": "1"}
+    dados.update({"c%d" % i: str(nota) for i in range(1, 9)})
+    return dados
+
+def test_avaliar_nao_regrava_avaliacao_finalizada():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        csrf_token = get_csrf_token('/avaliacao?token=' + token)
+        client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 9))
+        rv = client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 1))
+        assert u'já foi avaliado' in rv.data.decode()
+        linhas, total = executarSelect("SELECT finalizado,c1,c8 FROM avaliacoes WHERE token=%s", valores=(token,))
+        assert linhas[0] == (1, 9, 9)
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_avaliar_fora_do_prazo():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        csrf_token = get_csrf_token('/avaliacao?token=' + token)
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s",
+                  (datetime.datetime.now() - datetime.timedelta(days=1), edital))
+        rv = client.post('/avaliar', data=_dados_avaliacao(token, csrf_token, 9))
+        assert u'Prazo de avaliação expirado' in rv.data.decode()
+        linhas, total = executarSelect("SELECT finalizado FROM avaliacoes WHERE token=%s", valores=(token,))
+        assert linhas[0][0] == 0
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_declaracao_avaliador_nao_finalizada_e_sem_modelo():
+    edital, projeto, token = _criar_avaliacao_temporaria(modelo_declaracao='')
+    try:
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 403
+        atualizar("UPDATE avaliacoes SET finalizado=1 WHERE token=%s", (token,))
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 404
+        assert u'modelo de certificado' in rv.data.decode()
+        assert client.get('/declaracaoAvaliador?token=inexistente').status_code == 404
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_declaracao_avaliador_pdf_em_memoria():
+    from PIL import Image
+    from pesquisa import CERTIFICADOS_TEMPLATE_DIR
+    modelo = 'modelo_teste_' + id_generator(8) + '.png'
+    Image.new('RGB', (40, 30), 'white').save(CERTIFICADOS_TEMPLATE_DIR + modelo)
+    arquivos_fixos = [app.config['CERTIFICADOS_FOLDER'] + 'certificado.pdf', CERTIFICADOS_TEMPLATE_DIR + 'qrcode.png']
+    antes = {a: os.path.getmtime(a) if os.path.exists(a) else None for a in arquivos_fixos}
+    edital, projeto, token = _criar_avaliacao_temporaria(modelo_declaracao=modelo)
+    try:
+        atualizar("UPDATE avaliacoes SET finalizado=1, nome_avaliador='AVALIADOR TMP' WHERE token=%s", (token,))
+        rv = client.get('/declaracaoAvaliador?token=' + token)
+        assert rv.status_code == 200
+        assert rv.mimetype == 'application/pdf'
+        assert rv.data[:4] == b'%PDF'
+        depois = {a: os.path.getmtime(a) if os.path.exists(a) else None for a in arquivos_fixos}
+        assert depois == antes
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+        os.remove(CERTIFICADOS_TEMPLATE_DIR + modelo)
