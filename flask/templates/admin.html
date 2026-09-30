@@ -47,17 +47,28 @@
         <td><a class="text-brand-700 hover:underline" href="{{url_for('email_solicitar_avaliacao')}}">Enviar e-mails para avaliadores</a></td>
         <td>Envio dos pedidos de avalição para avaliadores</td>
       </tr>
+      {% for job_id, ativo, rotulo, descricao in [
+          ('enviar_email_avaliadores', scheduler_ativo, 'agendamento automático de e-mails para avaliadores',
+           'Agendamento automático (sextas, 07:59) que envia lembretes de avaliação pendente.'),
+          ('solicitar_versao_final', versao_final_ativo, 'agendamento automático de solicitação de versão final',
+           'Agendamento automático (segundas, 10:55) que solicita a versão final aos autores com pendência, entre o fim das avaliações e o deadline da versão final.'),
+      ] %}
       <tr>
         <td>
-          <a class="text-brand-700 hover:underline" href="{{url_for('toggle_scheduler_avaliadores')}}" onclick="return confirm('Tem certeza ?')">
-            {% if scheduler_ativo %}Desligar{% else %}Ligar{% endif %} agendamento automático de e-mails para avaliadores
-          </a>
+          <form action="{{url_for('toggle_job', job_id=job_id)}}" method="POST" onsubmit="return confirm('Tem certeza ?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="edital" value="{{edital}}"/>
+            <button type="submit" class="text-left text-brand-700 hover:underline cursor-pointer">
+              {% if ativo %}Desligar{% else %}Ligar{% endif %} {{rotulo}}
+            </button>
+          </form>
         </td>
         <td>
-          Agendamento automático (seg/sex 07:00) que envia lembretes de avaliação pendente. Status atual:
-          {% if scheduler_ativo %}<strong class="text-emerald-700">LIGADO</strong>{% else %}<strong class="text-red-700">DESLIGADO</strong>{% endif %}
+          {{descricao}} Só executa depois de ligado por um admin; a escolha é mantida nos reinícios da aplicação (até o cadastro de um novo edital). Status atual:
+          {% if ativo %}<strong class="text-emerald-700">LIGADO</strong>{% else %}<strong class="text-red-700">DESLIGADO</strong>{% endif %}
         </td>
       </tr>
+      {% endfor %}
       <tr>
         <td><a class="text-brand-700 hover:underline" href="{{url_for('jobs_agendados')}}">Ver jobs agendados</a></td>
         <td>Status atual de todos os agendamentos automáticos (APScheduler)</td>

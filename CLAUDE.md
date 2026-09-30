@@ -116,9 +116,7 @@ Key pieces inside `pesquisa.py`:
   `deadline_avaliacao - 35 days <= now <= deadline_avaliacao`); outside that window `scheduler.add_job`/
   `scheduler.start()` are skipped entirely for the process lifetime (re-evaluated only on the next restart). The
   job is only registered and started inside the `if __name__ == "__main__":` block and only when `PRODUCAO==1`,
-  so it doesn't run when `pesquisa.py` is imported (e.g. by `tests.py`) or in non-production config. Admins can
-  toggle it on/off at runtime via `/toggleSchedulerAvaliadores` (linked from `admin.html`), which no-ops with a
-  flash message if the job was never registered. A second job, `job_solicitar_versao_final` (id
+  so it doesn't run when `pesquisa.py` is imported (e.g. by `tests.py`) or in non-production config. A second job, `job_solicitar_versao_final` (id
   `solicitar_versao_final`, wrapping `/solicitarVersaoFinal/<edital>`'s logic via the shared
   `buscarPendentesVersaoFinal()` + `processar_emails_versao_final()` helpers), runs on a separate cron cadence —
   Mondays only, 10:55 America/Fortaleza — scoped to a declarative trigger window — `start_date` =
@@ -126,6 +124,18 @@ Key pieces inside `pesquisa.py`:
   (`obterUltimoEdital()`, `ORDER BY id DESC LIMIT 1`). Unlike the first job, this one is always registered (when
   `PRODUCAO==1` and an edital exists); APScheduler itself computes no next-fire-time outside the start/end
   window, so no manual pre-registration gate is needed. Both jobs share one `scheduler.start()` call.
+  **Both jobs are registered paused** (`next_run_time=None` in `add_job`) — they only run after an admin turns them
+  on (explicit product decision; don't "fix" this back to auto-start). The admin's on/off choice is persisted in the
+  `jobs_agendados_estado` table (`job_id` PK, `ativo`, `edital`, `atualizado_em`, `atualizado_por`) and re-applied by
+  `restaurar_estado_jobs()` right after `scheduler.start()`, so it survives restarts (including the daily host
+  reboots). The saved choice is tied to the `edital` that was most recent when it was made: once a newer edital
+  exists, the old row no longer matches and both jobs start OFF again until an admin turns them on for the new
+  cycle. If the table is missing, restore/save just log an error and jobs stay OFF (toggling still works in memory).
+  Toggling goes through `alternar_job(job_id, usuario)` (pause if running, otherwise resume; persists the result),
+  exposed as `POST /admin/toggleJob/<job_id>` (ids whitelisted by `NOMES_JOBS_AGENDADOS`, CSRF-protected forms in
+  `jobs_agendados.html` and `admin.html`); the older `GET /admin/toggleSchedulerAvaliadores` still works for the
+  first job. `alternar_job` refuses to resume a job whose trigger window has already ended, because APScheduler's
+  `resume_job()` *removes* a job with no next fire time instead of leaving it paused.
 
 **Other top-level `flask/*.py` modules**, all importing from `pesquisa.py` rather than being self-contained:
 - `app_api.py` — Flask-RESTful `Resource` classes (`Submissoes`, `Editais`, `Avaliacoes`, `Trabalhos`,
