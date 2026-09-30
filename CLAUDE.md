@@ -69,6 +69,21 @@ docker-compose logs -f cppgi
   role instead. They're only needed in local dev (`.env`), which has no IAM role. Don't "fix" this by
   always passing them — an empty string is a valid (wrong) credential to boto3, not "unset", and would
   break S3 auth in production instead of falling back to the instance role.
+  **File downloads** (`/enviar_arquivo/<arquivo>`, used by every template/e-mail flow, including the evaluator's
+  `/avaliacao` page) never proxy bytes through the app: if the file is still on local disk (`uploads/`, e.g. dev
+  or before the background upload finishes) it's served directly, otherwise `url_assinada_s3()` does a
+  `head_object` and 302-redirects to a fresh SigV4 presigned GET URL for `cppgi/uploads/<arquivo>` valid for
+  `VALIDADE_URL_S3` = 60 s (with `Cache-Control: no-store`). Don't put S3 URLs directly into e-mails or long-lived
+  pages: SigV4 caps presigned URLs at 7 days and, signed with the instance role's temporary credentials in
+  production, they die when those credentials rotate (hours) — app links + a new URL per click is the design.
+  Uploads (`cadastrarProjeto` and the final version in `uploadCR`) go to S3 via `upload_e_apaga()` in production.
+  `/enviar_arquivo` itself only answers links carrying a valid `t` signature (403 otherwise): templates must use the
+  Jinja global `link_arquivo(nome)` (or `link_arquivo(nome, externo=True)` in pages also rendered by pdfkit), never
+  `url_for('enviar_arquivo', ...)` — `tests.py::test_templates_usam_link_assinado` enforces it. The signature is
+  itsdangerous with `AES_KEY` + `salt='enviar_arquivo'` (not `SECRET_KEY`, which changes on every restart) and embeds
+  its own validity: `VALIDADE_LINK_ARQUIVO_AVALIADOR` (30 days) for the button on the evaluator's `/avaliacao`
+  page, `VALIDADE_LINK_ARQUIVO` (2 h) everywhere else (pages re-sign on each load). `/recusarConvite` only works
+  before the evaluation is sent and within `deadline_avaliacao`.
 
 ## Tests
 
@@ -107,7 +122,18 @@ Key pieces inside `pesquisa.py`:
   por `ROTAS_ADMIN_LEGADAS` / `_registrar_redirects_admin_legados()` antes do `__main__`. Ao criar uma nova rota
   admin-only, use o prefixo `/admin/` direto; os templates devem usar `url_for()`, nunca o caminho escrito à mão.
 - `flask_httpauth.HTTPBasicAuth` (`auth`) with `get_user_roles` driving `@auth.login_required(role=[...])` checks
-  (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes.
+  (roles: `admin`, `avaliador`, `monitor`) gating most administrative/evaluator routes. Two auth modes coexist: the
+  `/login` form calls `verify_password()` directly to fill the session, while `@auth.login_required` routes re-run
+  `verify_password()` on **every** request from the browser's cached HTTP Basic header — which normally rewrites the
+  session with that user. `auth.username()` is always the Basic-header user; `auth.current_user()` / the `user`
+  argument of `get_user_roles(user)` is whatever `verify_password` returned (the *effective* user) — use those, not
+  `auth.username()`, for authorization.
+- **Admin "acessar como"** (`POST /admin/acessarComo/<user_id>`, button in `listar_usuarios.html`; `POST /voltarAdmin`
+  from the banner in `layout.html`): the admin navigates as a non-admin user (admins can't be targeted) and can do
+  everything that user can. The real admin is kept in `session['impersonador']`; while it's set, `verify_password`
+  keeps the target's session and returns the target's username (so `get_user_roles` evaluates the target's roles and
+  admin routes return 403 until `/voltarAdmin`). A weak/leaked admin password or a form `/login` ends the
+  impersonation. `log_required` appends `impersonador_id=` to every audit line, plus `acesso_como inicio/fim` events.
 - Certificate generation (`gerarCertificado*` functions): builds PDFs/PNGs from templates in
   `flask/documentos/` using Pillow + `fonts/Times_New_Roman*.ttf`, plus `pdfkit`/`wkhtmltopdf` for HTML→PDF
   declarations.

@@ -112,7 +112,7 @@
 
                     <td>
                         {% if linha[11] %}
-                        <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo', filename=linha[11])}}" target="_blank">{{linha[0]}}</a>
+                        <a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[11])}}" target="_blank">{{linha[0]}}</a>
                         {% else %}
                         {{linha[0]}}
                         {% endif %}
@@ -121,7 +121,7 @@
                     <td>{{linha[2]}}</td>
                     <td>
                         {% if linha[11] %}
-                        <a class="text-brand-700 hover:underline" href="{{url_for('enviar_arquivo', filename=linha[11])}}" target="_blank">{{linha[5]}}</a>
+                        <a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[11])}}" target="_blank">{{linha[5]}}</a>
                         {% else %}
                         {{linha[5]}}
                         {% endif %}

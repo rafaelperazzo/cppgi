@@ -1060,3 +1060,291 @@ def test_avaliacoes_negadas_parametros():
         assert rv.status_code == 404
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
+
+'''
+**************************************************************
+TESTES: admin "acessar como" outro usuário e "voltar para admin"
+**************************************************************
+'''
+
+def _usuario_comum_temporario():
+    cpf = str(random.randint(10**10, 10**11 - 1))
+    _garantir_usuario_teste(cpf, cpf + '@teste.local', 'Senha#Forte123', 1)
+    return cpf, int(obterColunaUnica('users', 'id', 'username', cpf))
+
+def _csrf_admin(c):
+    rv = c.get('/admin/cadastrar_usuario/1', headers=_auth_headers())
+    return re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+
+def test_acessar_como_e_voltar_admin(caplog):
+    c = app.test_client()
+    H = _auth_headers()
+    cpf, id_alvo = _usuario_comum_temporario()
+    logger_auditoria = logging.getLogger('auditoria_acessos')
+    try:
+        csrf = _csrf_admin(c)
+        rv = c.get('/admin/cadastrar_usuario/1', headers=H)
+        assert ('acessarComo/%d' % id_alvo) in rv.data.decode()
+        rv = c.post('/admin/acessarComo/%d' % id_alvo, headers=H, data={'csrf_token': csrf})
+        assert rv.status_code == 302
+        with c.session_transaction() as s:
+            assert s['username'] == cpf
+            assert s['impersonador']['username'] == usuario
+        #rota de sessão: age como o usuário, com a faixa de aviso
+        rv = c.get('/meusProjetos', headers=H)
+        assert rv.status_code == 200 and u'Voltar para admin' in rv.data.decode()
+        #rota admin com o HTTP Basic do admin: papéis do usuário acessado (403) e a sessão NÃO volta para o admin
+        logger_auditoria.propagate = True
+        with caplog.at_level(logging.INFO, logger='auditoria_acessos'):
+            assert c.get('/admin/editais', headers=H).status_code == 403
+            c.get('/minhasIndicacoes', headers=H) #rota do usuário com @log_required
+        logger_auditoria.propagate = False
+        with c.session_transaction() as s:
+            assert s['username'] == cpf
+            id_admin = s['impersonador']['user_id']
+        assert any(('impersonador_id=%s' % id_admin) in r.message for r in caplog.records if r.name == 'auditoria_acessos')
+        #voltar para admin
+        rv = c.post('/voltarAdmin', headers=H, data={'csrf_token': csrf})
+        assert rv.status_code == 302
+        with c.session_transaction() as s:
+            assert s['username'] == usuario and 'impersonador' not in s
+        assert c.get('/admin/editais', headers=H).status_code == 200
+    finally:
+        logger_auditoria.propagate = False
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+def test_acessar_como_recusa_admin_e_nao_aninha():
+    c = app.test_client()
+    H = _auth_headers()
+    cpf, id_alvo = _usuario_comum_temporario()
+    try:
+        csrf = _csrf_admin(c)
+        id_admin = int(obterColunaUnica('users', 'id', 'username', usuario))
+        c.post('/admin/acessarComo/%d' % id_admin, headers=H, data={'csrf_token': csrf})
+        with c.session_transaction() as s:
+            assert s['username'] == usuario and 'impersonador' not in s
+        assert c.post('/admin/acessarComo/999999999', headers=H, data={'csrf_token': csrf}).status_code == 404
+        #voltarAdmin sem acesso ativo: só redireciona
+        assert c.post('/voltarAdmin', data={'csrf_token': csrf}).status_code == 302
+        #login explícito durante o acesso-como encerra o acesso
+        c.post('/admin/acessarComo/%d' % id_alvo, headers=H, data={'csrf_token': csrf})
+        c.post('/login', data={'csrf_token': csrf, 'siape': cpf, 'senha': 'Senha#Forte123'})
+        with c.session_transaction() as s:
+            assert s['username'] == cpf and 'impersonador' not in s
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
+'''
+**************************************************************
+TESTES: /enviar_arquivo com URL pré-assinada do S3 (S3 falso via monkeypatch, sem credenciais AWS)
+**************************************************************
+'''
+
+def _link(nome, validade=None):
+    import pesquisa
+    with app.test_request_context('/'):
+        return pesquisa.link_arquivo(nome) if validade is None else pesquisa.link_arquivo(nome, validade)
+
+class _S3Falso:
+    def __init__(self, existe=True):
+        self.existe = existe
+        self.chamadas = []
+    def head_object(self, Bucket, Key):
+        self.chamadas.append(('head_object', Key))
+        if not self.existe:
+            from botocore.exceptions import ClientError
+            raise ClientError({'Error': {'Code': '404', 'Message': 'Not Found'}}, 'HeadObject')
+        return {}
+    def generate_presigned_url(self, operacao, Params, ExpiresIn):
+        self.chamadas.append(('presigned', operacao, Params, ExpiresIn))
+        return 'https://s3.exemplo/' + Params['Key'] + '?X-Amz-Expires=' + str(ExpiresIn)
+
+def test_enviar_arquivo_local_nao_consulta_s3(monkeypatch):
+    import pesquisa
+    falso = _S3Falso()
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TESTE.' + id_generator(10) + '.pdf'
+    with open(ATTACHMENTS_DIR + nome, 'wb') as f:
+        f.write(b'%PDF-teste')
+    try:
+        rv = client.get(_link(nome))
+        assert rv.status_code == 200 and rv.data == b'%PDF-teste'
+        assert falso.chamadas == []
+    finally:
+        os.remove(ATTACHMENTS_DIR + nome)
+
+def test_enviar_arquivo_redireciona_para_url_assinada(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=True)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TRABALHO.' + id_generator(10) + '.pdf'
+    rv = client.get(_link(nome))
+    assert rv.status_code == 302
+    assert rv.headers['Location'].startswith('https://s3.exemplo/cppgi/uploads/' + nome)
+    assert rv.headers['Cache-Control'] == 'no-store'
+    _, operacao, params, expira = falso.chamadas[-1]
+    assert operacao == 'get_object' and expira == 60
+    assert params['Key'] == 'cppgi/uploads/' + nome
+    assert params['ResponseContentType'] == 'application/pdf'
+
+def test_enviar_arquivo_inexistente_e_path_traversal(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=False)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    rv = client.get(_link('NAOEXISTE.pdf'))
+    assert rv.status_code == 404 and u'Arquivo não encontrado' in rv.data.decode()
+    #"..%2F..%2Fpesquisa.py" vira "pesquisa.py" (secure_filename): não sai de uploads/
+    falso.chamadas.clear()
+    rv = client.get('/enviar_arquivo/..%2F..%2Fpesquisa.py?' + _link('pesquisa.py').split('?')[1])
+    assert rv.status_code in (403, 404)
+    assert all(ch[1] == 'cppgi/uploads/pesquisa.py' for ch in falso.chamadas if ch[0] == 'head_object')
+
+def test_uploadCR_envia_versao_final_ao_s3(monkeypatch):
+    import io, pesquisa
+    enviados = []
+    monkeypatch.setattr(pesquisa, 'PRODUCAO', 1)
+    monkeypatch.setattr(pesquisa, 'upload_s3', lambda origem, destino: enviados.append(destino))
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    c = app.test_client()
+    try:
+        csrf = get_csrf_token_cliente(c, '/avaliacao?token=' + token)
+        with c.session_transaction() as s:
+            s['username'] = '0' #siape do trabalho criado por _criar_avaliacao_temporaria
+        c.post('/uploadCR', data={'csrf_token': csrf, 'idTrabalho': str(projeto),
+                                  'arquivo_trabalho': (io.BytesIO(b'docx'), 'final.docx')},
+               content_type='multipart/form-data')
+        import time
+        for _ in range(20): #upload_e_apaga dispara uma thread
+            if enviados: break
+            time.sleep(0.05)
+        final = obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+        assert final.startswith('FINAL.') and final.endswith('.docx')
+        assert enviados == ['cppgi/uploads/' + final]
+    finally:
+        final = obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+        if final and os.path.exists(ATTACHMENTS_DIR + final):
+            os.remove(ATTACHMENTS_DIR + final)
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def get_csrf_token_cliente(c, res):
+    rv = c.get(res)
+    return re.search(r'name="csrf_token" value="([^"]+)"', rv.data.decode()).group(1)
+
+def test_uploadCR_e_link_exigem_dono_e_prazo(monkeypatch):
+    import io, pesquisa
+    enviados = []
+    monkeypatch.setattr(pesquisa, 'upload_s3', lambda origem, destino: enviados.append(destino))
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    c = app.test_client()
+    def post_final():
+        return c.post('/uploadCR', data={'csrf_token': csrf, 'idTrabalho': str(projeto),
+                                         'arquivo_trabalho': (io.BytesIO(b'docx'), 'final.docx')},
+                      content_type='multipart/form-data')
+    def post_link(link):
+        return c.post('/cadastrarLinkApresentacao', data={'csrf_token': csrf, 'idTrabalho': str(projeto), 'link': link})
+    final = lambda: obterColunaUnica('editalProjeto', 'arquivo_projeto_final', 'id', str(projeto))
+    link_atual = lambda: obterColunaUnica('editalProjeto', 'link_apresentacao', 'id', str(projeto))
+    try:
+        csrf = get_csrf_token_cliente(c, '/avaliacao?token=' + token)
+        antes_final, antes_link = final(), link_atual()
+        #sem login
+        post_final(); post_link('https://exemplo.org/sala')
+        assert final() == antes_final and link_atual() == antes_link
+        #logado, mas o trabalho é de outro usuário
+        with c.session_transaction() as s:
+            s['username'] = '11122233344'
+        post_final(); post_link('https://exemplo.org/sala')
+        assert final() == antes_final and link_atual() == antes_link
+        #dono: link javascript: é recusado; https é aceito
+        with c.session_transaction() as s:
+            s['username'] = '0'
+        post_link('javascript:alert(1)')
+        assert link_atual() == antes_link
+        post_link('https://exemplo.org/sala')
+        assert link_atual() == 'https://exemplo.org/sala'
+        #dono, mas fora do prazo
+        atualizar("UPDATE editais SET deadline_versao_final=%s, deadline_apresentacao=%s WHERE id=%s",
+                  (datetime.datetime.now() - datetime.timedelta(days=2), datetime.datetime.now() - datetime.timedelta(days=2), edital))
+        post_final(); post_link('https://exemplo.org/outra')
+        assert final() == antes_final and link_atual() == 'https://exemplo.org/sala'
+    finally:
+        f = final()
+        if f and f != '0' and os.path.exists(ATTACHMENTS_DIR + f):
+            os.remove(ATTACHMENTS_DIR + f)
+        _remover_avaliacao_temporaria(edital, projeto)
+
+
+'''
+**************************************************************
+TESTES: links de arquivo assinados (30 dias avaliador / 2 h demais) e recusa só antes de avaliar
+**************************************************************
+'''
+
+def _assinatura_com_idade(nome, validade, idade_segundos, monkeypatch):
+    #assina "no passado": itsdangerous usa time.time() para o timestamp
+    import pesquisa, time as _time
+    real = _time.time
+    monkeypatch.setattr(_time, 'time', lambda: real() - idade_segundos)
+    try:
+        return pesquisa._assinador_arquivos.dumps({'a': nome, 'v': validade})
+    finally:
+        monkeypatch.setattr(_time, 'time', real)
+
+def test_enviar_arquivo_exige_assinatura_valida(monkeypatch):
+    import pesquisa
+    falso = _S3Falso(existe=True)
+    monkeypatch.setattr(pesquisa, 's3', falso)
+    nome = 'TRABALHO.' + id_generator(10) + '.pdf'
+    #sem t, t de outro arquivo e t adulterado
+    assert client.get('/enviar_arquivo/' + nome).status_code == 403
+    outro = _link('OUTRO.pdf').split('t=')[1]
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, outro)).status_code == 403
+    valido = _link(nome).split('t=')[1]
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, valido[:-2] + 'xx')).status_code == 403
+    assert falso.chamadas == []
+    #validade embutida: 3 h de idade -> link de 2 h expirou, link de 30 dias ainda vale
+    t2h = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO, 3*3600, monkeypatch)
+    t30d = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO_AVALIADOR, 3*3600, monkeypatch)
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t2h)).status_code == 403
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t30d)).status_code == 302
+    #31 dias: nem o do avaliador vale
+    t31d = _assinatura_com_idade(nome, pesquisa.VALIDADE_LINK_ARQUIVO_AVALIADOR, 31*24*3600, monkeypatch)
+    assert client.get('/enviar_arquivo/%s?t=%s' % (nome, t31d)).status_code == 403
+
+def test_botao_do_avaliador_vale_30_dias():
+    import pesquisa, urllib.parse
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    try:
+        html = client.get('/avaliacao?token=' + token).data.decode()
+        href = re.search(r'href="(/enviar_arquivo/[^"]+)"', html).group(1).replace('&amp;', '&')
+        t = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)['t'][0]
+        assert pesquisa._assinador_arquivos.loads(t)['v'] == 30*24*3600
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_templates_usam_link_assinado():
+    import glob
+    for caminho in glob.glob(WORKING_DIR + 'templates/*.html'):
+        conteudo = open(caminho, encoding='utf-8').read()
+        assert "url_for('enviar_arquivo'" not in conteudo.replace(' ', ''), caminho
+
+def test_recusar_convite_so_antes_de_avaliar():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    aceitou = lambda: executarSelect("SELECT aceitou FROM avaliacoes WHERE token=%s", 1, valores=(token,))[0][0]
+    try:
+        assert client.get('/recusarConvite?token=inexistente').status_code == 404
+        #finalizada: não altera
+        atualizar("UPDATE avaliacoes SET finalizado=1, aceitou=1 WHERE token=%s", (token,))
+        client.get('/recusarConvite?token=' + token)
+        assert aceitou() == 1
+        #não finalizada, mas fora do prazo: não altera
+        atualizar("UPDATE avaliacoes SET finalizado=0 WHERE token=%s", (token,))
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s", (datetime.datetime.now() - datetime.timedelta(days=1), edital))
+        client.get('/recusarConvite?token=' + token)
+        assert aceitou() == 1
+        #dentro do prazo e não finalizada: recusa
+        atualizar("UPDATE editais SET deadline_avaliacao=%s WHERE id=%s", (datetime.datetime.now() + datetime.timedelta(days=5), edital))
+        rv = client.get('/recusarConvite?token=' + token)
+        assert u'cancelada com sucesso' in rv.data.decode() and aceitou() == 0
+    finally:
+        _remover_avaliacao_temporaria(edital, projeto)

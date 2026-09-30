@@ -41,6 +41,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError,BotoCoreError
 import time
 import secrets
+import mimetypes
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import sentry_sdk
 from functools import wraps
 from seguranca_utils import (senha_forte, gerar_token_seguro, obter_ip_cliente,
@@ -178,7 +180,7 @@ if AWS_S3_KEY_ID and AWS_S3_SECRET_KEY:
     _s3_credenciais = {'aws_access_key_id': AWS_S3_KEY_ID, 'aws_secret_access_key': AWS_S3_SECRET_KEY}
 
 s3 = boto3.client('s3', region_name=AWS_REGION,
-                  config=Config(use_dualstack_endpoint=True),
+                  config=Config(use_dualstack_endpoint=True, signature_version='s3v4'),
                   **_s3_credenciais)
 
 
@@ -221,7 +223,10 @@ CORS(app)
 
 @app.context_processor
 def inject_institucional():
-    return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE)
+    impersonador = session.get('impersonador')
+    return dict(INSTITUICAO=INSTITUICAO, SIGLA=SIGLA, SUPORTE=SUPORTE, REMETENTE=REMETENTE,
+                IMPERSONADOR=impersonador,
+                ACESSO_COMO_CPF=mascarar_cpf(session.get('username', '')) if impersonador else '')
 
 auth = HTTPBasicAuth()
 mail = Mail(app)
@@ -265,9 +270,13 @@ def log_required(f):
             user_id = session.get('user_id', 'anonimo')
             ip = obter_ip_cliente(request)
             pais, cidade = extrair_geolocalizacao_cloudflare(request.headers)
-            logger_auditoria.info(
-                'user_id=%s cpf=%s rota=%s metodo=%s ip=%s pais=%s cidade=%s',
-                user_id, cpf_log, request.path, request.method, ip, pais, cidade)
+            formato = 'user_id=%s cpf=%s rota=%s metodo=%s ip=%s pais=%s cidade=%s'
+            valores = [user_id, cpf_log, request.path, request.method, ip, pais, cidade]
+            impersonador = session.get('impersonador')
+            if impersonador: #acesso-como: registra também o admin real
+                formato += ' impersonador_id=%s'
+                valores.append(impersonador.get('user_id'))
+            logger_auditoria.info(formato, *valores)
         except Exception as e:
             logging.error("Erro ao registrar auditoria: " + str(e))
         return f(*args, **kwargs)
@@ -460,6 +469,22 @@ def executarSelect2(consulta,tipo=0,valores=()):
 INÍCIO AUTENTICAÇÃO
 **************************************************************
 '''
+def _carregar_sessao_usuario(linha):
+    """Dados do usuário na sessão, a partir de (id, username, permission, roles, nome, email, ...) de users."""
+    session['username'] = str(linha[1])
+    session['permissao'] = int(linha[2])
+    session['roles'] = str(linha[3]).split(',')
+    session['nome'] = str(linha[4])
+    session['cpf'] = str(linha[1])
+    session['email'] = str(linha[5])
+    session['user_id'] = int(linha[0])
+
+def _obter_usuario_por_id(user_id):
+    #mesmas colunas, na mesma ordem, do SELECT de verify_password (usadas por _carregar_sessao_usuario)
+    resultado = executarSelect("""SELECT id,username,permission,roles,nome,email,email_verificado,forcar_troca_senha
+    FROM users WHERE id=%s""", tipo=1, valores=(user_id,))
+    return resultado[0] if resultado and resultado[0] else None
+
 @auth.verify_password
 def verify_password(username, password):
     """This function is called to check if a username /
@@ -490,22 +515,22 @@ def verify_password(username, password):
                 flash(u'Confirme seu e-mail antes de acessar o sistema.')
                 return (False)
 
-            session['username'] = str(linha[1])
-            session['permissao'] = int(linha[2])
-            roles = str(linha[3])
-            roles = roles.split(',')
-            session['roles'] = roles
-            session['nome'] = str(linha[4])
-            session['cpf'] = str(linha[1])
-            session['email'] = str(linha[5])
-            session['user_id'] = int(linha[0])
-
             forcar = bool(int(linha[7]))
             senha_ok, _ = senha_forte(password)
             if credencial_vazada(request.headers) or not senha_ok:
                 if not forcar:
                     atualizar("UPDATE users SET forcar_troca_senha=1 WHERE username=%s", (username,))
                 forcar = True
+
+            #Acesso-como: o navegador reenvia o HTTP Basic do admin a cada requisição. Se é o próprio admin que iniciou
+            #o acesso (e segue admin, com senha em dia), a sessão continua sendo a do usuário acessado.
+            impersonador = session.get('impersonador')
+            if impersonador and impersonador.get('username') == str(linha[1]):
+                if 'admin' in str(linha[3]).split(',') and not forcar:
+                    return session['username']
+                session.pop('impersonador', None) #senha fraca/vazada ou deixou de ser admin: encerra o acesso-como
+
+            _carregar_sessao_usuario(linha)
             session['forcar_troca_senha'] = forcar
             #return (True)
             return username
@@ -555,8 +580,9 @@ def obterColunaUnica(tabela,coluna,colunaId,valorId):
 
 @auth.get_user_roles
 def get_user_roles(user):
+    #user = valor retornado por verify_password: durante o acesso-como é o usuário acessado, não o admin do header
     consulta = """SELECT roles FROM users WHERE username=%s"""
-    linhas,total = executarSelect(consulta,valores=(auth.username(),))
+    linhas,total = executarSelect(consulta,valores=(user,))
     if total>0:
         for linha in linhas:
             roles = str(linha[0])
@@ -568,7 +594,7 @@ def get_user_roles(user):
 
 def avaliadorTemPermissao(edital, data,sala):
     consulta = "SELECT id FROM usuarios_salas WHERE username=%s and data=%s and sala=%s"
-    linhas,total = executarSelect(consulta,valores=(auth.username(),data,sala))
+    linhas,total = executarSelect(consulta,valores=(auth.current_user(),data,sala))
     if total>0:
         return (True)
     else:
@@ -604,33 +630,71 @@ def upload_e_apaga(arquivo):
         thread_s3_upload = threading.Thread(target=upload_s3, args=(origem,destino,))
         thread_s3_upload.start()
 
-def esperar(arquivo):
-    # Espera o tempo definido em segundos
-    time.sleep(3)
-    #check if file exists
-    if os.path.exists(arquivo):
-        #remove file
-        try:
-            os.remove(arquivo)
-        except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo,str(e))
-    if os.path.exists(arquivo + '.gpg'):
-        #remove file
-        try:
-            os.remove(arquivo + '.gpg')
-        except FileNotFoundError as e:
-            app.logger.error("Erro ao remover arquivo temporário (função esperar(%s)):%s",arquivo + '.gpg',str(e))
+#Download: o app só gera uma URL pré-assinada curta e redireciona; o navegador baixa direto do bucket (privado).
+#Links longos não são viáveis: SigV4 limita a 7 dias e, em produção, a assinatura com a IAM role da instância
+#expira junto com a credencial temporária. Por isso os links do app (e dos avaliadores) nunca apontam para o S3
+#direto: cada clique em /enviar_arquivo gera uma URL nova.
+VALIDADE_URL_S3 = 60 #segundos
+
+#Links do app para arquivos (/enviar_arquivo/<arquivo>?t=...) levam uma assinatura com validade embutida: 30 dias no
+#botão da página do avaliador, 2 h nas demais páginas (que geram links novos a cada carregamento). A chave é o AES_KEY
+#(estável, do .env/SSM) e não o SECRET_KEY do Flask, que é regenerado a cada reinício diário.
+VALIDADE_LINK_ARQUIVO = 2*3600
+VALIDADE_LINK_ARQUIVO_AVALIADOR = 30*24*3600
+_assinador_arquivos = URLSafeTimedSerializer(AES_KEY, salt='enviar_arquivo')
+
+def link_arquivo(arquivo, validade=VALIDADE_LINK_ARQUIVO, externo=False):
+    """URL assinada de /enviar_arquivo. Nos templates: {{ link_arquivo(nome) }} (nunca url_for('enviar_arquivo'))."""
+    assinatura = _assinador_arquivos.dumps({'a': str(arquivo), 'v': int(validade)})
+    return url_for('enviar_arquivo', filename=arquivo, t=assinatura, _external=externo)
+
+app.jinja_env.globals['link_arquivo'] = link_arquivo
+
+def _assinatura_valida(arquivo, assinatura):
+    try:
+        payload, emitido_em = _assinador_arquivos.loads(assinatura, max_age=VALIDADE_LINK_ARQUIVO_AVALIADOR, return_timestamp=True)
+    except (BadSignature, SignatureExpired):
+        return False
+    if not isinstance(payload, dict) or payload.get('a') != arquivo:
+        return False
+    idade = (datetime.datetime.now(datetime.timezone.utc) - emitido_em).total_seconds()
+    return idade <= int(payload.get('v', 0))
+
+def url_assinada_s3(arquivo, validade=VALIDADE_URL_S3):
+    """URL pré-assinada (GET) de cppgi/uploads/<arquivo>, ou None se o objeto não existir no bucket."""
+    chave = 'cppgi/' + UPLOAD_FOLDER + arquivo
+    try:
+        s3.head_object(Bucket=AWS_S3_BUCKET, Key=chave)
+        url = s3.generate_presigned_url('get_object', Params={
+            'Bucket': AWS_S3_BUCKET,
+            'Key': chave,
+            #garante o tipo pela extensão (inline no navegador), independente do ContentType gravado no objeto
+            'ResponseContentType': mimetypes.guess_type(arquivo)[0] or 'application/octet-stream',
+            'ResponseContentDisposition': 'inline; filename="' + arquivo + '"',
+        }, ExpiresIn=validade)
+    except (ClientError, BotoCoreError) as e:
+        app.logger.info("[S3] Arquivo %s indisponível no S3: %s", chave, e)
+        return None
+    logger_auditoria.info('evento=download_s3 arquivo=%s validade=%s ip=%s', arquivo, validade, obter_ip_cliente(request))
+    return url
 
 @app.route("/enviar_arquivo/<filename>", methods=['GET'])
 def enviar_arquivo(filename):
     arquivo = secure_filename(filename)
-    try:
-        s3.download_file(AWS_S3_BUCKET, 'cppgi/' + UPLOAD_FOLDER + arquivo, UPLOAD_FOLDER + arquivo)
-        thread = threading.Thread(target=esperar,args=(ATTACHMENTS_DIR + arquivo,))
-        thread.start()
+    if not arquivo:
+        return("Arquivo não encontrado!", 404)
+    if not _assinatura_valida(arquivo, request.args.get('t', '')):
+        logger_auditoria.info('evento=download_negado arquivo=%s motivo=assinatura ip=%s', arquivo, obter_ip_cliente(request))
+        return("Link expirado ou inválido. Volte à página e clique novamente no arquivo.", 403)
+    #Reserva local: dev (sem S3), versões finais antigas que só existem no disco e o intervalo até o upload em thread
+    if os.path.isfile(UPLOAD_FOLDER + arquivo):
         return(send_from_directory(app.config['UPLOADED_DOCUMENTS_DEST'], arquivo))
-    except Exception:
-        return("Arquivo não encontrado!")
+    url = url_assinada_s3(arquivo)
+    if url is None:
+        return("Arquivo não encontrado!", 404)
+    resposta = redirect(url, 302)
+    resposta.headers['Cache-Control'] = 'no-store' #a URL expira: o navegador não pode reaproveitar o redirect
+    return resposta
 
 @app.before_request
 def iniciar_sessao():
@@ -657,7 +721,7 @@ def atualizar_usuario_online():
         logging.error("Erro ao registrar presença online: " + str(e))
 
 ROTAS_ISENTAS_TROCA_SENHA = {'login', 'encerrarSessao', 'trocarSenhaObrigatoria',
-                              'cadastro', 'confirmarEmail', 'static'}
+                              'cadastro', 'confirmarEmail', 'static', 'voltar_admin'}
 
 @app.before_request
 def verificar_troca_senha_obrigatoria():
@@ -892,7 +956,7 @@ def getPaginaAvaliacao():
             #Submissões gravam '' quando não há arquivo; registros antigos usam '0'
             link_trabalho = None
             if arquivos and str(arquivos[0] or '').strip() not in ('', '0', 'None'):
-                link_trabalho = url_for('enviar_arquivo',filename=str(arquivos[0]))
+                link_trabalho = link_arquivo(str(arquivos[0]), VALIDADE_LINK_ARQUIVO_AVALIADOR)
             if int(finalizado)==0:
                 atualizar("UPDATE avaliacoes SET aceitou=1 WHERE id=%s", (id_avaliacao,))
                 modalidade = obterColunaUnica('editalProjeto','modalidade','id',str(idProjeto))
@@ -1037,7 +1101,15 @@ def consultar(consulta,valores=None):
 def recusarConvite():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
-        atualizar("UPDATE avaliacoes SET aceitou=0 WHERE token=%s", (tokenAvaliacao,))
+        avaliacao = obterAvaliacaoPorToken(tokenAvaliacao)
+        if avaliacao is None:
+            return("Link inválido.", 404)
+        #Só antes do envio e dentro do prazo: um link de recusa vazado não pode desfazer uma avaliação
+        if int(avaliacao[2]) != 0:
+            return("Esta avaliação já foi enviada; não é possível recusar.")
+        if not podeAvaliar(avaliacao[1]):
+            return("Prazo de avaliação encerrado.")
+        atualizar("UPDATE avaliacoes SET aceitou=0 WHERE id=%s", (avaliacao[0],))
         return("Avaliação cancelada com sucesso. Agradecemos a atenção.")
     else:
         return("OK")
@@ -1437,6 +1509,7 @@ def login():
         if (('siape' in request.form) and ('senha' in request.form)):
             siape = str(request.form['siape'])
             senha = str(request.form['senha'])
+            session.pop('impersonador', None) #login explícito sempre encerra o acesso-como
             if verify_password(siape,senha)!=False:
                 registrar_acesso('/login',request.remote_addr,siape)
                 return(redirect(url_for('usuario')))
@@ -1923,42 +1996,66 @@ def enviarApresentacao(id_trabalho):
         return(redirect(url_for('meusProjetos')))
     
 
-@app.route("/uploadCR", methods=['POST'])
-def uploadCR():
-    if request.method == "POST":
-        idTrabalho = str(request.form['idTrabalho'])
-        nomeDoArquivoTrabalho = ""
-        if 'arquivo_trabalho' in request.files:
-            token = id_generator()
-            arquivo = request.files['arquivo_trabalho'].filename
-            extensao = arquivo[arquivo.rfind('.'):]
-            permitidos = [".odt",".doc",".docx"]
-            if extensao not in permitidos:
-                flash("O arquivo deve ser do tipo odt, doc ou docx")
-                return(redirect(url_for('meusProjetos')))
-            nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
-            filename = anexos.save(request.files['arquivo_trabalho'],name=nomeDoArquivoTrabalho)
-            atualizar("UPDATE editalProjeto SET arquivo_projeto_final=%s WHERE id=%s",(nomeDoArquivoTrabalho,idTrabalho))
-            return(redirect(url_for('meusProjetos')))
-    else:
-        return("OK")
+def edital_do_trabalho_do_usuario(idTrabalho):
+    """Edital do trabalho se ele pertence ao usuário logado (mesma regra de enviarVersaoFinal/enviarApresentacao),
+    senão None. Usado pelos POSTs que alteram o trabalho, que antes não conferiam login nem dono."""
+    if not autenticado():
+        return None
+    linhas,total = executarSelect("SELECT tipo FROM editalProjeto WHERE id=%s AND siape=%s",
+                                  valores=(idTrabalho,str(session['username'])))
+    return str(linhas[0][0]) if linhas else None
 
-@app.route("/cadastrarLinkApresentacao", methods=['GET', 'POST'])
+def prazo_expirado(edital, coluna_deadline):
+    deadline = obterColunaUnica('editais','DATE(' + coluna_deadline + ')','id',edital)
+    return datetime.datetime.now().strftime("%Y-%m-%d") > deadline
+
+@app.route("/uploadCR", methods=['POST'])
+@log_required
+def uploadCR():
+    idTrabalho = str(request.form.get('idTrabalho', ''))
+    edital = edital_do_trabalho_do_usuario(idTrabalho)
+    if edital is None:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+    if prazo_expirado(edital, 'deadline_versao_final'):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    arquivo_enviado = request.files.get('arquivo_trabalho')
+    if not arquivo_enviado or not arquivo_enviado.filename:
+        flash("Selecione o arquivo da versão final.")
+        return(redirect(url_for('enviarVersaoFinal',id_trabalho=idTrabalho)))
+    arquivo = arquivo_enviado.filename
+    extensao = arquivo[arquivo.rfind('.'):].lower()
+    permitidos = [".odt",".doc",".docx"]
+    if extensao not in permitidos:
+        flash("O arquivo deve ser do tipo odt, doc ou docx")
+        return(redirect(url_for('meusProjetos')))
+    token = id_generator()
+    nomeDoArquivoTrabalho = "FINAL" + "." + token + extensao
+    filename = anexos.save(arquivo_enviado,name=nomeDoArquivoTrabalho)
+    upload_e_apaga(filename)
+    atualizar("UPDATE editalProjeto SET arquivo_projeto_final=%s WHERE id=%s",(nomeDoArquivoTrabalho,idTrabalho))
+    flash("Versão final enviada com sucesso!")
+    return(redirect(url_for('meusProjetos')))
+
+@app.route("/cadastrarLinkApresentacao", methods=['POST'])
+@log_required
 def cadastrarLinkApresentacao():
-    if request.method == "POST":
-        idTrabalho = str(request.form['idTrabalho'])
-        edital = obterColunaUnica('editalProjeto','tipo','id',idTrabalho)
-        deadline = obterColunaUnica('editais','DATE(deadline_apresentacao)','id',edital)
-        agora = datetime.datetime.now()
-        agora = agora.strftime("%Y-%m-%d")
-        if (agora>deadline):
-            return("Prazo expirado!")
-        if 'link' in request.form:
-            link = str(request.form['link'])
-            atualizar("UPDATE editalProjeto SET link_apresentacao=%s WHERE id=%s",(link,idTrabalho))
-            return(redirect(url_for('meusProjetos')))
-    else:
-        return("OK")
+    idTrabalho = str(request.form.get('idTrabalho', ''))
+    edital = edital_do_trabalho_do_usuario(idTrabalho)
+    if edital is None:
+        flash("Acesso negado!")
+        return(redirect(url_for('meusProjetos')))
+    if prazo_expirado(edital, 'deadline_apresentacao'):
+        flash("Prazo expirado!")
+        return(redirect(url_for('meusProjetos')))
+    link = str(request.form.get('link', '')).strip()
+    if not re.match(r'^https?://', link, re.I):
+        flash("Informe um link iniciado por http:// ou https://")
+        return(redirect(url_for('enviarApresentacao',id_trabalho=idTrabalho)))
+    atualizar("UPDATE editalProjeto SET link_apresentacao=%s WHERE id=%s",(link,idTrabalho))
+    flash("Link da apresentação cadastrado com sucesso!")
+    return(redirect(url_for('meusProjetos')))
 
 @app.route("/admin/premiacao", methods=['GET', 'POST'])
 @auth.login_required(role=['admin'])
@@ -3733,6 +3830,49 @@ def remover_usuario(id_usuario):
     flash(u"Usuário removido com sucesso!")
     return(redirect(url_for('cadastrar_usuario',operacao=1)))
 
+#Acesso-como: o admin passa a navegar como outro usuário (não-admin) sem a senha dele. O admin real fica em
+#session['impersonador']; verify_password/get_user_roles respeitam isso nas rotas com HTTP Basic, e o log de
+#auditoria registra impersonador_id em cada requisição.
+@app.route("/admin/acessarComo/<int:user_id>", methods=['POST'])
+@auth.login_required(role=['admin'])
+@log_required
+def acessar_como(user_id):
+    if session.get('impersonador'):
+        flash(u"Volte para a sua conta de administrador antes de acessar como outro usuário.")
+        return(redirect(url_for('cadastrar_usuario',operacao=1)))
+    alvo = _obter_usuario_por_id(user_id)
+    if alvo is None:
+        return("Usuário não encontrado.", 404)
+    if 'admin' in str(alvo[3]).split(','):
+        flash(u"Não é possível acessar como outro administrador.")
+        return(redirect(url_for('cadastrar_usuario',operacao=1)))
+    session['impersonador'] = {'user_id': session['user_id'], 'username': session['username'], 'nome': session['nome']}
+    _carregar_sessao_usuario(alvo)
+    session['forcar_troca_senha'] = False #o admin não deve ser levado a trocar a senha do usuário
+    logger_auditoria.info('acesso_como inicio admin_id=%s alvo_id=%s ip=%s',
+                          session['impersonador']['user_id'], alvo[0], obter_ip_cliente(request))
+    flash(u"Você está acessando como " + str(alvo[4]) + u".")
+    return(redirect(url_for('usuario')))
+
+@app.route("/voltarAdmin", methods=['POST'])
+@log_required
+def voltar_admin():
+    #Sem login_required: durante o acesso-como os papéis são os do usuário acessado
+    impersonador = session.get('impersonador')
+    if not impersonador:
+        return(redirect(url_for('home')))
+    admin = _obter_usuario_por_id(impersonador.get('user_id'))
+    if admin is None or 'admin' not in str(admin[3]).split(','):
+        session.clear()
+        return(redirect(url_for('login')))
+    alvo_id = session.get('user_id')
+    session.pop('impersonador', None)
+    _carregar_sessao_usuario(admin)
+    session['forcar_troca_senha'] = bool(int(admin[7]))
+    logger_auditoria.info('acesso_como fim admin_id=%s alvo_id=%s ip=%s', admin[0], alvo_id, obter_ip_cliente(request))
+    flash(u"Você voltou para a sua conta de administrador.")
+    return(redirect(url_for('root')))
+
 @app.route("/admin/avaliador_sala/<edital>", methods=['GET','POST'])
 @auth.login_required(role=['admin'])
 @log_required
@@ -3898,11 +4038,6 @@ def salvar(tabela,valor_id,coluna,novo_valor):
 def detalhes(tabela,valor_id,coluna):
     valor = obterColunaUnica(tabela,coluna,'id',valor_id)
     return(valor)
-'''
-@app.route('/enviar_arquivo/<filename>')
-def enviar_arquivo(filename):
-    return(send_from_directory(ATTACHMENTS_DIR,filename))
-'''
 
 '''
 SELECT id,nome,titulo,ua,(media1+media2)/2 as media 
