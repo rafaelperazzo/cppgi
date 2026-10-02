@@ -2583,12 +2583,7 @@ def organizacao():
 @log_required
 def root():
     titulo = u"PÁGINA ADMINISTRATIVA"
-    consulta = """
-    SELECT id,nome_longo,deadline,deadline_avaliacao,nome_curto,deadline_apresentacao,deadline_versao_final,
-    isbn,situacao,certificado_apresentador,certificado_moderador,certificado_participante,certificado_demais,certificado_convidado,
-    declaracao_avaliador,periodo,local,DATE_FORMAT(inicio_submissao,'%d/%m/%Y %H:%i')
-    FROM editais
-    """
+    consulta = "SELECT id,nome_curto,nome_longo FROM editais ORDER BY id DESC"
     linhas,total = executarSelect(consulta)
     return(render_template('index.html',titulo=titulo,root=CPPGI_SITE,linhas=linhas))
 

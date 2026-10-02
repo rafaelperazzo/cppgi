@@ -7,151 +7,30 @@
 <h2 class="page-subtitle">Lista de editais cadastrados</h2>
 {% endblock %}
 
-{% block head_extra %}
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script>
-function salvar(formulario) {
-    document.getElementById(formulario).submit();
-}
-function addForm() {
-    const f = document.createElement("form");
-    f.setAttribute('method', "post");
-    f.setAttribute('action', "submit.php");
-    f.setAttribute('class', "form-control");
-
-    const nome_curto = document.createElement("input");
-    nome_curto.setAttribute('type', "text");
-    nome_curto.setAttribute('name', "nome_curto");
-    nome_curto.setAttribute('class', "form-control");
-
-    const i = document.createElement("input");
-    i.setAttribute('type', "text");
-    i.setAttribute('name', "nome");
-    i.setAttribute('class', "form-control");
-
-    const s = document.createElement("input");
-    s.setAttribute('type', "submit");
-    s.setAttribute('value', "Salvar");
-    s.setAttribute('class', "btn");
-
-    f.appendChild(nome_curto);
-    f.appendChild(i);
-    f.appendChild(s);
-
-    document.body.appendChild(f);
-}
-</script>
-<script>
-    $(document).ready(function(){
-        $("#result").hide();
-        $("input").on("change", function(event){
-            event.preventDefault();
-            var form_id = $(this).get(0).form.id;
-            var formValues= $('#' + form_id).serialize();
-            $.post("{{url_for('salvar_edital',operacao=0)}}", formValues, function(data){
-                // Display the returned data in browser
-                //$("#result").show();
-                //$("#mensagem").html(data);
-            },"text");
-        });
-    });
-</script>
-{% endblock %}
-
 {% block content %}
-<div id="result" class="alert-warning">
-  <p id="mensagem"></p>
-</div>
-
-<nav class="mb-4 flex flex-wrap gap-2 rounded-md border border-slate-200 bg-white p-3">
-  <a class="btn-outline" href="{{url_for('listar_editais')}}">Editais</a>
-  <a class="btn-outline" href="{{url_for('email_solicitar_avaliacao')}}">Enviar E-mail para os avaliadores</a>
-  <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=0)}}">Cadastrar Novo Usuário</a>
-  <a class="btn-outline" href="{{url_for('cadastrar_usuario',operacao=1)}}">Listar Usuários</a>
-  <a class="btn-outline" href="{{url_for('meusProjetos')}}">Minhas Submissões</a>
-</nav>
-
-<div class="table-wrapper breakout-90">
-  <table class="table-base table-fixed">
+<div class="table-wrapper">
+  <table class="table-base">
     <thead>
       <tr>
-        <th class="w-[5%]">id</th>
-        <th class="w-[9%]">Nome curto</th>
-        <th class="w-[18%]">Nome longo do edital<br>Período<br>Local</th>
-        <th class="w-[15%]">
-          Início Submissão
-          <br>Deadline Submissão
-          <br>Deadline Avaliação
-          <br>Deadline versão final
-          <br>Deadline Apresentação
-        </th>
-        <th class="w-[7%]">ISBN</th>
-        <th class="w-[9%]">Situação</th>
-        <th class="w-[16%]">Aval,Mod,Apr,Part,De,Con</th>
-        <th class="w-[21%]">Arquivos</th>
+        <th>ID</th>
+        <th>Nome curto</th>
+        <th>Descrição</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for linha in linhas %}
         <tr>
-          <form action="{{url_for('salvar_edital',operacao=0)}}" method="POST" id="form_{{linha[0]}}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
-            <td>
-              <a class="text-brand-700 hover:underline" href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a>
-              <a class="btn-outline text-xs py-0.5 px-2 mt-1 inline-block" href="{{url_for('editar_edital',edital=linha[0])}}">Editar</a>
-            </td>
-            <td>
-              <input type="text" class="form-input" id="nome_curto" name="nome_curto" placeholder="NOME CURTO DO EDITAL" required="required" value="{{linha[4]}}">
-            </td>
-            <td>
-              <div class="flex flex-col gap-1">
-                <input type="text" class="form-input" id="nome" name="nome" placeholder="DESCRIÇÃO DO EDITAL" required="required" value="{{linha[1]}}">
-                <input type="text" class="form-input" id="periodo" name="periodo" placeholder="PERÍODO" required="required" value="{{linha[15]}}">
-                <input type="text" class="form-input" id="local" name="local" placeholder="LOCAL" required="required" value="{{linha[16]}}">
-              </div>
-            </td>
-            <td>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs text-slate-600" title="Editável na página Editar">Início: {{linha[17]}}</span>
-                <input class="form-input" type="datetime-local" id="deadline" name="deadline" value="{{linha[2]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
-                <input class="form-input" type="datetime-local" id="deadline_avaliacao" name="deadline_avaliacao" value="{{linha[3]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
-                <input type="datetime-local" class="form-input" id="deadline_final" name="deadline_final" value="{{linha[6]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
-                <input type="datetime-local" class="form-input" id="deadline_apresentacao" name="deadline_apresentacao" value="{{linha[5]}}" onblur="//salvar('form_{{linha[0]}}');" required="required">
-              </div>
-            </td>
-            <td>
-              <input type="text" class="form-input" id="isbn" name="isbn" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[7]}}">
-            </td>
-            <td>
-              <input type="text" class="form-input" id="situacao" name="situacao" placeholder="ISBN" required="required" onblur="//salvar('form_{{linha[0]}}');" value="{{linha[8]}}">
-            </td>
-            <td>
-              <div class="flex flex-col gap-1">
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[14])}}" target="_blank">{{linha[14]}}</a>
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[10])}}" target="_blank">{{linha[10]}}</a>
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[9])}}" target="_blank">{{linha[9]}}</a>
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[11])}}" target="_blank">{{linha[11]}}</a>
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[12])}}" target="_blank">{{linha[12]}}</a>
-                <a class="text-brand-700 hover:underline" href="{{url_for('ver_imagem',qual=linha[13])}}" target="_blank">{{linha[13]}}</a>
-              </div>
-            </td>
-          </form>
-          <td>
-            <form action="{{url_for('salvar_edital',operacao=1)}}" method="POST" id="form_{{linha[0]}}_arquivos" enctype="multipart/form-data" class="flex flex-col gap-1">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-              <input class="form-input" name="avaliador" type="file">
-              <input class="form-input" name="moderador" type="file">
-              <input class="form-input" name="apresentador" type="file">
-              <input class="form-input" name="participante" type="file">
-              <input class="form-input" name="demais" type="file">
-              <input class="form-input" name="convidado" type="file">
-              <input class="btn-primary cursor-pointer" type="submit" name="enviar" value="salvar">
-              <input type="hidden" name="codigo_edital" id="codigo_edital" value="{{linha[0]}}">
-            </form>
+          <td><a class="text-brand-700 hover:underline" href="{{url_for('admin',edital=linha[0])}}">{{linha[0]}}</a></td>
+          <td>{{linha[1]}}</td>
+          <td>{{linha[2]}}</td>
+          <td class="whitespace-nowrap text-right">
+            <a class="btn-outline text-xs py-0.5 px-2" href="{{url_for('editar_edital',edital=linha[0])}}">Editar</a>
           </td>
         </tr>
-      {%endfor%}
+      {% else %}
+        <tr><td colspan="4" class="text-center text-slate-500">Nenhum edital cadastrado.</td></tr>
+      {% endfor %}
     </tbody>
   </table>
 </div>
