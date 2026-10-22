@@ -1471,14 +1471,17 @@ def meusPareceres():
             idProjeto = str(request.args.get('id'))
             if autenticado():
                 tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
+                #RESUMO SIMPLES (modalidade 0) só tem 4 critérios: total sobre 40, como no formulário do avaliador
+                modalidade = str(obterColunaUnica("editalProjeto","modalidade","id",idProjeto))
+                divisor = 40 if modalidade == '0' else 80
                 if ('todos' in request.args) and (session['permissao']==0):
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
-                    valores = (idProjeto,)
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
+                    valores = (divisor,idProjeto)
                 else:
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/80 as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
-                    valores = (idProjeto,str(session['username']))
+                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
+                    valores = (divisor,idProjeto,str(session['username']))
                 pareceres,total = executarSelect(consulta,valores=valores)
-                return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto))
+                return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto,modalidade=modalidade))
             else:
                 return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
         else:
