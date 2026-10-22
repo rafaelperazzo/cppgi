@@ -22,14 +22,23 @@
           <tr><th>Item de Avaliação</th><th>Nota</th></tr>
         </thead>
         <tbody>
-          <tr><td>(A) Qualidade da redação e organização do texto; <b>(Máximo 10 pontos)</b></td><td>{{linha[1]}}</td></tr>
-          <tr><td>(B) Atualidade, originalidade e relevância do tema para a área em questão; <b>(Máximo 10 pontos)</b></td><td>{{linha[2]}}</td></tr>
-          <tr><td>(C) Objetivos da pesquisa são claros e bem definidos; <b>(Máximo 10 pontos)</b></td><td>{{linha[3]}}</td></tr>
-          <tr><td>(D) Contextualização teórica; <b>(Máximo 10 pontos)</b></td><td>{{linha[4]}}</td></tr>
-          <tr><td>(E) Contribuição científica; <b>(Máximo 10 pontos)</b></td><td>{{linha[5]}}</td></tr>
-          <tr><td>(F) Método de pesquisa claramente definido e consistente com os objetivos do trabalho; <b>(Máximo 10 pontos)</b></td><td>{{linha[6]}}</td></tr>
-          <tr><td>(G) Análise e resultados; <b>(Máximo 10 pontos)</b></td><td>{{linha[7]}}</td></tr>
-          <tr><td>(H) Conclusão <b>(Máximo 10 pontos)</b></td><td>{{linha[8]}}</td></tr>
+          {# Mesmos critérios de avaliacao.html: RESUMO SIMPLES (modalidade 0) não usa c1, c4, c6 e c8 #}
+          {% set criterios = [
+            ('A', 'Qualidade da redação e organização do texto;', 'c1', 1),
+            ('B', 'Atualidade, originalidade e relevância do tema para a área em questão;', 'c2', 2),
+            ('C', 'Objetivos da pesquisa são claros e bem definidos;', 'c3', 3),
+            ('D', 'Contextualização teórica;', 'c4', 4),
+            ('E', 'Contribuição científica;', 'c5', 5),
+            ('F', 'Método de pesquisa claramente definido e consistente com os objetivos do trabalho;', 'c6', 6),
+            ('G', 'Análise e resultados;', 'c7', 7),
+            ('H', 'Conclusão', 'c8', 8),
+          ] %}
+          {% set criterios_desabilitados = ['c1', 'c4', 'c6', 'c8'] %}
+          {% for letra, descricao, campo, indice in criterios %}
+          {% if not (modalidade == '0' and campo in criterios_desabilitados) %}
+          <tr><td>({{ letra }}) {{ descricao }} <b>(Máximo 10 pontos)</b></td><td>{{linha[indice]}}</td></tr>
+          {% endif %}
+          {% endfor %}
         </tbody>
       </table>
     </div>
