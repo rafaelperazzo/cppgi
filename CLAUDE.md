@@ -126,7 +126,8 @@ Key pieces inside `pesquisa.py`:
   form is the single entry point: `autenticar_usuario()` checks `users` and fills the session (`username`, `roles`,
   `user_id`, `forcar_troca_senha`, `ultimo_acesso`); it always returns True/False (errors deny). Protected routes use
   `@login_required(role=[...])` (defined next to `log_required`, always followed by `@log_required` — enforced by a
-  test), which **re-reads the user from `users` on every request** (role changes / deleted users take effect
+  test; **every** `@app.route` must carry `@log_required`, logged-in or not, as must the `app_api.py` Resources via
+  `method_decorators` and the legacy admin redirects — `test_guardrail_log_required_em_todas_as_rotas`), which **re-reads the user from `users` on every request** (role changes / deleted users take effect
   immediately; roles: `admin`, `avaliador`, `monitor`, `user`), redirects anonymous users to
   `/login?next=<request.script_root + path>` (the `/cppgi` prefix matters in production) and returns 403 for missing
   roles. `/login` only follows `next` if it's a same-site relative path (`_destino_seguro`), clears the session before

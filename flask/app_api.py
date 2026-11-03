@@ -1,5 +1,5 @@
 from flask_restful import Resource
-from pesquisa import executarSelect,getLinkSala,paraInt
+from pesquisa import executarSelect,getLinkSala,paraInt,log_required
 def filtros_modalidade_area(modalidade,area):
     """Trecho SQL e parâmetros dos filtros opcionais de modalidade (4 = todas) e área ("TODAS")."""
     trecho = ""
@@ -13,6 +13,7 @@ def filtros_modalidade_area(modalidade,area):
     return trecho,valores
 
 class Submissoes(Resource):
+    method_decorators = [log_required]
     def consultar(self,consulta,id_edital,modalidade,area):
         filtros,valores = filtros_modalidade_area(modalidade,area)
         consulta = """
@@ -113,6 +114,7 @@ class Submissoes(Resource):
             return([])
 
 class Editais(Resource):
+    method_decorators = [log_required]
     def get(self):
         consulta = """
         SELECT id,nome_longo FROM editais 
@@ -126,6 +128,7 @@ class Editais(Resource):
         return(dados)
 
 class Avaliacoes(Resource):
+    method_decorators = [log_required]
     def get(self,id_edital,modalidade,area):
         consulta = """
         SELECT editalProjeto.id,nome,ua,titulo,
@@ -150,6 +153,7 @@ class Avaliacoes(Resource):
         return(dados)
 
 class Trabalhos(Resource):
+    method_decorators = [log_required]
     def get(self,id_edital,apresentacao):
         consulta_poster = """SELECT editalProjeto.id,ua,nome,titulo,situacao,
         IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','TRABALHO COMPLETO')) as modalid
@@ -174,6 +178,7 @@ class Trabalhos(Resource):
         return dados
 
 class Apresentador(Resource):
+    method_decorators = [log_required]
     
     def inicio_sessao(self,sala):
         consulta = """

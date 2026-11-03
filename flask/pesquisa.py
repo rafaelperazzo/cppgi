@@ -726,6 +726,7 @@ def url_assinada_s3(arquivo, validade=VALIDADE_URL_S3):
     return url
 
 @app.route("/enviar_arquivo/<filename>", methods=['GET'])
+@log_required
 def enviar_arquivo(filename):
     arquivo = secure_filename(filename)
     if not arquivo:
@@ -795,11 +796,13 @@ def verificar_troca_senha_obrigatoria():
         return redirect(url_for('trocarSenhaObrigatoria'))
 
 @app.route("/")
+@log_required
 def home():
     editaisAbertos = getEditaisAbertos()
     return (render_template('menu.html',editais=editaisAbertos))
 
 @app.route("/submissao")
+@log_required
 def submissao():
     if not autenticado():
         return (render_template('login.html', mensagem=u"É necessário autenticação para acessar a página solicitada"))
@@ -840,6 +843,7 @@ def minhasIndicacoes():
     return Response(json.dumps(consultar_indicacoes_pesquisa(cpf)), mimetype='application/json')
 
 @app.route("/declaracao", methods=['GET', 'POST'])
+@log_required
 def declaracao():
     if request.method == "GET":
         if 'idProjeto' in request.args:
@@ -869,6 +873,7 @@ def declaracao():
             return("OK")
 
 @app.route("/orientadorDeclaracao", methods=['GET', 'POST'])
+@log_required
 def declaracaoOrientador():
     resultados = gerarDeclaracaoOrientador(str(request.args['idProjeto']))
     texto_declaracao = resultados[0]
@@ -1008,6 +1013,7 @@ def podeAvaliar(idProjeto):
 
 #Gerar pagina de avaliacao para o avaliador
 @app.route("/avaliacao", methods=['GET', 'POST'])
+@log_required
 def getPaginaAvaliacao():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
@@ -1033,6 +1039,7 @@ def getPaginaAvaliacao():
             return("Prazo de avaliação expirado!")
 #Gravar avaliacao gerada pelo avaliador
 @app.route("/avaliar", methods=['GET', 'POST'])
+@log_required
 def enviarAvaliacao():
     if request.method == "POST":
         comentarios = str(request.form['txtComentarios'])
@@ -1107,6 +1114,7 @@ def descricaoEdital(codigoEdital):
 
 #Gerar declaração do avaliador
 @app.route("/declaracaoAvaliador", methods=['GET'])
+@log_required
 def getDeclaracaoAvaliador():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
@@ -1163,6 +1171,7 @@ def consultar(consulta,valores=None):
     return (linhas)
 
 @app.route("/recusarConvite", methods=['GET', 'POST'])
+@log_required
 def recusarConvite():
     if request.method == "GET":
         tokenAvaliacao = str(request.args.get('token'))
@@ -1385,6 +1394,7 @@ def editalProjeto(edital):
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
 
 @app.route("/declaracoesPorServidor", methods=['GET', 'POST'])
+@log_required
 def declaracoesServidor():
     if request.method == "POST":
         if 'txtSiape' in request.form:
@@ -1406,6 +1416,7 @@ def declaracoesServidor():
         return("OK")
 
 @app.route("/declaracaoEvento", methods=['GET', 'POST'])
+@log_required
 def declaracaoEvento():
     if request.method == "GET":
         #Recuperando o código da declaração
@@ -1429,6 +1440,7 @@ def hora_apresentacao():
     return dict(get_hora_sessao=get_hora_sessao)
 
 @app.route("/meusProjetos", methods=['GET', 'POST'])
+@log_required
 def meusProjetos():
     if autenticado():
 
@@ -1463,62 +1475,69 @@ def meusProjetos():
     else:
         return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
 
+def projeto_do_usuario(idProjeto):
+    """True se a submissão idProjeto pertence ao usuário logado (siape = username)."""
+    linha,total = executarSelect("SELECT id FROM editalProjeto WHERE id=%s AND siape=%s", 1, valores=(str(idProjeto),str(session['username'])))
+    return bool(linha)
+
 @app.route("/meusPareceres", methods=['GET', 'POST'])
+@login_required()
+@log_required
 def meusPareceres():
-    if request.method == "GET":
-        #Recuperando o id do Projeto
-        if 'id' in request.args:
-            idProjeto = str(request.args.get('id'))
-            if autenticado():
-                tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
-                #RESUMO SIMPLES (modalidade 0) só tem 4 critérios: total sobre 40, como no formulário do avaliador
-                modalidade = str(obterColunaUnica("editalProjeto","modalidade","id",idProjeto))
-                divisor = 40 if modalidade == '0' else 80
-                if ('todos' in request.args) and (session['permissao']==0):
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
-                    valores = (divisor,idProjeto)
-                else:
-                    consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
-                    valores = (divisor,idProjeto,str(session['username']))
-                pareceres,total = executarSelect(consulta,valores=valores)
-                return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto,modalidade=modalidade))
-            else:
-                return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
-        else:
-            return("OK")
-    else:
+    if request.method != "GET" or 'id' not in request.args:
         return("OK")
+    idProjeto = str(request.args.get('id'))
+    admin = 'admin' in session['roles']
+    #Só o autor da submissão (ou admin) vê o título e os pareceres
+    if not (admin or projeto_do_usuario(idProjeto)):
+        return (u'Acesso negado. <a href="' + url_for('usuario') + u'">Voltar</a>', 403)
+    tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
+    #RESUMO SIMPLES (modalidade 0) só tem 4 critérios: total sobre 40, como no formulário do avaliador
+    modalidade = str(obterColunaUnica("editalProjeto","modalidade","id",idProjeto))
+    divisor = 40 if modalidade == '0' else 80
+    if ('todos' in request.args) and admin:
+        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
+        valores = (divisor,idProjeto)
+    else:
+        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
+        valores = (divisor,idProjeto,str(session['username']))
+    pareceres,total = executarSelect(consulta,valores=valores)
+    return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto,modalidade=modalidade))
 
 
 @app.route("/minhasAvaliacoes/<id_projeto>", methods=['GET'])
+@login_required()
+@log_required
 def minhasAvaliacoes(id_projeto):
         idProjeto = id_projeto
-        if autenticado():
-            tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
-            if (session['permissao']==0):
-                consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
-                (c1+c2+c3+c4) as pontuacaoTotal, 
-                comentarios,
-                DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
-                FROM avaliacoes_orais 
-                WHERE avaliacoes_orais.idProjeto=%s ORDER BY avaliacoes_orais.data"""
-                valores = (idProjeto,)
-            else:
-                consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
-                (c1+c2+c3+c4) as pontuacaoTotal, 
-                comentarios, 
-                DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y') 
-                FROM avaliacoes_orais,editalProjeto 
-                WHERE editalProjeto.id=avaliacoes_orais.idProjeto 
-                AND avaliacoes_orais.idProjeto=%s AND siape=%s ORDER BY avaliacoes_orais.data"""
-                valores = (idProjeto,str(session['username']))
-            pareceres,total = executarSelect(consulta,valores=valores)
-            return(render_template('minhasAvaliacoes.html',linhas=pareceres,total=total,titulo=tituloProjeto))
+        admin = 'admin' in session['roles']
+        #Só o autor da submissão (ou admin) vê o título e as avaliações orais
+        if not (admin or projeto_do_usuario(idProjeto)):
+            return (u'Acesso negado. <a href="' + url_for('usuario') + u'">Voltar</a>', 403)
+        tituloProjeto = str(obterColunaUnica("editalProjeto","titulo","id",idProjeto))
+        if admin:
+            consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
+            (c1+c2+c3+c4) as pontuacaoTotal,
+            comentarios,
+            DATE_FORMAT(avaliacoes_orais.data,'%%d/%%m/%%Y')
+            FROM avaliacoes_orais
+            WHERE avaliacoes_orais.idProjeto=%s ORDER BY avaliacoes_orais.data"""
+            valores = (idProjeto,)
         else:
-            return(render_template('login.html',mensagem=u"É necessário autenticação para acessar a página solicitada"))
+            consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
+            (c1+c2+c3+c4) as pontuacaoTotal,
+            comentarios,
+            DATE_FORMAT(avaliacoes_orais.data,'%%d/%%m/%%Y')
+            FROM avaliacoes_orais,editalProjeto
+            WHERE editalProjeto.id=avaliacoes_orais.idProjeto
+            AND avaliacoes_orais.idProjeto=%s AND siape=%s ORDER BY avaliacoes_orais.data"""
+            valores = (idProjeto,str(session['username']))
+        pareceres,total = executarSelect(consulta,valores=valores)
+        return(render_template('minhasAvaliacoes.html',linhas=pareceres,total=total,titulo=tituloProjeto))
 
 
 @app.route("/usuario", methods=['GET', 'POST'])
+@log_required
 def usuario():
     if autenticado():
         if ('admin' in session['roles']):
@@ -1595,10 +1614,12 @@ def login():
     return(render_template('login.html',mensagem='Problemas com o usuario/senha.',next=destino or ''))
 
 @app.route("/esqueciMinhaSenha", methods=['GET', 'POST'])
+@log_required
 def esqueciMinhaSenha():
     return(render_template('esqueciMinhaSenha.html'))
 
 @app.route("/enviarMinhaSenha", methods=['GET', 'POST'])
+@log_required
 def enviarMinhaSenha():
     if request.method == "POST":
         if not turnstile_valido():
@@ -1662,6 +1683,7 @@ def idSiape(id,siape):
             return(False)
 
 @app.route("/verArquivo", methods=['GET', 'POST'])
+@log_required
 def verArquivo():
     if request.method == "GET":
         #Recuperando arquivo
@@ -2022,6 +2044,7 @@ def mapa():
         return("OK")
 
 @app.route("/enviarVersaoFinal/<id_trabalho>", methods=['GET', 'POST'])
+@log_required
 def enviarVersaoFinal(id_trabalho):
     
     idTrabalho = id_trabalho
@@ -2048,6 +2071,7 @@ def enviarVersaoFinal(id_trabalho):
         
 
 @app.route("/enviarApresentacao/<id_trabalho>", methods=['GET'])
+@log_required
 def enviarApresentacao(id_trabalho):
     
     idTrabalho = id_trabalho
@@ -2268,6 +2292,7 @@ def buscarPendentesVersaoFinal(edital):
     return(linhas)
 
 @app.route("/solicitarVersaoFinal/<edital>", methods=['GET', 'POST'])
+@log_required
 def solicitarVersaoFinal(edital):
     """
     SOLICITA A VERSÃO FINAL PARA OS APRESENTADORES
@@ -2306,6 +2331,7 @@ def inicio_sessao(sala):
     return("")
 
 @app.route("/horario/<sala>", methods=['GET'])
+@log_required
 def horarioSala(sala):
     horario = inicio_sessao(sala)
     horario = {"horario":horario}
@@ -2789,12 +2815,14 @@ def baixarCertificado(id_projeto):
             return ("Erro ao gerar certificado", 500)
 
 @app.route("/demaisCertificados/<edital>", methods=['GET'])
+@log_required
 def demaisCertificados(edital):
     consulta = """SELECT nome,tipo,id FROM certificados_moderador WHERE edital=%s ORDER BY nome"""
     linhas,total = executarSelect(consulta,valores=(edital,))
     return(render_template('certificados_moderador.html',linhas=linhas))
 
 @app.route("/baixarCertificadoIndividual/<id_certificado>", methods=['GET', 'POST'])
+@log_required
 def certificadoIndividual(id_certificado):
     consulta = """SELECT UPPER(nome),tipo,edital FROM certificados_moderador WHERE id=%s"""
     linhas,total = executarSelect(consulta,valores=(id_certificado,))
@@ -2940,6 +2968,7 @@ def gerarCertificadoApresentacao(autores,titulo,id,token=0):
     #odt2Pdf()
 
 @app.route("/certificadoApresentacao", methods=['GET', 'POST'])
+@log_required
 def certificadoApresentacoes():
     if request.method == "GET":
         #Recuperando o edital
@@ -2988,6 +3017,7 @@ def processar_emails_certificados(linhas,edital,app):
         
 
 @app.route("/enviarCertificados/<edital>", methods=['GET'])
+@log_required
 def enviarCertificados(edital):
     consulta = """SELECT nome,titulo,email,id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND apresentou=1 AND tipo=%s"""
     linhas,total = executarSelect(consulta,valores=(edital,))
@@ -3011,6 +3041,7 @@ def gerarCertificadoModerador(nome,tipo,id,token=0):
     #odt2Pdf()
 
 @app.route("/certificadoModerador", methods=['GET', 'POST'])
+@log_required
 def certificadoModerador():
     if request.method == "GET":
         #Recuperando o edital
@@ -3032,12 +3063,14 @@ def certificadoModerador():
 '''
 
 @app.route("/listarCertificados", methods=['GET', 'POST'])
+@log_required
 def listarCertificados():
     consulta = """SELECT nome,id,tipo FROM certificados_moderador ORDER BY tipo,nome"""
     linhas,total = executarSelect(consulta)
     return(render_template('certificados_moderador.html',linhas=linhas))
 
 @app.route("/baixarCertificadoModerador", methods=['GET', 'POST'])
+@log_required
 def baixarCertificadoModerador():
     if request.method == "GET":
         if 'id' in request.args:
@@ -3053,6 +3086,7 @@ SELECT id,IF(modalidade=0,'RESUMO SIMPLES',IF(modalidade=1,'RESUMO EXPANDIDO','T
 WHERE valendo=1 AND situacao=1 and arquivo_projeto_final!='0' and tipo=7 ORDER BY ua,modalidade,id
 '''
 @app.route("/anais", methods=['GET', 'POST'])
+@log_required
 def anais():
     if request.method == "GET":
         #Recuperando o edital
@@ -4036,6 +4070,7 @@ def salvar_avaliador_sala():
     return("OK")
 
 @app.route("/autenticar_certificado/<tipo>/<codigo>/<id_projeto>", methods=['GET'])
+@log_required
 def autenticar_certificado(tipo,codigo,id_projeto):
     if tipo==0: #CERTIFICADO DE APRESENTADOR
         token = obterColunaUnica('editalProjeto','token','id',id_projeto)
@@ -4053,6 +4088,7 @@ def autenticar_certificado(tipo,codigo,id_projeto):
         return("Não implementado!")
 
 @app.route('/img_file/<path:filename>')
+@log_required
 def img_file(filename):
     #https://stackoverflow.com/questions/26971491/how-do-i-link-to-images-not-in-static-folder-in-flask
     return send_from_directory(CERTIFICADOS_TEMPLATE_DIR, filename, as_attachment=True)
@@ -4369,6 +4405,7 @@ def trocarSenha():
     return redirect(url_for('usuario'))
 
 @app.route("/seguranca", methods=['GET'])
+@log_required
 def seguranca():
     return (render_template('seguranca.html'))
 
@@ -4432,7 +4469,7 @@ def _registrar_redirects_admin_legados():
             if request.query_string:
                 destino += "?" + request.query_string.decode()
             return redirect(destino, code=codigo)
-        return redirecionar
+        return log_required(redirecionar)
     for caminho, funcao, metodos in ROTAS_ADMIN_LEGADAS:
         codigo = 301 if metodos == ["GET"] else 308
         app.add_url_rule(caminho, endpoint="legado_" + funcao, view_func=criar(funcao, codigo), methods=metodos)
