@@ -111,11 +111,7 @@
                     <input type="hidden" name="id_projeto" value="{{linha[0]}}">
 
                     <td>
-                        {% if linha[11] %}
-                        <a class="text-brand-700 hover:underline" href="{{link_arquivo(linha[11])}}" target="_blank">{{linha[0]}}</a>
-                        {% else %}
-                        {{linha[0]}}
-                        {% endif %}
+                        <a class="text-brand-700 hover:underline" href="{{url_for('meusPareceres', id=linha[0], todos=1)}}" target="_blank">{{linha[0]}}</a>
                     </td>
                     <td>{{linha[1]}}</td>
                     <td>{{linha[2]}}</td>

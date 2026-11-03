@@ -766,6 +766,55 @@ def test_guardrail_log_required_em_rotas_login_required():
                 faltando.append(i + 1)
     assert faltando == [], "Rotas com @login_required sem @log_required nas linhas: %s" % faltando
 
+def test_guardrail_log_required_em_todas_as_rotas():
+    #Toda rota (com ou sem login) deve passar pela auditoria: @log_required entre o @app.route e o def
+    caminho = WORKING_DIR + 'pesquisa.py'
+    with open(caminho, encoding='utf-8') as f:
+        linhas_arquivo = f.readlines()
+    faltando = []
+    i = 0
+    while i < len(linhas_arquivo):
+        if linhas_arquivo[i].startswith('@app.route'):
+            inicio = i
+            decoradores = []
+            while not linhas_arquivo[i].startswith('def '):
+                decoradores.append(linhas_arquivo[i].strip())
+                i += 1
+            if '@log_required' not in decoradores:
+                faltando.append(inicio + 1)
+        i += 1
+    assert faltando == [], "Rotas sem @log_required nas linhas: %s" % faltando
+    with open(WORKING_DIR + 'app_api.py', encoding='utf-8') as f:
+        api = f.read()
+    assert api.count('(Resource):') == api.count('method_decorators = [log_required]')
+
+def test_meusPareceres_so_autor_ou_admin():
+    #Projeto de outra pessoa: usuário comum logado recebe 403 (nem o título aparece); anônimo vai para o login
+    linha, total = executarSelect("SELECT id,titulo FROM editalProjeto WHERE siape<>%s ORDER BY id DESC LIMIT 1", 1, valores=("00000000000",))
+    if not linha:
+        pytest.skip("sem submissões de outros usuários no banco")
+    id_projeto, titulo = linha
+    anonimo = app.test_client()
+    rv = anonimo.get('/meusPareceres?id=%s' % id_projeto)
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
+    rv = anonimo.get('/minhasAvaliacoes/%s' % id_projeto)
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
+    cpf = _cpf_aleatorio()
+    try:
+        _garantir_usuario_teste(cpf, random_char(7), "SenhaDeTesteForte1!", verificado=1)
+        c = app.test_client()
+        assert logar(c, cpf, "SenhaDeTesteForte1!").status_code == 302
+        for url in ('/meusPareceres?id=%s' % id_projeto, '/meusPareceres?id=%s&todos=1' % id_projeto, '/minhasAvaliacoes/%s' % id_projeto):
+            rv = c.get(url)
+            assert rv.status_code == 403
+            assert titulo.encode() not in rv.data
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+    rv = _cliente_admin().get('/meusPareceres?id=%s&todos=1' % id_projeto)
+    assert rv.status_code == 200
+    rv = _cliente_admin().get('/minhasAvaliacoes/%s' % id_projeto)
+    assert rv.status_code == 200
+
 def test_login_get_renderiza_formulario():
     #Regressão: o link "Entrar" do layout faz GET em /login; a rota precisa aceitar GET
     #além de POST, senão o clique resulta em "405 Method Not Allowed".
