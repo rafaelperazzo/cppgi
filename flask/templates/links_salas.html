@@ -1,0 +1,121 @@
+{% extends "layout.html" %}
+
+{% block title %}Links / locais das salas{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO ADMIN</h1>
+<h2 class="page-subtitle">LINKS / LOCAIS DAS SALAS</h2>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert-warning">
+        <strong>{{message}}</strong>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+<div class="alert-warning">
+    <p><strong>{{nome_longo}}</strong></p>
+    <p>Cada sala tem um único link do Google Meet ou local físico neste edital: se a mesma sala aparece em mais de uma
+       sessão, alterar em uma vale para todas.</p>
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+  <a href="{{url_for('listar_salas',edital=edital)}}" class="btn-outline">Sessões do edital</a>
+  <a href="{{url_for('admin',edital=edital)}}" class="btn-outline">Voltar</a>
+</div>
+
+{% macro mostrar_link(valor) %}
+  {% if valor.startswith('http') %}
+    <a class="text-brand-700 hover:underline" style="word-break: break-all" href="{{valor}}" target="_blank" rel="noopener">{{valor}}</a>
+  {% else %}
+    <span style="overflow-wrap: anywhere">{{valor}}</span>
+  {% endif %}
+{% endmacro %}
+
+{% if not sessoes %}
+<p>Nenhuma sessão cadastrada para este edital. Cadastre as sessões primeiro em
+   <a class="text-brand-700 hover:underline" href="{{url_for('listar_salas',edital=edital)}}">Sessões do edital</a>.</p>
+{% endif %}
+
+{% for sessao in sessoes %}
+<div class="card mt-4">
+  <h3 class="text-lg font-semibold text-slate-800">
+    {{sessao.dia}} · {{sessao.inicio}}–{{sessao.termino}} ·
+    {% if sessao.tipo == 1 %}Pôster{% else %}Apresentação oral{% endif %}
+    <span class="text-sm text-slate-500">(sessão {{sessao.id}})</span>
+  </h3>
+  <div class="table-wrapper mt-2">
+    <table class="table-base">
+      <thead>
+        <tr><th>Sala</th><th>Link / local atual</th><th>Novo link / local</th><th>Remover</th></tr>
+      </thead>
+      <tbody>
+        {% for sala in sessao.salas %}
+        {% set atual = links.get(sala) %}
+        <tr>
+          <td class="font-semibold">{{sala}}</td>
+          <td>
+            {% if atual %}
+              {{ mostrar_link(atual[1]) }}
+            {% else %}
+              <span class="rounded bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800">sem link</span>
+            {% endif %}
+          </td>
+          <td>
+            <form action="{{url_for('salvar_link_sala',edital=edital)}}" method="POST" class="flex flex-wrap gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="sala" value="{{sala}}">
+              <input type="text" class="form-input flex-1" name="link" maxlength="{{tamanho_link}}"
+                     value="{{atual[1] if atual else ''}}" placeholder="https://meet.google.com/... ou local físico">
+              <button type="submit" class="btn-primary">Salvar</button>
+            </form>
+          </td>
+          <td>
+            {% if atual %}
+            <form action="{{url_for('remover_link_sala',id_link=atual[0])}}" method="POST"
+                  onsubmit='return confirm({{ ("Remover o link/local da sala " ~ sala ~ "? Ele vale para todas as sessões desta sala.")|tojson }})'>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="btn-outline">Remover</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+{% if orfaos %}
+<div class="card mt-6">
+  <h3 class="text-lg font-semibold text-slate-800">Links sem sessão correspondente</h3>
+  <p class="mt-1 text-sm text-slate-600">Salas cadastradas em sala_link que não aparecem em nenhuma sessão deste edital
+     (por exemplo, sala renomeada). Se não forem mais usadas, podem ser removidas.</p>
+  <div class="table-wrapper mt-2">
+    <table class="table-base">
+      <thead><tr><th>Sala</th><th>Link / local</th><th>Remover</th></tr></thead>
+      <tbody>
+        {% for id_link, sala, valor in orfaos %}
+        <tr>
+          <td class="font-semibold">{{sala}}</td>
+          <td>{{ mostrar_link(valor) }}</td>
+          <td>
+            <form action="{{url_for('remover_link_sala',id_link=id_link)}}" method="POST"
+                  onsubmit='return confirm({{ ("Remover o link/local da sala " ~ sala ~ "?")|tojson }})'>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="btn-outline">Remover</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -36,8 +36,10 @@
         <tr>
           <td><a class="text-brand-700 hover:underline" href="/cppgi/apresentacoes?edital={{edital}}&data={{linha[1]}}&sala={{linha[0]}}">{{linha[0]}} - {{linha[1]}}</a></td>
           <td>
-            {% if linha[2]!='N/A' %}
-              <a class="text-brand-700 hover:underline" href='{{linha[2]|safe}}' target='_blank'>{{linha[2]}}</a>
+            {% if linha[2] and linha[2].startswith('http') %}
+              <a class="text-brand-700 hover:underline" href="{{linha[2]}}" target="_blank" rel="noopener">{{linha[2]}}</a>
+            {% elif linha[2] and linha[2]!='N/A' %}
+              {{linha[2]}}
             {% else %}
               N/A
             {% endif %}

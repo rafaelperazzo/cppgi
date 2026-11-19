@@ -1496,10 +1496,10 @@ def meusPareceres():
     modalidade = str(obterColunaUnica("editalProjeto","modalidade","id",idProjeto))
     divisor = 40 if modalidade == '0' else 80
     if ('todos' in request.args) and admin:
-        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
+        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes WHERE finalizado=1 AND idProjeto=%s ORDER BY data_avaliacao"""
         valores = (divisor,idProjeto)
     else:
-        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%%d/%%m/%%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
+        consulta = """SELECT avaliacoes.id,c1,c2,c3,c4,c5,c6,c7,c8,((c1+c2+c3+c4+c5+c6+c7+c8)*100)/%s as pontuacaoTotal, comentario, if(recomendacao=1,'RECOMENDADO','NÃO RECOMENDADO') as recomendacao, DATE_FORMAT(data_avaliacao,'%d/%m/%Y') FROM avaliacoes,editalProjeto WHERE editalProjeto.id=avaliacoes.idProjeto AND finalizado=1 AND avaliacoes.idProjeto=%s AND siape=%s ORDER BY data_avaliacao"""
         valores = (divisor,idProjeto,str(session['username']))
     pareceres,total = executarSelect(consulta,valores=valores)
     return(render_template('meusPareceres.html',linhas=pareceres,total=total,titulo=tituloProjeto,modalidade=modalidade))
@@ -1519,7 +1519,7 @@ def minhasAvaliacoes(id_projeto):
             consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
             (c1+c2+c3+c4) as pontuacaoTotal,
             comentarios,
-            DATE_FORMAT(avaliacoes_orais.data,'%%d/%%m/%%Y')
+            DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y')
             FROM avaliacoes_orais
             WHERE avaliacoes_orais.idProjeto=%s ORDER BY avaliacoes_orais.data"""
             valores = (idProjeto,)
@@ -1527,7 +1527,7 @@ def minhasAvaliacoes(id_projeto):
             consulta = """SELECT avaliacoes_orais.id,c1,c2,c3,c4,
             (c1+c2+c3+c4) as pontuacaoTotal,
             comentarios,
-            DATE_FORMAT(avaliacoes_orais.data,'%%d/%%m/%%Y')
+            DATE_FORMAT(avaliacoes_orais.data,'%d/%m/%Y')
             FROM avaliacoes_orais,editalProjeto
             WHERE editalProjeto.id=avaliacoes_orais.idProjeto
             AND avaliacoes_orais.idProjeto=%s AND siape=%s ORDER BY avaliacoes_orais.data"""
@@ -1567,7 +1567,7 @@ def avaliador(edital):
     usuarios_salas.data,
     sala_link.link
     FROM usuarios_salas
-    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
     WHERE usuarios_salas.edital=%s and usuarios_salas.username=%s
     ORDER BY usuarios_salas.data,usuarios_salas.sala
     """
@@ -2509,7 +2509,7 @@ def processar_emails_instrucoes_moderadores(linhas,edital):
             senha = str(linha[1])
             email_avaliador = str(linha[2])
             sala = str(linha[3])
-            sala_link = str(linha[4])
+            sala_link = str(linha[4] or '')
             texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link,server_host=SERVER_HOST)
             if PRODUCAO==1:
                 msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
@@ -2540,7 +2540,7 @@ def emailInstrucoesAvaliador(edital):
     sala_link.link 
     FROM users
     INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
-    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
     WHERE usuarios_salas.edital=%s
     ORDER BY usuarios_salas.username
     """
@@ -3655,6 +3655,14 @@ def remover_avaliacao(id_avaliacao,id_projeto):
     flash(u"Avaliação removida com sucesso!")
     return(redirect(url_for('listar_consultores',id_projeto=id_projeto)))
 
+#Tamanhos das colunas sala_link.sala / sala_link.link (ver share/migracao_sala_link.sql)
+TAMANHO_MAXIMO_SALA = 100
+TAMANHO_MAXIMO_LINK_SALA = 200
+
+def salas_com_nome_longo(salas):
+    """Nomes em salas.salas (separados por vírgula) maiores que a coluna sala de sala_link/usuarios_salas."""
+    return [n.strip() for n in str(salas).split(',') if len(n.strip()) > TAMANHO_MAXIMO_SALA]
+
 @app.route("/admin/cadastrar_salas/<edital>", methods=['GET','POST'])
 @login_required(role=['admin'])
 @log_required
@@ -3668,6 +3676,9 @@ def cadastrar_salas(edital):
         fim = request.form['fim']
         slot = request.form['slots']
         salas = request.form['salas']
+        if salas_com_nome_longo(salas):
+            flash(u"Nomes de sala com mais de %d caracteres: %s" % (TAMANHO_MAXIMO_SALA, ", ".join(salas_com_nome_longo(salas))))
+            return(redirect(url_for('cadastrar_salas',edital=edital)))
         consulta = """
         INSERT INTO salas (edital,tipo,dia,inicio,termino,slot,salas) VALUES (%s,%s,%s,%s,%s,%s,%s)
         """
@@ -3696,6 +3707,8 @@ def salvar_salas():
     slot = request.form['slot']
     salas = request.form['salas']
     id_salas = request.form['id_salas']
+    if salas_com_nome_longo(salas):
+        return(u"Nomes de sala com mais de %d caracteres" % TAMANHO_MAXIMO_SALA, 400)
     consulta = """
     UPDATE salas SET tipo=%s,dia=%s,inicio=%s,termino=%s,slot=%s,salas=%s
     WHERE id=%s
@@ -3711,6 +3724,73 @@ def remover_salas(id_salas):
     atualizar(consulta,(id_salas,))
     edital = obterColunaUnica('salas','edital','id',id_salas)
     return(redirect(url_for('listar_salas',edital=edital)))
+
+
+def salas_do_edital(edital):
+    """Sessões do edital, cada uma com a lista de salas (salas.salas é separado por vírgula)."""
+    consulta = """SELECT id,tipo,DATE_FORMAT(dia,'%d/%m/%Y'),time_format(inicio,'%H:%i'),time_format(termino,'%H:%i'),salas
+    FROM salas WHERE edital=%s ORDER BY dia,inicio"""
+    linhas,total = executarSelect(consulta,valores=(edital,))
+    sessoes = []
+    for linha in linhas:
+        nomes = [s.strip() for s in str(linha[5]).split(',') if s.strip()]
+        sessoes.append({'id': linha[0], 'tipo': linha[1], 'dia': linha[2], 'inicio': linha[3], 'termino': linha[4], 'salas': nomes})
+    return sessoes
+
+@app.route("/admin/links_salas/<int:edital>", methods=['GET'])
+@login_required(role=['admin'])
+@log_required
+def listar_links_salas(edital):
+    """Links do Google Meet / locais físicos de cada sala das sessões do edital (tabela sala_link)."""
+    sessoes = salas_do_edital(edital)
+    linhas,total = executarSelect("SELECT id,sala,link FROM sala_link WHERE edital=%s ORDER BY sala",valores=(edital,))
+    links = {}
+    for linha in linhas:
+        links.setdefault(str(linha[1]), (linha[0], str(linha[2])))
+    nomes_em_sessoes = {sala for sessao in sessoes for sala in sessao['salas']}
+    orfaos = [(linha[0], str(linha[1]), str(linha[2])) for linha in linhas if str(linha[1]) not in nomes_em_sessoes]
+    nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
+    return(render_template('links_salas.html',sessoes=sessoes,links=links,orfaos=orfaos,edital=edital,nome_longo=nome_longo,
+                           tamanho_link=TAMANHO_MAXIMO_LINK_SALA))
+
+@app.route("/admin/salvar_link_sala/<int:edital>", methods=['POST'])
+@login_required(role=['admin'])
+@log_required
+def salvar_link_sala(edital):
+    """Insere/altera o link de uma sala do edital; link vazio remove o cadastro."""
+    sala = str(request.form.get('sala','')).strip()
+    link = str(request.form.get('link','')).strip()
+    nomes_em_sessoes = {s for sessao in salas_do_edital(edital) for s in sessao['salas']}
+    if not sala or len(sala) > TAMANHO_MAXIMO_SALA or sala not in nomes_em_sessoes:
+        flash(u"Sala inválida: ela precisa estar cadastrada em alguma sessão deste edital.")
+    elif len(link) > TAMANHO_MAXIMO_LINK_SALA:
+        flash(u"O link/local da sala %s tem mais de %d caracteres." % (sala, TAMANHO_MAXIMO_LINK_SALA))
+    elif not link:
+        atualizar("DELETE FROM sala_link WHERE edital=%s AND sala=%s",(edital,sala))
+        flash(u"Link/local da sala %s removido." % sala)
+    else:
+        #Não depende do índice UNIQUE (edital,sala): se a sala já tem cadastro, atualiza (todas as linhas, caso
+        #existam duplicatas antigas); senão, insere. O teste é por SELECT, e não pelo rowcount do UPDATE, porque o
+        #MariaDB conta 0 linhas afetadas quando o valor salvo é igual ao atual.
+        existentes,total = executarSelect("SELECT id FROM sala_link WHERE edital=%s AND sala=%s",valores=(edital,sala))
+        if existentes:
+            atualizar("UPDATE sala_link SET link=%s WHERE edital=%s AND sala=%s",(link,edital,sala))
+        else:
+            atualizar("INSERT INTO sala_link (edital,sala,link) VALUES (%s,%s,%s)",(edital,sala,link))
+        flash(u"Link/local da sala %s salvo." % sala)
+    return(redirect(url_for('listar_links_salas',edital=edital)))
+
+@app.route("/admin/remover_link_sala/<int:id_link>", methods=['POST'])
+@login_required(role=['admin'])
+@log_required
+def remover_link_sala(id_link):
+    linhas,total = executarSelect("SELECT edital,sala FROM sala_link WHERE id=%s",valores=(id_link,))
+    if not linhas:
+        abort(404)
+    edital,sala = linhas[0][0],str(linhas[0][1])
+    atualizar("DELETE FROM sala_link WHERE id=%s",(id_link,))
+    flash(u"Link/local da sala %s removido." % sala)
+    return(redirect(url_for('listar_links_salas',edital=edital)))
 
 @app.route("/admin/submissoes/<edital>", methods=['GET'])
 @login_required(role=['admin'])
@@ -4240,7 +4320,7 @@ def links_avaliadores(edital):
     users.nome
     FROM users
     INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
-    INNER JOIN sala_link ON usuarios_salas.sala = sala_link.sala
+    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
     WHERE usuarios_salas.edital=%s
     ORDER BY usuarios_salas.username
     """
