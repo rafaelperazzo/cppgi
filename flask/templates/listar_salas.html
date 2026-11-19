@@ -14,7 +14,7 @@
             var id_avaliacao = str[1];
             $.post("{{url_for('salvar_salas')}}", formValues, function(data){
                 //console.log(data);
-            },"text");
+            },"text").fail(function(xhr){ alert(xhr.responseText || "Erro ao salvar a sessão."); });
         });
 
         $("select").on("change", function(event){
@@ -25,7 +25,7 @@
             var id_avaliacao = str[1];
             $.post("{{url_for('salvar_salas')}}", formValues, function(data){
                 //console.log(data);
-            },"text");
+            },"text").fail(function(xhr){ alert(xhr.responseText || "Erro ao salvar a sessão."); });
         });
     });
 </script>
@@ -52,6 +52,7 @@
 
 <div class="mb-4 flex flex-wrap gap-2">
   <a href="{{url_for('cadastrar_salas',edital=edital)}}" class="btn-outline">Cadastrar nova sessão</a>
+  <a href="{{url_for('listar_links_salas',edital=edital)}}" class="btn-outline">Links / locais das salas</a>
   <a href="{{url_for('admin',edital=edital)}}" class="btn-outline">Voltar</a>
 </div>
 

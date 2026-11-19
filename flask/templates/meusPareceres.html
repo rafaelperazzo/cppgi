@@ -42,11 +42,12 @@
         </tbody>
       </table>
     </div>
-    <p class="mt-2"><b>Total:</b> {{linha[10]}}</p>
+    {# Colunas da consulta em meusPareceres(): 0 id, 1-8 c1..c8, 9 total, 10 comentário, 11 recomendação, 12 data #}
+    <p class="mt-2"><b>Total:</b> {{ '%.1f'|format(linha[9]) if linha[9] is not none else '-' }}</p>
     <p class="mt-2"><b>Comentários:</b></p>
-    <div class="rounded-md border border-slate-200 bg-slate-100 p-4">{{linha[11]}}</div>
-    <p class="mt-2"><b>Recomendação:</b> {{linha[12]}}</p>
-    <p><b>Data da avaliação:</b> {{linha[13]}}</p>
+    <div class="rounded-md border border-slate-200 bg-slate-100 p-4">{{linha[10]}}</div>
+    <p class="mt-2"><b>Recomendação:</b> {{linha[11]}}</p>
+    <p><b>Data da avaliação:</b> {{linha[12]}}</p>
   </div>
 {% endfor %}
 {% endblock %}

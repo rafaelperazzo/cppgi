@@ -1110,6 +1110,72 @@ def test_distribuir_salas_sem_sala_de_poster():
     finally:
         _remover_avaliacao_temporaria(edital, projeto)
 
+'''
+**************************************************************
+TESTES: links / locais das salas (/admin/links_salas)
+**************************************************************
+'''
+
+def _links_sala(edital, sala):
+    return executarSelect("SELECT id,link FROM sala_link WHERE edital=%s AND sala=%s", valores=(edital, sala))[0]
+
+def test_links_salas_crud():
+    edital, projeto, token = _criar_avaliacao_temporaria()
+    sala_longa = 'CCAB - Sessão Longa 01'  # > 10 caracteres: exige a migração share/migracao_sala_link.sql
+    inserir("INSERT INTO salas (edital,tipo,dia,inicio,termino,slot,salas) VALUES (%s,0,'2026-11-24','08:00','09:15',15,%s)",
+            (edital, 'TST1, ' + sala_longa))
+    c = _cliente_admin()
+    url_salvar = '/admin/salvar_link_sala/%s' % edital
+    try:
+        rv = c.get('/admin/links_salas/%s' % edital)
+        assert rv.status_code == 200
+        html = rv.data.decode()
+        assert 'TST1' in html and sala_longa in html and 'sem link' in html
+
+        csrf = _csrf_admin(c)
+        #inserir
+        c.post(url_salvar, data={'csrf_token': csrf, 'sala': 'TST1', 'link': 'https://meet.google.com/aaa-bbbb-ccc'})
+        assert [l[1] for l in _links_sala(edital, 'TST1')] == ['https://meet.google.com/aaa-bbbb-ccc']
+        #alterar não duplica (não depende do índice UNIQUE edital+sala)
+        c.post(url_salvar, data={'csrf_token': csrf, 'sala': 'TST1', 'link': 'PÁTIO DO BLOCO K'})
+        assert [l[1] for l in _links_sala(edital, 'TST1')] == ['PÁTIO DO BLOCO K']
+        #salvar o mesmo valor de novo também não duplica (UPDATE sem mudança afeta 0 linhas no MariaDB)
+        c.post(url_salvar, data={'csrf_token': csrf, 'sala': 'TST1', 'link': 'PÁTIO DO BLOCO K'})
+        assert [l[1] for l in _links_sala(edital, 'TST1')] == ['PÁTIO DO BLOCO K']
+        #nome de sala maior que 10 caracteres é gravado inteiro
+        c.post(url_salvar, data={'csrf_token': csrf, 'sala': sala_longa, 'link': 'BLOCO A'})
+        assert [l[1] for l in _links_sala(edital, sala_longa)] == ['BLOCO A']
+        #link vazio remove
+        c.post(url_salvar, data={'csrf_token': csrf, 'sala': sala_longa, 'link': '  '})
+        assert len(_links_sala(edital, sala_longa)) == 0
+        #sala fora das sessões do edital é recusada
+        rv = c.post(url_salvar, data={'csrf_token': csrf, 'sala': 'NAO_EXISTE', 'link': 'x'}, follow_redirects=True)
+        assert u'Sala inválida' in rv.data.decode()
+        assert len(_links_sala(edital, 'NAO_EXISTE')) == 0
+        #sem CSRF não grava
+        c.post(url_salvar, data={'sala': 'TST1', 'link': 'sem csrf'})
+        assert [l[1] for l in _links_sala(edital, 'TST1')] == ['PÁTIO DO BLOCO K']
+        #remover por id (POST)
+        id_link = _links_sala(edital, 'TST1')[0][0]
+        assert c.get('/admin/remover_link_sala/%s' % id_link).status_code == 405
+        c.post('/admin/remover_link_sala/%s' % id_link, data={'csrf_token': csrf})
+        assert len(_links_sala(edital, 'TST1')) == 0
+    finally:
+        atualizar("DELETE FROM sala_link WHERE edital=%s", (edital,))
+        atualizar("DELETE FROM salas WHERE edital=%s", (edital,))
+        _remover_avaliacao_temporaria(edital, projeto)
+
+def test_links_salas_acesso():
+    rv = client.get('/admin/links_salas/1')
+    assert rv.status_code == 302 and '/login' in rv.headers['Location']
+    cpf, id_usuario = _usuario_comum_temporario()
+    try:
+        c = app.test_client()
+        logar(c, cpf, 'Senha#Forte123')
+        assert c.get('/admin/links_salas/1').status_code == 403
+    finally:
+        atualizar("DELETE FROM users WHERE username=%s", (cpf,))
+
 def test_avaliacoes_negadas_parametros():
     rv = _cliente_admin().get('/admin/avaliacoesNegadas?edital=1')
     assert rv.status_code == 400

@@ -259,10 +259,11 @@ DROP TABLE IF EXISTS `sala_link`;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sala_link` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `sala` varchar(10) NOT NULL,
+  `sala` varchar(100) NOT NULL,
   `link` varchar(200) NOT NULL,
   `edital` int(11) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sala_link_edital_sala` (`edital`,`sala`)
 ) ENGINE=InnoDB AUTO_INCREMENT=115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -386,7 +387,7 @@ CREATE TABLE `usuarios_salas` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(20) NOT NULL,
   `edital` int(11) NOT NULL,
-  `sala` varchar(10) NOT NULL,
+  `sala` varchar(100) NOT NULL,
   `data` date NOT NULL,
   `area` varchar(200) NOT NULL DEFAULT '-',
   `compareceu` int(11) NOT NULL DEFAULT 0,

@@ -113,6 +113,10 @@
               <td><a class="font-semibold text-amber-800 hover:underline" href="{{url_for('listar_salas',edital=edital)}}">** 2) Sessões de apresentações **</a></td>
               <td>Listar e cadastrar sessões</td>
             </tr>
+            <tr>
+              <td><a class="text-brand-700 hover:underline" href="{{url_for('listar_links_salas',edital=edital)}}">Links / locais das salas</a></td>
+              <td>Cadastrar link do Google Meet ou local físico de cada sala das sessões</td>
+            </tr>
             <tr class="bg-amber-100">
               <td>
                 <a class="font-semibold text-amber-800 hover:underline" href="{{url_for('distribuirSalas',edital=edital)}}" onclick="return confirm('Tem certeza ? Não é possível desfazer esta operação!')">
