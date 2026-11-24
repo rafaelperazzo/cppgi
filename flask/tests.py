@@ -447,23 +447,50 @@ def test_cadastro_token_confirmacao():
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
 
-def test_login_bloqueado_email_nao_verificado():
+def test_login_bloqueado_email_nao_verificado(monkeypatch):
+    import pesquisa
+    enviados = []
+    monkeypatch.setattr(pesquisa, 'enviar_email_confirmacao_cadastro',
+                        lambda nome, email, token: enviados.append((email, token)))
     cpf = _cpf_aleatorio()
     try:
         #garante o cliente compartilhado sem sessão antes de checar o bloqueio isoladamente
         with client.session_transaction() as sess:
             sess.clear()
-        _garantir_usuario_teste(cpf, random_char(7), "SenhaDeTesteForte1!", verificado=0)
-        csrf_token = get_csrf_token('/cadastro')
-        response = client.post('/login', data={
-            "csrf_token": csrf_token,
-            "siape": cpf,
-            "senha": "SenhaDeTesteForte1!",
-        }, follow_redirects=True)
+        _garantir_usuario_teste(cpf, random_char(7) + '@teste.com', "SenhaDeTesteForte1!", verificado=0)
+
+        def tentar_login():
+            return client.post('/login', data={
+                "csrf_token": get_csrf_token('/cadastro'),
+                "siape": cpf,
+                "senha": "SenhaDeTesteForte1!",
+            }, follow_redirects=True)
+
+        response = tentar_login()
         assert response.status_code == 200
         assert 'Confirme seu e-mail'.encode() in response.data
+        assert 'Enviamos um novo link'.encode() in response.data
+        assert 'Problemas com o usuario/senha'.encode() not in response.data
         with client.session_transaction() as sess:
             assert 'username' not in sess
+
+        #o login reenviou a confirmação com um token novo, que é o gravado no banco
+        assert len(enviados) == 1
+        linhas, total = executarSelect("SELECT token_verificacao FROM users WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == enviados[0][1]
+
+        #credenciais corretas não contam como falha de login
+        linhas, total = executarSelect("SELECT count(*) FROM tentativas_login WHERE username=%s", 1, valores=(cpf,))
+        assert linhas[0] == 0
+
+        #nova tentativa dentro do intervalo não reenvia
+        response = tentar_login()
+        assert 'enviado recentemente'.encode() in response.data
+        assert len(enviados) == 1
+
+        #o link reenviado confirma o e-mail
+        response = client.get('/confirmarEmail/' + enviados[0][1], follow_redirects=True)
+        assert 'confirmado com sucesso'.encode() in response.data
     finally:
         atualizar("DELETE FROM users WHERE username=%s", (cpf,))
         atualizar("DELETE FROM tentativas_login WHERE username=%s", (cpf,))

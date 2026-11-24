@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlencode, urlparse
 from flask import Flask
 from flask import render_template
-from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort,has_request_context
+from flask import request,url_for,send_from_directory,redirect,flash,session,Response,abort,has_request_context,g
 import datetime
 #import MySQLdb
 import mariadb as MySQLdb
@@ -588,7 +588,8 @@ def autenticar_usuario(username, password):
             return False
         linha = resultado[0]
         if int(linha[6]) == 0:
-            flash(u'Confirme seu e-mail antes de acessar o sistema.')
+            #Senha correta, mas e-mail não confirmado: reenvia o link e avisa /login (que não conta como falha)
+            g.email_nao_confirmado = reenviar_confirmacao_email(int(linha[0]), str(linha[4]), str(linha[5]))
             return False
         forcar = bool(int(linha[7]))
         senha_ok, _ = senha_forte(password)
@@ -1610,6 +1611,10 @@ def login():
         limpar_falhas_login(siape)
         registrar_acesso('/login',request.remote_addr,siape)
         return(redirect(destino or url_for('usuario')))
+    mensagem_email = g.pop('email_nao_confirmado', None)
+    if mensagem_email:
+        #credenciais corretas: não é tentativa de adivinhar senha, então não conta para o bloqueio
+        return(render_template('login.html',mensagem=mensagem_email,next=destino or ''))
     registrar_falha_login(siape, ip)
     return(render_template('login.html',mensagem='Problemas com o usuario/senha.',next=destino or ''))
 
@@ -4397,6 +4402,28 @@ def enviar_email_confirmacao_cadastro(nome, email, token):
                   recipients=[email], html=texto_email)
     t = threading.Thread(target=enviar_email, args=(msg,))
     t.start()
+
+#Intervalo mínimo entre reenvios do link de confirmação disparados pelo /login
+INTERVALO_REENVIO_CONFIRMACAO_MINUTOS = 10
+
+def reenviar_confirmacao_email(id_usuario, nome, email):
+    """Chamado quando o login tem senha correta e e-mail não confirmado: gera novo token (24 h) e reenvia o link,
+    no máximo um envio a cada INTERVALO_REENVIO_CONFIRMACAO_MINUTOS. Devolve a mensagem para a tela de login."""
+    destino = mascarar_email(str(email))
+    #O último envio é deduzido da expiração (sempre NOW() + 24 h no envio); sem token (ex.: conta criada pelo admin) -> envia
+    resultado = executarSelect("""SELECT token_verificacao IS NULL OR token_verificacao_expira IS NULL
+        OR token_verificacao_expira < NOW() + INTERVAL 24 HOUR - INTERVAL %s MINUTE
+        FROM users WHERE id=%s""", tipo=1, valores=(INTERVALO_REENVIO_CONFIRMACAO_MINUTOS, id_usuario))
+    if not (resultado and resultado[0] and int(resultado[0][0])):
+        return (u'Confirme seu e-mail antes de acessar o sistema. Um link de confirmação foi enviado recentemente para '
+                + destino + u' (verifique também a caixa de spam).')
+    token = gerar_token_seguro()
+    atualizar("""UPDATE users SET token_verificacao=%s, token_verificacao_expira=NOW() + INTERVAL 24 HOUR
+                 WHERE id=%s AND email_verificado=0""", (token, id_usuario))
+    enviar_email_confirmacao_cadastro(nome, email, token)
+    logger_auditoria.info('evento=confirmacao_email_reenviada user_id=%s', id_usuario)
+    return (u'Confirme seu e-mail antes de acessar o sistema. Enviamos um novo link de confirmação para '
+            + destino + u' (verifique também a caixa de spam).')
 
 @app.route("/confirmarEmail/<token>", methods=['GET'])
 @log_required
