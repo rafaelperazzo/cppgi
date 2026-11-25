@@ -2524,8 +2524,9 @@ def moderadores_e_sessoes(edital,username=None):
     for linha in linhas:
         chave = str(linha[0])
         if chave not in moderadores:
-            moderadores[chave] = {'username':chave,'senha':str(linha[1]),'email':str(linha[2] or ''),
+            moderadores[chave] = {'username':chave,'senha':str(linha[1]),'email':str(linha[2] or '').strip(),
                                   'nome':str(linha[3] or ''),'sessoes':[]}
+            moderadores[chave]['email_ok'] = email_valido(moderadores[chave]['email'])
         sessao = (str(linha[4]),str(linha[5] or ''),str(linha[6] or ''))
         if sessao not in moderadores[chave]['sessoes']:
             moderadores[chave]['sessoes'].append(sessao)
@@ -2539,8 +2540,9 @@ def processar_emails_instrucoes_moderadores(moderadores,edital):
         link = CPPGI_SITE + 'avaliador/' + str(edital)
         enviados = 0
         for moderador in moderadores:
-            if not moderador['email']:
-                app.logger.error("Moderador sem e-mail, instrucoes nao enviadas: " + moderador['username'])
+            if not email_valido(moderador['email']):
+                #Vazio/inválido: o SMTP recusa com 501 "Bad recipient address syntax"; não adianta tentar
+                app.logger.warning("Moderador sem e-mail valido, instrucoes nao enviadas: " + moderador['username'])
                 continue
             texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,
                                           nome=moderador['nome'],usuario=moderador['username'],senha=moderador['senha'],
@@ -2573,12 +2575,20 @@ def emailInstrucoesAvaliador(edital):
     if not moderadores:
         flash(u"Nenhum moderador de sessão encontrado para este edital.")
         return(redirect(url_for('links_avaliadores',edital=edital) if username else url_for('admin',edital=edital)))
-    t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(moderadores,edital,))
-    t.start()
+    sem_email = [m['nome'] or m['username'] for m in moderadores if not m['email_ok']]
+    validos = [m for m in moderadores if m['email_ok']]
+    if validos:
+        t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(validos,edital,))
+        t.start()
     if username:
-        flash(u"Instruções enviadas para " + moderadores[0]['nome'] + u" (" + moderadores[0]['email'] + u").")
+        if validos:
+            flash(u"Instruções enviadas para " + validos[0]['nome'] + u" (" + validos[0]['email'] + u").")
+        else:
+            flash(u"Instruções NÃO enviadas: " + sem_email[0] + u" está sem e-mail válido. Corrija o e-mail na lista de usuários.")
         return(redirect(url_for('links_avaliadores',edital=edital)))
-    flash(u"Envio das instruções iniciado para " + str(len(moderadores)) + u" moderador(es) de sessão.")
+    flash(u"Envio das instruções iniciado para " + str(len(validos)) + u" moderador(es) de sessão.")
+    if sem_email:
+        flash(u"Sem e-mail válido (não receberão as instruções): " + ", ".join(sem_email) + u". Corrija na lista de usuários.")
     return(redirect(url_for('admin',edital=edital)))
 
 def getDatas(edital):
@@ -4059,7 +4069,11 @@ def cadastrar_usuario(operacao):
         email = request.form['email']
         id_usuario = request.form.get('id_usuario')
         cadastro = int(operacao)==0
-        conflito = _conflito_usuario(username,email,None if cadastro else id_usuario)
+        email = str(email).strip()
+        if not email_valido(email):
+            conflito = u"E-mail inválido: " + email if email else u"Informe o e-mail do usuário."
+        else:
+            conflito = _conflito_usuario(username,email,None if cadastro else id_usuario)
         if cadastro: #Cadastrar
             if conflito:
                 flash(conflito)

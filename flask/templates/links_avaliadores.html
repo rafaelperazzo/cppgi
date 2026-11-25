@@ -31,7 +31,7 @@
             {% for m in moderadores %}
                 <tr>
                     <td>{{m.nome}}</td>
-                    <td>{{m.email}}</td>
+                    <td>{% if m.email_ok %}{{m.email}}{% else %}<span class="font-bold text-red-700">{{m.email or 'SEM E-MAIL'}} (inválido: corrija na lista de usuários)</span>{% endif %}</td>
                     <td>{{m.username}}</td>
                     <td>{{m.senha}}</td>
                     <td>
@@ -44,7 +44,7 @@
                               onsubmit="return confirm('Enviar as instruções de acesso para {{m.nome|e}}?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="username" value="{{m.username}}"/>
-                            <button type="submit" class="btn-outline">Enviar instruções</button>
+                            <button type="submit" class="btn-outline" {% if not m.email_ok %}disabled title="E-mail inválido"{% endif %}>Enviar instruções</button>
                         </form>
                     </td>
                 </tr>
