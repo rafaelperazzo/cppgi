@@ -19,9 +19,11 @@
         <tr>
           <td>{{linha[0]}}</td>
           <td>{{linha[1]}}</td>
-          <td>{{linha[2]}}</td>
+          <td><a class="text-brand-700 hover:underline" href="{{ url_for('apresentacoes', edital=edital, data=linha[4], sala=linha[2]) }}">{{linha[2]}}</a></td>
           <td>{{linha[3]}}</td>
         </tr>
+      {% else %}
+        <tr><td colspan="4">Nenhum avaliador alocado em sala neste edital.</td></tr>
       {% endfor %}
     </tbody>
   </table>

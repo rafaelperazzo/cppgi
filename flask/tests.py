@@ -1800,3 +1800,20 @@ def test_turnstile_templates():
         conteudo = open(WORKING_DIR + 'templates/' + nome, encoding='utf-8').read()
         assert 'challenges.cloudflare.com/turnstile/v0/api.js' in conteudo, nome
         assert 'class="cf-turnstile" data-sitekey="{{ TURNSTILE_KEY }}"' in conteudo, nome
+
+def test_mapaavaliadores():
+    from flask import url_for
+    from markupsafe import escape
+    c = _cliente_admin()
+    assert c.get('/admin/mapaavaliadores').status_code == 400
+    assert c.get('/admin/mapaavaliadores?edital=999999999').status_code == 404
+    assert c.post('/admin/mapaavaliadores?edital=1').status_code == 405
+    linhas, total = executarSelect("SELECT edital, sala, DATE_FORMAT(data,'%Y-%m-%d') FROM usuarios_salas ORDER BY id DESC LIMIT 1")
+    if not linhas:
+        pytest.skip('sem avaliadores alocados em salas no banco de teste')
+    edital, sala, data = (str(v) for v in linhas[0])
+    rv = c.get('/admin/mapaavaliadores?edital=' + edital)
+    assert rv.status_code == 200
+    with app.test_request_context():
+        link = url_for('apresentacoes', edital=edital, data=data, sala=sala)
+    assert 'href="' + str(escape(link)) + '"' in rv.data.decode()

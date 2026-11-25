@@ -2680,31 +2680,30 @@ def admin(edital):
     versao_final_ativo = job_ativo('solicitar_versao_final')
     return(render_template('admin.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,mostrar_pos_avaliacao=mostrar_pos_avaliacao,mostrar_pos_evento=mostrar_pos_evento,scheduler_ativo=scheduler_ativo,versao_final_ativo=versao_final_ativo))
 
-@app.route("/admin/mapaavaliadores", methods=['GET', 'POST'])
+@app.route("/admin/mapaavaliadores", methods=['GET'])
 @login_required(role=['admin'])
 @log_required
 def mapaavaliadores():
-    if request.method == "GET":
-        if 'edital' in request.args:
-            edital = str(request.args.get('edital'))
-            nome_edital = obterColunaUnica('editais','nome','id',edital)
-            titulo = u"AVALIADORES"
-            consulta = """
-            SELECT u.nome,
-            DATE_FORMAT(us.data,'%d/%m/%Y'),
-            us.sala,
-            us.area
-            FROM users as u
-            LEFT JOIN usuarios_salas as us on u.username=us.username
-            WHERE us.edital=%s
-            ORDER by us.area,us.data,us.sala
-            """
-            linhas,total = executarSelect(consulta,valores=(edital,))
-            return(render_template('mapa_avaliadores.html',edital=edital,titulo=titulo,nome_edital=nome_edital,root=CPPGI_SITE,linhas=linhas))
-        else:
-            return ("OK")
-    else:
-        return("OK")
+    """Mapa dos moderadores/avaliadores de sessão de um edital, com link para cada sessão (/apresentacoes, o mesmo de organizacao)."""
+    edital = request.args.get('edital', '').strip()
+    if not edital:
+        abort(400, description="Informe o edital (?edital=<id>).")
+    nome_edital = obterColunaUnica('editais','nome','id',edital)
+    if nome_edital == "0":
+        abort(404, description="Edital não encontrado.")
+    consulta = """
+    SELECT u.nome,
+    DATE_FORMAT(us.data,'%d/%m/%Y'),
+    us.sala,
+    us.area,
+    DATE_FORMAT(us.data,'%Y-%m-%d')
+    FROM users AS u
+    INNER JOIN usuarios_salas AS us ON u.username=us.username
+    WHERE us.edital=%s
+    ORDER BY us.area,us.data,us.sala,u.nome
+    """
+    linhas,total = executarSelect(consulta,valores=(edital,))
+    return(render_template('mapa_avaliadores.html',edital=edital,titulo=u"AVALIADORES",nome_edital=nome_edital,root=CPPGI_SITE,linhas=linhas,total=total))
 
 @app.route("/gerarCertificadoAvaliador", methods=['GET'])
 @login_required(role=['avaliador'])
@@ -4606,7 +4605,7 @@ ROTAS_ADMIN_LEGADAS = [
     ("/emailInstrucoes/<edital>", "emailInstrucoes", ["GET", "POST"]),
     ("/emailPosEvento", "emailPosEvento", ["GET", "POST"]),
     ("/emailInstrucoesAvaliador/<edital>", "emailInstrucoesAvaliador", ["GET", "POST"]),
-    ("/mapaavaliadores", "mapaavaliadores", ["GET", "POST"]),
+    ("/mapaavaliadores", "mapaavaliadores", ["GET"]),
     ("/emailSolicitarAvaliacao", "email_solicitar_avaliacao", ["GET", "POST"]),
     ("/toggleSchedulerAvaliadores", "toggle_scheduler_avaliadores", ["GET"]),
     ("/notasApresentacoes/<edital>", "notasApresentacoes", ["GET", "POST"]),
