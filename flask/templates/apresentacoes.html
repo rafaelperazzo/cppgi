@@ -60,10 +60,10 @@
         <td>
           {% if 'avaliador' in roles %}
               {% if linha[4]==0 %}
-                <a class="text-brand-700 hover:underline" href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
+                <a class="text-brand-700 hover:underline" href="{{ url_for('confirmar', id=linha[0], edital=edital, sala=sala, data=data_iso) }}">Avaliar apresentação</a>
               {% else %}
                 <p class="mb-1 inline-block rounded bg-brand-600 px-2 py-1 font-semibold text-white">APRESENTADO</p>
-                <a class="text-brand-700 hover:underline" href='/cppgi/confirmar?id={{linha[0]}}'>Avaliar apresentação</a>
+                <a class="text-brand-700 hover:underline" href="{{ url_for('confirmar', id=linha[0], edital=edital, sala=sala, data=data_iso) }}">Avaliar apresentação</a>
               {% endif %}
           {% endif %}
         </td>

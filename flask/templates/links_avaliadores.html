@@ -13,21 +13,40 @@
 </div>
 <a href="{{url_for('admin',edital=edital)}}" class="btn-outline mb-4 inline-block">Voltar para página anterior</a>
 
+<p class="mb-4">Link do módulo avaliador (o mesmo para todos): <a class="text-brand-700 hover:underline" href="{{link}}" target="_blank">{{link}}</a></p>
+
 <div class="table-wrapper">
     <table class="table-base">
         <thead>
             <tr>
               <th>Nome</th>
               <th>E-mail</th>
-              <th>Link Avaliador</th>
+              <th>Login</th>
+              <th>Senha</th>
+              <th>Sessões</th>
+              <th>Instruções</th>
             </tr>
         </thead>
         <tbody>
-            {% for linha in linhas %}
+            {% for m in moderadores %}
                 <tr>
-                    <td>{{linha[5]}}</td>
-                    <td>{{linha[2]}}</td>
-                    <td><a class="text-brand-700 hover:underline" href="{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}" target="_blank">{{PREFIXO}}{{linha[0]}}:{{linha[1]}}@{{ROOT_SITE}}/cppgi/avaliador/{{edital}}</a></td>
+                    <td>{{m.nome}}</td>
+                    <td>{{m.email}}</td>
+                    <td>{{m.username}}</td>
+                    <td>{{m.senha}}</td>
+                    <td>
+                        {% for sala, data, sala_link in m.sessoes %}
+                            <div>{{sala}}{% if data %} ({{data}}){% endif %}</div>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <form action="{{url_for('emailInstrucoesAvaliador',edital=edital)}}" method="POST"
+                              onsubmit="return confirm('Enviar as instruções de acesso para {{m.nome|e}}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="username" value="{{m.username}}"/>
+                            <button type="submit" class="btn-outline">Enviar instruções</button>
+                        </form>
+                    </td>
                 </tr>
             {%endfor%}
         </tbody>

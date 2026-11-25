@@ -23,7 +23,7 @@
 {% endblock %}
 
 {% block content %}
-<form name="frmAvaliacao" action="/cppgi/confirmar" method="POST" class="flex flex-col gap-4">
+<form name="frmAvaliacao" action="{{ url_for('confirmar') }}" method="POST" class="flex flex-col gap-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
   <div class="alert-info"><h3 class="text-lg font-bold">Arquivos do projeto</h3></div>
@@ -34,6 +34,9 @@
   {% endif %}
 
   <input type="hidden" id="idProjeto" name="idProjeto" value="{{id}}">
+  <input type="hidden" name="edital" value="{{edital}}">
+  <input type="hidden" name="sala" value="{{sala}}">
+  <input type="hidden" name="data" value="{{data}}">
 
   <div class="alert-info"><h2 class="text-lg font-bold">FORMULÁRIO DE AVALIAÇÃO</h2></div>
 

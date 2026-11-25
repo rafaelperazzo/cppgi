@@ -1663,10 +1663,18 @@ def test_templates_sem_credencial_na_url():
 def test_email_instrucoes_avaliador_link_sem_credencial():
     from flask import render_template
     with app.app_context():
-        html = render_template('email_instrucoes_avaliador.html', evento='E', nome_longo='E', cpf='12345678901',
-                               senha='SenhaX', edital=7, sala='S1', sala_link='L', server_host='host.exemplo')
+        html = render_template('email_instrucoes_avaliador.html', evento='E', nome_longo='E', nome='Fulano',
+                               usuario='Fulano.Tal', senha='SenhaX', link='https://host.exemplo/cppgi/avaliador/7',
+                               sessoes=[('S1', '25/11/2026', 'https://sala.exemplo/s1'), ('S2', '26/11/2026', '')])
     assert 'https://host.exemplo/cppgi/avaliador/7' in html and '@host.exemplo' not in html
-    assert '12345678901' in html and 'SenhaX' in html
+    assert 'Fulano.Tal' in html and 'SenhaX' in html
+    assert 'S1' in html and '25/11/2026' in html and 'https://sala.exemplo/s1' in html and 'S2' in html
+
+def test_email_instrucoes_avaliador_so_por_post():
+    """GET não dispara e-mail em massa (só redireciona); o envio é por POST com CSRF."""
+    c = _cliente_admin()
+    rv = c.get('/admin/emailInstrucoesAvaliador/999999')
+    assert rv.status_code == 302 and '/admin/emailInstrucoesAvaliador' not in rv.headers['Location']
 
 '''
 **************************************************************

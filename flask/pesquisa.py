@@ -414,6 +414,7 @@ def enviar_email(msg):
             mail.send(msg)
 
 def atualizar(consulta,valores=None):
+    """Executa um comando de escrita. Retorna True se deu certo e False se o banco recusou (erro já logado)."""
     conn = MySQLdb.connect(host=DATABASE_HOST, user="cppgi", passwd=PASSWORD, db="cppgi")
     conn.autocommit = True
     conn.select_db('cppgi')
@@ -424,11 +425,13 @@ def atualizar(consulta,valores=None):
         else:
             cursor.execute(consulta,valores)
         conn.commit()
+        return True
     except MySQLdb.Error as e:
-        
+
         logging.error(e)
         logging.error(consulta)
-        
+        return False
+
     finally:
         cursor.close()
         conn.close()
@@ -1865,38 +1868,24 @@ def distribuir(local,turno,uas,trabalhos):
     '''
     Distribui os trabalhos orais de forma igualitária entre as salas, considerando
     65% do total de cada UA para o primeiro dia e o restante para o segundo dia.
+    Retorna a quantidade de trabalhos que ficaram sem sala/horário (faltaram vagas).
     '''
-    #Distribuindo os trabalhos para a ua
-    quantidades_por_dia = []
-    for ua in uas:
-        quantidades_por_dia.append(math.ceil(ua*0.65))
-    #logging.debug(quantidades_por_dia)
-    k = 0
-    #DISTRIBUINDO 65% DOS TRABALHOS DE CADA UA
+    quantidades_por_dia = [math.ceil(ua*0.65) for ua in uas]
+    ordem = [] #(trabalho) na ordem de alocação: 65% de cada UA, depois o restante de cada UA
     for i in range(0,len(uas),1):
-        for j in range(0,quantidades_por_dia[i],1):
-            #logging.debug(trabalhos[i][j][0])
-            try:
-                atualizar("UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s",(local[k],trabalhos[i][j][0]))
-                atualizar("UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s",(turno[k],trabalhos[i][j][0]))
-                #Para todos começarem no primeiro horário, usar turno[0] no lugar de turno[k] acima
-                logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
-            except IndexError:
-                logging.error('(distribuir)Erro no indice: ' + str(i))
-                break
-            k = k + 1
-    #DISTRIBUINDO OS DEMAIS TRABALHOS
+        ordem.extend(trabalhos[i][:quantidades_por_dia[i]])
     for i in range(0,len(uas),1):
-        for j in range(quantidades_por_dia[i],len(trabalhos[i]),1):
-            #logging.debug(trabalhos[i][j][0])
-            try:
-                atualizar("UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s",(local[k],trabalhos[i][j][0]))
-                atualizar("UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s",(turno[k],trabalhos[i][j][0]))
-                logging.debug(str(trabalhos[i][j][0]) + ' - ' + local[k] + ' - ' + turno[k])
-            except IndexError:
-                logging.error('(distribuir)Erro no indice: ' + str(i))
-                break
-            k = k + 1
+        ordem.extend(trabalhos[i][quantidades_por_dia[i]:])
+    vagas = min(len(local),len(turno))
+    for k,trabalho in enumerate(ordem[:vagas]):
+        atualizar("UPDATE editalProjeto SET local_apresentacao=%s WHERE id=%s",(local[k],trabalho[0]))
+        atualizar("UPDATE editalProjeto SET data_apresentacao=%s WHERE id=%s",(turno[k],trabalho[0]))
+        logging.debug(str(trabalho[0]) + ' - ' + local[k] + ' - ' + turno[k])
+    sem_vaga = len(ordem) - vagas
+    if sem_vaga > 0:
+        logging.warning('(distribuir) %s trabalho(s) orais sem sala/horário: %s vagas para %s trabalhos', sem_vaga, vagas, len(ordem))
+        return sem_vaga
+    return 0
             
 def distribuirIgualmente(local,turno,linhas,edital):
     cv  = []
@@ -1914,24 +1903,11 @@ def distribuirIgualmente(local,turno,linhas,edital):
         else:
             hu.append(entrada)
     
-    #Recuperando a quantidade de trabalhos por UA
-    consulta = """
-    SELECT count(*) FROM editalProjeto WHERE tipo=%s AND valendo=1 and categoria=0 AND situacao=1 GROUP BY ua ORDER BY ua
-    """
-    dados,total = executarSelect(consulta,valores=(edital,))
-    uas = []
-    for dado in dados:
-        uas.append(dado[0])
-    
-    #Recuperando a quantidade de salas para apresentações orais
-    consulta = """
-    SELECT id FROM salas WHERE edital=%s
-    """
-    salas,orais = executarSelect(consulta,valores=(edital,))
-    orais = orais - 1 #Removendo as "salas de posters"
-    
+    #Quantidade de trabalhos por UA, alinhada com as listas acima (um GROUP BY ua à parte
+    #desalinhava as posições quando alguma UA não tinha trabalhos)
     trabalhos_uas = [cv,ct,hu]
-    distribuir(local,turno,uas,trabalhos_uas)
+    uas = [len(lista) for lista in trabalhos_uas]
+    return distribuir(local,turno,uas,trabalhos_uas)
 
 @app.route("/admin/distribuirSalas", methods=['GET', 'POST'])
 @login_required(role=['admin'])
@@ -1951,7 +1927,9 @@ def distribuirSalas():
              ORDER BY ua DESC,area_cnpq,subarea_cnpq,
             modalidade DESC,media1 DESC,nome,titulo"""
             principal,total = executarSelect(consulta_principal,valores=(edital,))
-            distribuirIgualmente(local_todos,turno_todos,principal,edital)
+            sem_vaga = distribuirIgualmente(local_todos,turno_todos,principal,edital)
+            if sem_vaga:
+                flash(str(sem_vaga) + u" apresentação(ões) oral(is) ficaram sem sala/horário: faltam vagas (" + str(min(len(local_todos),len(turno_todos))) + u" horários para " + str(total) + u" trabalhos). Cadastre mais salas/horários e distribua novamente.")
             
             #POSTERS
             consulta_principal = """SELECT id FROM editalProjeto WHERE valendo=1 AND situacao=1 AND categoria=1 AND tipo=%s ORDER BY ua,area_cnpq,subarea_cnpq,nome,titulo"""
@@ -2242,7 +2220,7 @@ def apresentacoes():
                 consulta = """SELECT id,nome,titulo,DATE_FORMAT(editalProjeto.data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE local_apresentacao=%s AND tipo=%s and valendo=1 and situacao=1 and DATE(data_apresentacao)=%s ORDER BY ua,data_apresentacao"""                
                 linhas,total = executarSelect(consulta,valores=(sala,edital,data))
                 link = getLinkSala(edital,sala)
-                return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,link=link,roles=session['roles']))
+                return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,edital=edital,data_iso=data,link=link,roles=session['roles']))
             else: #POSTER
                 if 'ua' in request.args:
                     ua = int(request.args.get('ua'))
@@ -2256,7 +2234,7 @@ def apresentacoes():
                     consulta = """SELECT id,nome,titulo,DATE_FORMAT(data_apresentacao,'%d/%m/%Y - %H:%i') as data,apresentou,arquivo_projeto_final,ua,link_apresentacao FROM editalProjeto WHERE situacao=1 AND categoria=1 AND tipo=%s and valendo=1 ORDER BY ua,local_apresentacao,data_apresentacao"""
                 linhas,total = executarSelect(consulta,valores=(edital,))
                 
-                return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,roles=session['roles']))
+                return(render_template('apresentacoes.html',linhas=linhas,total=total,nome_edital=nome_edital,sala=sala,data=data_formatada,edital=edital,data_iso=data,roles=session['roles']))
         else:
             return("OK")
     else:
@@ -2505,54 +2483,80 @@ def emailPosEvento():
     else:
         return("OK")
 
-def processar_emails_instrucoes_moderadores(linhas,edital):
+def moderadores_e_sessoes(edital,username=None):
+    """
+    Moderadores de sessão do edital, um item por pessoa com todas as suas sessões:
+    [{'username','senha','email','nome','sessoes':[(sala,data dd/mm/aaaa,link da sala)]}], por nome.
+    """
+    consulta = """
+    SELECT users.username,users.password,users.email,users.nome,
+    usuarios_salas.sala,DATE_FORMAT(usuarios_salas.data,'%d/%m/%Y'),sala_link.link
+    FROM users
+    INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
+    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
+    WHERE usuarios_salas.edital=%s AND (%s IS NULL OR users.username=%s)
+    ORDER BY users.nome,usuarios_salas.data,usuarios_salas.sala
+    """
+    linhas,total = executarSelect(consulta,valores=(edital,username,username))
+    moderadores = {}
+    for linha in linhas:
+        chave = str(linha[0])
+        if chave not in moderadores:
+            moderadores[chave] = {'username':chave,'senha':str(linha[1]),'email':str(linha[2] or ''),
+                                  'nome':str(linha[3] or ''),'sessoes':[]}
+        sessao = (str(linha[4]),str(linha[5] or ''),str(linha[6] or ''))
+        if sessao not in moderadores[chave]['sessoes']:
+            moderadores[chave]['sessoes'].append(sessao)
+    return list(moderadores.values())
+
+def processar_emails_instrucoes_moderadores(moderadores,edital):
+    """Um e-mail por moderador, com login, senha e todas as suas sessões (sala, data, link)."""
     with app.app_context():
         nome_edital = obterColunaUnica('editais','nome','id',edital)
         nome_longo = obterColunaUnica('editais','nome_longo','id',edital)
-        for linha in linhas:
-            cpf = str(linha[0])
-            senha = str(linha[1])
-            email_avaliador = str(linha[2])
-            sala = str(linha[3])
-            sala_link = str(linha[4] or '')
-            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,cpf=cpf,senha=senha,edital=edital,sala=sala,sala_link=sala_link,server_host=SERVER_HOST)
-            if PRODUCAO==1:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[email_avaliador],reply_to=NAO_RESPONDA,html=texto_email)
-            else:
-                msg = Message(subject = nome_edital + u"- ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=['rafaelperazzo@gmail.com'],reply_to=NAO_RESPONDA,html=texto_email)
+        link = CPPGI_SITE + 'avaliador/' + str(edital)
+        enviados = 0
+        for moderador in moderadores:
+            if not moderador['email']:
+                app.logger.error("Moderador sem e-mail, instrucoes nao enviadas: " + moderador['username'])
+                continue
+            texto_email = render_template('email_instrucoes_avaliador.html',evento=nome_edital,nome_longo=nome_longo,
+                                          nome=moderador['nome'],usuario=moderador['username'],senha=moderador['senha'],
+                                          sessoes=moderador['sessoes'],link=link)
+            destinatario = moderador['email'] if PRODUCAO==1 else 'rafaelperazzo@gmail.com'
+            msg = Message(subject = nome_edital + u" - ORIENTAÇÕES SOBRE A AVALIAÇÃO",recipients=[destinatario],reply_to=NAO_RESPONDA,html=texto_email)
             try:
-                if PRODUCAO==1:
-                    mail.send(msg)
-                else:
-                    mail.send(msg)
-                    break
+                mail.send(msg)
+                enviados = enviados + 1
             except Exception as e:
                 app.logger.error("Erro ao processar emails com instrucoes para moderadores: " + str(e))
+            if PRODUCAO!=1:
+                break
+        app.logger.info("Instrucoes para moderadores do edital %s: %s e-mail(s) enviado(s) de %s", edital, enviados, len(moderadores))
 
 @app.route("/admin/emailInstrucoesAvaliador/<edital>", methods=['GET', 'POST'])
 @login_required(role=['admin'])
 @log_required
 def emailInstrucoesAvaliador(edital):
     """
-    Envia os e-mails (todos) com as instruções para os moderadores de sessões
+    Envia os e-mails com as instruções para os moderadores de sessões: todos (POST sem username)
+    ou só um (POST com username, botão em links_avaliadores.html). Envio só por POST (CSRF):
+    um GET (clique, pré-carregamento do navegador) não pode disparar e-mail em massa.
     """
-    consulta = """
-    SELECT DISTINCT 
-    usuarios_salas.username,
-    users.password,
-    users.email,
-    usuarios_salas.sala,
-    sala_link.link 
-    FROM users
-    INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
-    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
-    WHERE usuarios_salas.edital=%s
-    ORDER BY usuarios_salas.username
-    """
-    linhas,total=executarSelect(consulta,valores=(edital,))
-    t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(linhas,edital,))
+    if request.method == "GET":
+        flash(u"Use o botão da página do edital para enviar as instruções aos moderadores.")
+        return(redirect(url_for('admin',edital=edital)))
+    username = (request.form.get('username') or '').strip() or None
+    moderadores = moderadores_e_sessoes(edital,username)
+    if not moderadores:
+        flash(u"Nenhum moderador de sessão encontrado para este edital.")
+        return(redirect(url_for('links_avaliadores',edital=edital) if username else url_for('admin',edital=edital)))
+    t = threading.Thread(target=processar_emails_instrucoes_moderadores,args=(moderadores,edital,))
     t.start()
-    flash("E-mails enviados com sucesso!")
+    if username:
+        flash(u"Instruções enviadas para " + moderadores[0]['nome'] + u" (" + moderadores[0]['email'] + u").")
+        return(redirect(url_for('links_avaliadores',edital=edital)))
+    flash(u"Envio das instruções iniciado para " + str(len(moderadores)) + u" moderador(es) de sessão.")
     return(redirect(url_for('admin',edital=edital)))
 
 def getDatas(edital):
@@ -2677,18 +2681,24 @@ def gerarCertificadoAvaliador():
     """
     Emite o certificado do moderador de sessões
     """
-    template = obterColunaUnica('editais','certificado_moderador','id',session['edital'])
-    nome = session['nome']
+    #O edital vem no link (?edital=); a sessão é só fallback para links antigos
+    edital = str(request.args.get('edital') or session.get('edital') or '').strip()
+    if not edital.isdigit():
+        flash(u"Acesse o certificado a partir da página do módulo avaliador do evento.")
+        return(redirect(url_for('home')))
+    session['edital'] = edital
+    template = obterColunaUnica('editais','certificado_moderador','id',edital)
+    nome = session.get('nome') or getNome(str(session['username']))
     token = id_generator(40)
-    periodo = obterColunaUnica('editais','periodo','id',session['edital'])
-    evento = obterColunaUnica('editais','nome_longo','id',session['edital'])
-    local = obterColunaUnica('editais','local','id',session['edital'])
+    periodo = obterColunaUnica('editais','periodo','id',edital)
+    evento = obterColunaUnica('editais','nome_longo','id',edital)
+    local = obterColunaUnica('editais','local','id',edital)
 
     consulta = "SELECT id,username FROM usuarios_salas WHERE username=%s AND edital=%s AND compareceu=1"
-    linhas,total = executarSelect(consulta, valores=(session['username'],session['edital']))
+    linhas,total = executarSelect(consulta, valores=(session['username'],edital))
     if not linhas:
         flash("Nenhuma avaliação foi realizada até o momento!")
-        return(redirect(url_for('avaliador',edital=session['edital'])))
+        return(redirect(url_for('avaliador',edital=edital)))
 
     #Recuperando template
     background = modelo_certificado_base64(template)
@@ -2862,6 +2872,24 @@ def certificadoIndividual(id_certificado):
             app.logger.error(str(e))
             return ("Erro ao gerar certificado", 500)
 
+def _contexto_sessao_avaliacao(id_projeto,origem):
+    """
+    (edital, sala, data) da sessão de apresentações em que o trabalho está sendo avaliado.
+    Prioridade: valores enviados no link/formulário > sessão Flask (links antigos) > o próprio trabalho
+    (tipo, local_apresentacao, DATE(data_apresentacao)). Não depende só da sessão: ela some com
+    novo login/outra aba e causava KeyError depois de gravar a avaliação (sem marcar compareceu).
+    """
+    edital = origem.get('edital') or session.get('edital')
+    sala = origem.get('sala') or session.get('sala')
+    data = origem.get('data') or session.get('data')
+    if not (edital and sala and data):
+        linhas,total = executarSelect("SELECT tipo,local_apresentacao,DATE_FORMAT(data_apresentacao,'%Y-%m-%d') FROM editalProjeto WHERE id=%s",valores=(id_projeto,))
+        if linhas:
+            edital = edital or (str(linhas[0][0]) if linhas[0][0] is not None else '')
+            sala = sala or (str(linhas[0][1]) if linhas[0][1] is not None else '')
+            data = data or (str(linhas[0][2]) if linhas[0][2] is not None else '')
+    return (str(edital or ''),str(sala or ''),str(data or ''))
+
 @app.route("/confirmar", methods=['GET', 'POST'])
 @login_required(role=['avaliador','admin'])
 @log_required
@@ -2873,7 +2901,8 @@ def confirmar():
             titulo = obterColunaUnica('editalProjeto','titulo','id',id)
             arquivo = obterColunaUnica('editalProjeto','arquivo_projeto','id',id)
             final = obterColunaUnica('editalProjeto','arquivo_projeto_final','id',id)
-            return(render_template('avaliacao_orais.html',titulo=titulo,arquivo=arquivo,final=final,id=id))
+            edital,sala,data = _contexto_sessao_avaliacao(id,request.args)
+            return(render_template('avaliacao_orais.html',titulo=titulo,arquivo=arquivo,final=final,id=id,edital=edital,sala=sala,data=data))
         else:
             return("ERRO")
     elif request.method == "POST":
@@ -2890,8 +2919,9 @@ def confirmar():
         
         comentarios = str(request.form['txtComentarios'])
         id = str(request.form['idProjeto'])
-        local = obterColunaUnica('editalProjeto','local_apresentacao','id',id)
         edital = obterColunaUnica('editalProjeto','tipo','id',id)
+        edital_sessao,sala,data = _contexto_sessao_avaliacao(id,request.form)
+        destino = url_for('apresentacoes',edital=edital_sessao,sala=sala,data=data)
         consulta = "UPDATE editalProjeto SET apresentou=1 WHERE id=%s"
         atualizar(consulta,valores=(id,))
         verificar = """
@@ -2902,16 +2932,18 @@ def confirmar():
             consulta = """INSERT INTO avaliacoes_orais (idProjeto,c1,c2,c3,c4,comentarios,avaliador) VALUES (%s,%s,%s,%s,%s,%s,%s) """
             valores = (int(id),c1,c2,c3,c4,comentarios,avaliador)
             inserir(consulta,valores)
-        else:
-            flash("Apresentação já avaliada anteriormente!")
-            return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
+        #Marca presença também no reenvio: se uma tentativa anterior gravou a avaliação e falhou antes
+        #deste UPDATE, o reenvio (que cai em "já avaliada") corrige o compareceu do avaliador.
         consulta = """
         UPDATE usuarios_salas SET compareceu=1
         WHERE username=%s AND edital=%s AND sala=%s AND data=%s
         """
-        atualizar(consulta,valores=(session['username'],edital,session['sala'],session['data']))
+        atualizar(consulta,valores=(session['username'],edital,sala,data))
+        if total!=0:
+            flash("Apresentação já avaliada anteriormente!")
+            return(redirect(destino))
         flash("Avaliação registrada com sucesso!")
-        return(redirect('/cppgi/apresentacoes?edital=' + session['edital'] + '&sala=' + session['sala'] + '&data='+session['data']))
+        return(redirect(destino))
     else:
         return("ERRO")
 
@@ -3967,6 +3999,19 @@ def salvar_local_data():
     atualizar(consulta,(local,data,categoria,modalidade,obs,apresentou,id_projeto))
     return("OK")
 
+def _conflito_usuario(username,email,id_ignorar=None):
+    """
+    Mensagem de erro se o username ou o e-mail já pertencem a outro usuário (chaves únicas
+    unico_username/unico_email); None se estiver livre. id_ignorar = o próprio usuário, na edição.
+    """
+    consulta = "SELECT id,username,email FROM users WHERE (username=%s OR email=%s) AND id<>%s"
+    linhas,total = executarSelect(consulta,valores=(username,email,int(id_ignorar or 0)))
+    for linha in linhas:
+        if str(linha[1]).lower()==str(username).lower():
+            return(u"Já existe um usuário com o login " + str(username) + u".")
+        return(u"O e-mail " + str(email) + u" já está cadastrado para outro usuário (" + str(linha[1]) + u").")
+    return None
+
 @app.route("/admin/cadastrar_usuario/<operacao>", methods=['GET','POST'])
 @login_required(role=['admin'])
 @log_required
@@ -3990,23 +4035,32 @@ def cadastrar_usuario(operacao):
         roles = request.form['roles']
         nome = request.form['nome']
         email = request.form['email']
-        if 'id_usuario' in request.form:
-            id_usuario = request.form['id_usuario']
-        if int(operacao)==0: #Cadastrar
+        id_usuario = request.form.get('id_usuario')
+        cadastro = int(operacao)==0
+        conflito = _conflito_usuario(username,email,None if cadastro else id_usuario)
+        if cadastro: #Cadastrar
+            if conflito:
+                flash(conflito)
+                return(redirect(url_for('cadastrar_usuario',operacao=0)))
             consulta = """
             INSERT INTO users (username,password,permission,roles,nome,email)
             VALUES (%s,%s,%s,%s,%s,%s)
             """
-            atualizar(consulta,valores=(username,password,permission,roles,nome,email))
+            if not atualizar(consulta,valores=(username,password,permission,roles,nome,email)):
+                flash(u"Não foi possível cadastrar o usuário. Verifique os dados e tente novamente.")
+                return(redirect(url_for('cadastrar_usuario',operacao=0)))
             flash(u"Usuário cadastrado com sucesso!")
             return(redirect(url_for('cadastrar_usuario',operacao=1)))
-        else: #Atualizar
+        else: #Atualizar (edição inline em listar_usuarios.html, via AJAX)
+            if conflito:
+                return(conflito, 409)
             consulta = """
             UPDATE users SET username=%s,password=%s,permission=%s,roles=%s,nome=%s,
             email=%s
             WHERE id=%s
             """
-            atualizar(consulta,valores=(username,password,permission,roles,nome,email,id_usuario))
+            if not atualizar(consulta,valores=(username,password,permission,roles,nome,email,id_usuario)):
+                return(u"Não foi possível salvar as alterações do usuário.", 500)
             return("OK")
 
 @app.route("/admin/remover_usuario/<id_usuario>", methods=['GET','POST'])
@@ -4315,29 +4369,12 @@ def links_avaliadores(edital):
     """
     Lista os links para os moderadores de sessões
     """
-    consulta = """
-    SELECT DISTINCT 
-    usuarios_salas.username,
-    users.password,
-    users.email,
-    usuarios_salas.sala,
-    sala_link.link,
-    users.nome
-    FROM users
-    INNER JOIN usuarios_salas ON users.username = usuarios_salas.username
-    LEFT JOIN sala_link ON usuarios_salas.sala = sala_link.sala AND sala_link.edital = usuarios_salas.edital
-    WHERE usuarios_salas.edital=%s
-    ORDER BY usuarios_salas.username
-    """
-    linhas,total=executarSelect(consulta,valores=(edital,))
+    moderadores = moderadores_e_sessoes(edital)
     nome_longo = obterColunaUnica('editais','nome_longo','id',str(edital))
-    url = ROOT_SITE.replace('https://','')
-    url = ROOT_SITE.replace('http://','')
-    prefixo = 'https://'
-    if 'http://' in ROOT_SITE:
-        prefixo = 'http://'
-    
-    return (render_template('links_avaliadores.html',linhas=linhas,edital=edital,nome_longo=nome_longo,ROOT_SITE=url,PREFIXO=prefixo))
+    #Link simples para o módulo avaliador: o login_required manda para /login?next=... e volta para cá.
+    #Nunca usar https://usuario:senha@host (era do HTTP Basic, removido; navegadores bloqueiam).
+    link = CPPGI_SITE + 'avaliador/' + str(edital)
+    return (render_template('links_avaliadores.html',moderadores=moderadores,edital=edital,nome_longo=nome_longo,link=link))
 
 @app.route("/cadastro", methods=['GET', 'POST'])
 @log_required

@@ -172,8 +172,14 @@
               <td>Envia os e-mails com as instruções de apresentação para os apresentadores</td>
             </tr>
             <tr>
-              <td><a class="text-brand-700 hover:underline" href="{{url_for('emailInstrucoesAvaliador',edital=edital)}}">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</a></td>
-              <td>Envia os e-mails para os moderadores de sessões, com as instruções para avaliação das apresentações</td>
+              <td>
+                <form action="{{url_for('emailInstrucoesAvaliador',edital=edital)}}" method="POST"
+                      onsubmit="return confirm('Enviar as instruções para TODOS os moderadores de sessão deste edital?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <button type="submit" class="text-left text-brand-700 hover:underline">ENVIAR E-MAIL COM INSTRUÇÕES PARA OS MODERADORES DE SESSÃO</button>
+                </form>
+              </td>
+              <td>Envia os e-mails para TODOS os moderadores de sessões, com as instruções para avaliação das apresentações. Para enviar a um moderador só, use a <a class="text-brand-700 hover:underline" href="{{url_for('links_avaliadores',edital=edital)}}">lista de avaliadores</a>.</td>
             </tr>
             <tr>
               <td><a class="text-brand-700 hover:underline" href="{{url_for('premiados',edital=edital)}}">LISTA DE TRABALHOS PREMIADOS</a></td>
