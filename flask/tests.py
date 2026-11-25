@@ -1670,6 +1670,19 @@ def test_email_instrucoes_avaliador_link_sem_credencial():
     assert 'Fulano.Tal' in html and 'SenhaX' in html
     assert 'S1' in html and '25/11/2026' in html and 'https://sala.exemplo/s1' in html and 'S2' in html
 
+def test_avaliadores_exige_login_e_menu_sempre_mostra_moderador():
+    """O card do moderador não depende de edital aberto: aponta para /avaliadores, que pede login."""
+    c = app.test_client()
+    assert url_for_teste('avaliadores') in c.get('/').data.decode()
+    rv = c.get('/avaliadores')
+    assert rv.status_code == 302 and '/login' in rv.headers['Location'] and 'avaliadores' in rv.headers['Location']
+    assert _cliente_admin().get('/avaliadores').status_code == 200
+
+def url_for_teste(endpoint):
+    from flask import url_for
+    with app.test_request_context():
+        return url_for(endpoint)
+
 def test_email_instrucoes_avaliador_so_por_post():
     """GET não dispara e-mail em massa (só redireciona); o envio é por POST com CSRF."""
     c = _cliente_admin()

@@ -805,6 +805,28 @@ def home():
     editaisAbertos = getEditaisAbertos()
     return (render_template('menu.html',editais=editaisAbertos))
 
+@app.route("/avaliadores")
+@login_required(role=['avaliador','admin'])
+@log_required
+def avaliadores():
+    """
+    Entrada do moderador de sessões (card "Moderador de Sessões" do menu), independente de haver
+    edital com submissão aberta: login_required leva ao /login e volta para cá. Lista os editais em
+    que o usuário tem sessões (admin: editais com sessões distribuídas); com um só, vai direto para ele.
+    """
+    if 'admin' in session['roles']:
+        consulta = """SELECT DISTINCT editais.id,editais.nome FROM usuarios_salas
+        INNER JOIN editais ON editais.id = usuarios_salas.edital ORDER BY editais.id DESC"""
+        editais,total = executarSelect(consulta)
+    else:
+        consulta = """SELECT DISTINCT editais.id,editais.nome FROM usuarios_salas
+        INNER JOIN editais ON editais.id = usuarios_salas.edital
+        WHERE usuarios_salas.username=%s ORDER BY editais.id DESC"""
+        editais,total = executarSelect(consulta,valores=(str(session['username']),))
+    if len(editais)==1 and 'admin' not in session['roles']:
+        return(redirect(url_for('avaliador',edital=editais[0][0])))
+    return(render_template('avaliadores.html',editais=editais))
+
 @app.route("/submissao")
 @log_required
 def submissao():

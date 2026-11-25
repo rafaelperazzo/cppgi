@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block title %}Moderador de Sessões{% endblock %}
+
+{% block page_header %}
+<h1 class="page-title">MÓDULO AVALIADOR</h1>
+<h2 class="page-subtitle">MODERADOR DE SESSÕES</h2>
+{% endblock %}
+
+{% block content %}
+{% if editais %}
+  <p class="mb-4 text-slate-700">Escolha o evento para ver suas sessões, os trabalhos e o certificado de moderador:</p>
+  <div class="flex flex-col items-center gap-2">
+    {% for edital in editais %}
+      <a class="btn-primary" href="{{ url_for('avaliador', edital=edital[0]) }}">{{ edital[1] }}</a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert-warning">
+    <b>Você não está cadastrado(a) como moderador(a) de nenhuma sessão.</b>
+    Em caso de dúvida, entre em contato com {{ SUPORTE }}.
+  </div>
+{% endif %}
+<div class="mt-4 flex justify-center">
+  <a class="btn-outline" href="{{ url_for('home') }}">Voltar ao início</a>
+</div>
+{% endblock %}
